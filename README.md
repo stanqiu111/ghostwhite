@@ -20,7 +20,7 @@ The authors claiming copyright, if they wish to be known, can list their names h
 | ------------- | --------------- |
 | Krystal Kim   | rlawndms        |
 | Evelyn Nguyen | LinhNguyen310   |
-|  |  |
+| Stan Qiu      | stanqiu111      |
 |  |  |
 |  |  |
 |  |  |

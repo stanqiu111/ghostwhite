@@ -22,5 +22,5 @@ The authors claiming copyright, if they wish to be known, can list their names h
 | Evelyn Nguyen | LinhNguyen310   |
 | Stan Qiu      | stanqiu111      |
 | Ximeng Duan   | XimengDuan      |
-|  |  |
+| Michael Yang  | MichaelY223     |
 |  |  |

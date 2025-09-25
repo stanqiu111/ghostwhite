@@ -18,7 +18,7 @@ The authors claiming copyright, if they wish to be known, can list their names h
 
 | Name          | GitHub Username |
 | ------------- | --------------- |
-| Krystal Kim   | rlawndms        |
+| Jueun Kim     | rlawndms        |
 | Evelyn Nguyen | LinhNguyen310   |
 | Stan Qiu      | stanqiu111      |
 | Ximeng Duan   | XimengDuan      |

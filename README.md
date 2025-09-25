@@ -23,4 +23,4 @@ The authors claiming copyright, if they wish to be known, can list their names h
 | Stan Qiu      | stanqiu111      |
 | Ximeng Duan   | XimengDuan      |
 | Michael Yang  | MichaelY223     |
-|  |  |
+| Shuran Kong   | arinnaaa        |

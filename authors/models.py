@@ -5,6 +5,7 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 import uuid
+from nodes.models import Node
 
 
 # Customize User model and Authentication: https://medium.com/django-unleashed/a-quick-way-to-customize-authentication-backends-user-manager-user-and-permissions-in-django-54f9359e31eb
@@ -42,6 +43,7 @@ class Author(AbstractBaseUser, PermissionsMixin):
     image = models.ImageField(upload_to="author_images/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="authors")
 
     # required by Django Admin
     is_active = models.BooleanField(default=True)

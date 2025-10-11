@@ -36,7 +36,20 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
-3. How to register/ login
+4. Create a local node - for local development:
+
+```
+python manage.py shell
+
+from nodes.models import Node
+Node.objects.create(
+    host_url="http://localhost:8000",
+    is_local=True
+)
+exit()
+```
+
+5. How to register/ login
    Import the following Postman Collection and change the user name/ password
 
 ```

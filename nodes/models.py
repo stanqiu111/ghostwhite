@@ -7,8 +7,9 @@ class Node(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     host_url = models.URLField()
     is_local = models.BooleanField(
-        default=False
-    )  # To differentiate between local and external nodes
+        default=False,
+        unique=True,
+    )  # To differentiate between local and external nodes, for every env we only allow one local node
     api_key = models.CharField(max_length=255, blank=True)  # For external API calls
 
     def __str__(self):

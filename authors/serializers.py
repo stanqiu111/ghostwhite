@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import Author
+from nodes.models import Node
 
 
 class AuthorSerializer(serializers.ModelSerializer):
@@ -41,5 +42,8 @@ class AuthorRegistrationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop("password2")
+        password2 = validated_data.pop("password2")
+        local_node = Node.objects.get(is_local=True)
+        validated_data["node"] = local_node
+
         return Author.objects.create_user(**validated_data)

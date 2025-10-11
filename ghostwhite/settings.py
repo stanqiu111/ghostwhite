@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
 ]
 
-AUTH_USER_MODEL = "authors.User"
+AUTH_USER_MODEL = "authors.Author"
 
 # How to set up JWT For Django https://django-rest-framework-simplejwt.readthedocs.io/en/latest/
 REST_FRAMEWORK = {

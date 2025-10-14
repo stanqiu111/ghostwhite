@@ -26,7 +26,7 @@ class EntryRetrieveView(generics.RetrieveAPIView):
     """Retrieve a single entry by ID"""
 
     serializer_class = EntryRetrieveSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny] # this allows anyone with link can view the entry
 
     def get_queryset(self):
         if self.request.user.is_authenticated and self.request.user.is_staff:

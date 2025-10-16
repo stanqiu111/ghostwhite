@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
 from .models import Entry, Comment, EntryLike, CommentLike
 from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
+from django.views.decorators.csrf import csrf_exempt
 
 
 class EntryListView(generics.ListAPIView):
@@ -26,7 +27,7 @@ class EntryRetrieveView(generics.RetrieveAPIView):
     """Retrieve a single entry by ID"""
 
     serializer_class = EntryRetrieveSerializer
-    permission_classes = [AllowAny] # this allows anyone with link can view the entry
+    permission_classes = [AllowAny]  # this allows anyone with link can view the entry
 
     def get_queryset(self):
         if self.request.user.is_authenticated and self.request.user.is_staff:
@@ -71,51 +72,63 @@ class EntryDeleteView(generics.DestroyAPIView):
 
         instance.soft_delete()
 
-def _ensure_fingerprint(request) -> str:
-    """Use the session key as a simple per-user fingerprint for like de-dup."""
-    if not request.session.session_key:
-        request.session.save()
-    return request.session.session_key
 
-
+@csrf_exempt
 def add_comment(request, pk):
     """
     Create a Comment for the given entry and redirect to the entry detail.
     - Only accept POST
     - username and content required; username <= 32
     """
+    print("hello")
     entry = get_object_or_404(Entry, pk=pk)
 
     if request.method != "POST":
-        return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": entry.id}))
+        return HttpResponseRedirect(
+            reverse("entries:entry-detail", kwargs={"pk": entry.id})
+        )
 
-    username = (request.POST.get("username") or "").strip()
+    author = request.user
     content = (request.POST.get("content") or "").strip()
 
-    if username and content and len(username) <= 32:
-        Comment.objects.create(entry=entry, username=username, content=content)
+    if content:
+        Comment.objects.create(entry=entry, author=author, content=content)
 
-    return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": entry.id}))
+    return HttpResponseRedirect(
+        reverse("entries:entry-detail", kwargs={"pk": entry.id})
+    )
+
 
 def like_entry(request, pk):
     entry = get_object_or_404(Entry, pk=pk)
-    fp = _ensure_fingerprint(request)
+    author = request.user
     like, created = EntryLike.objects.get_or_create(entry=entry, fingerprint=fp)
-    if not created:
+    if created:
         like.delete()
-    return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": entry.id}))
+    else:
+        like.save()
+    return HttpResponseRedirect(
+        reverse("entries:entry-detail", kwargs={"pk": entry.id})
+    )
+
 
 def like_comment(request, pk, comment_id):
     # pk is present in URL for consistency, but we derive the entry from the comment
     comment = get_object_or_404(Comment, pk=comment_id)
-    fp = _ensure_fingerprint(request)
-    like, created = CommentLike.objects.get_or_create(comment=comment, fingerprint=fp)
-    if not created:
+    like, created = CommentLike.objects.get_or_create(comment=comment, author=author)
+    if created:
         like.delete()
-    return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": comment.entry_id}))
-        
-#For testing
+    else:
+        like.save()
+    return HttpResponseRedirect(
+        reverse("entries:entry-detail", kwargs={"pk": comment.entry_id})
+    )
+
+
+# For testing
 def entry_detail_page(request, pk):
     entry = get_object_or_404(Entry, pk=pk)
     comments = entry.comments.order_by("-created_at")
-    return render(request, "entries/detail.html", {"entry": entry, "comments": comments})
+    return render(
+        request, "entries/detail.html", {"entry": entry, "comments": comments}
+    )

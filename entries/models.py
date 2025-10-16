@@ -45,13 +45,16 @@ class Entry(models.Model):
         """We are marking the entry as deleted instead of deleting it because we want to keep the entry in the database so admin/is_staff can see it"""
         self.deleted_at = timezone.now()
         self.save()
-        
+
     def like_count(self):
         return self.entrylike_set.count()
 
+
 class Comment(models.Model):
     entry = models.ForeignKey(Entry, on_delete=models.CASCADE, related_name="comments")
-    username = models.CharField(max_length=32)
+    author = models.ForeignKey(
+        Author, on_delete=models.CASCADE, related_name="comments"
+    )
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -61,17 +64,25 @@ class Comment(models.Model):
     @property
     def like_count(self) -> int:
         return self.commentlike_set.count()
-    
+
+
 class EntryLike(models.Model):
     entry = models.ForeignKey(Entry, on_delete=models.CASCADE)
+    author = models.ForeignKey(
+        Author, on_delete=models.CASCADE, related_name="entrylikes"
+    )
     fingerprint = models.CharField(max_length=64, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ("entry", "fingerprint")
 
+
 class CommentLike(models.Model):
     comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
+    author = models.ForeignKey(
+        Author, on_delete=models.CASCADE, related_name="commentlikes"
+    )
     fingerprint = models.CharField(max_length=64, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -1,13 +1,10 @@
 from django.shortcuts import get_object_or_404, render
-from .models import Entry, Comment, EntryLike, CommentLike
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from rest_framework import generics, status
+from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
-from django.db import models
-from django.utils import timezone
+from .models import Entry, Comment, EntryLike, CommentLike
 from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
 
 
@@ -75,56 +72,50 @@ class EntryDeleteView(generics.DestroyAPIView):
         instance.soft_delete()
 
 def _ensure_fingerprint(request) -> str:
-    """
-    Use the session key as a simple per-user fingerprint for like de-duplication.
-    """
+    """Use the session key as a simple per-user fingerprint for like de-dup."""
     if not request.session.session_key:
         request.session.save()
     return request.session.session_key
 
-def add_comment(request, posting_id):
-    """
-    Create a Comment for the given question and redirect to results.
-    Requirements:
-    - 404 if question_id invalid
-    - Only create when username and content are provided and valid
-    - username <= 32 chars (enforced here and by the model)
-    - Always redirect back to results page after processing
-    """
-    posting = get_object_or_404(Entry, pk=posting_id)
 
-    # Only accept POST; otherwise just redirect to results
+def add_comment(request, pk):
+    """
+    Create a Comment for the given entry and redirect to the entry detail.
+    - Only accept POST
+    - username and content required; username <= 32
+    """
+    entry = get_object_or_404(Entry, pk=pk)
+
     if request.method != "POST":
-        return HttpResponseRedirect(reverse("entries:detail", args=(posting.id,)))
+        return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": entry.id}))
 
     username = (request.POST.get("username") or "").strip()
     content = (request.POST.get("content") or "").strip()
 
     if username and content and len(username) <= 32:
-        Comment.objects.create(
-            posting=posting,
-            username=username,
-            content=content,
-        )
+        Comment.objects.create(entry=entry, username=username, content=content)
 
-    # If invalid or missing fields, do NOT create anything — just redirect
-    return HttpResponseRedirect(reverse("entries:results", args=(posting.id,)))
+    return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": entry.id}))
 
-def like_entry(request, posting_id):
-    posting = get_object_or_404(Entry, pk=posting_id)
+def like_entry(request, pk):
+    entry = get_object_or_404(Entry, pk=pk)
     fp = _ensure_fingerprint(request)
-    like, created = EntryLike.objects.get_or_create(posting = posting, fingerprint = fp)
+    like, created = EntryLike.objects.get_or_create(entry=entry, fingerprint=fp)
     if not created:
         like.delete()
-    return HttpResponseRedirect(reverse("entries:detail", args=(posting.id,)))
+    return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": entry.id}))
 
-def like_comment(request, comment_id):
-    comment = get_object_or_404(Comment,pk=comment_id)
+def like_comment(request, pk, comment_id):
+    # pk is present in URL for consistency, but we derive the entry from the comment
+    comment = get_object_or_404(Comment, pk=comment_id)
     fp = _ensure_fingerprint(request)
-    like, created = CommentLike.objects.get_or_create(comment = comment, fingerprint = fp)
+    like, created = CommentLike.objects.get_or_create(comment=comment, fingerprint=fp)
     if not created:
         like.delete()
-    return HttpResponseRedirect(reverse("entries:detail", args=(comment.posting.id,)))
-
+    return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": comment.entry_id}))
         
-
+#For testing
+def entry_detail_page(request, pk):
+    entry = get_object_or_404(Entry, pk=pk)
+    comments = entry.comments.order_by("-created_at")
+    return render(request, "entries/detail.html", {"entry": entry, "comments": comments})

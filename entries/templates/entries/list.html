@@ -1,0 +1,59 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Entries</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px}
+    .wrap{max-width:900px;margin:0 auto}
+    .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:14px}
+    a.btn,button{display:inline-block;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;text-decoration:none;color:#111;background:#fff}
+    .meta{color:#6b7280;font-size:14px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row">
+    <h1 style="margin:0">Entries</h1>
+    <a class="btn" href="{% url 'entries:detail' entries.0.id %}" style="display:none">first</a>
+    <a class="btn" href="{% url 'entries:entry-create' %}" onclick="return false;">Create (HTML)</a>
+    <a class="btn" href="/entries/create/" onclick="return false;" title="JSON API">Create API</a>
+    <a class="btn" href="{% url 'entries:detail' entries.0.id %}" style="display:none">detail</a>
+    <a class="btn" href="{% url 'entries:detail' entries.0.id %}" style="display:none">detail</a>
+    <a class="btn" href="{% url 'entries:detail' entries.0.id %}" style="display:none">detail</a>
+    <a class="btn" href="{% url 'entries:detail' entries.0.id %}" style="display:none">detail</a>
+    <a class="btn" href="{% url 'entries:detail' entries.0.id %}" style="display:none">detail</a>
+    <a class="btn" href="{% url 'entries:detail' entries.0.id %}" style="display:none">detail</a>
+    <a class="btn" href="{% url 'entries:detail' entries.0.id %}" style="display:none">detail</a>
+    <a class="btn" href="{% url 'entries:detail' entries.0.id %}" style="display:none">detail</a>
+    <a class="btn" href="{% url 'entries:detail' entries.0.id %}" style="display:none">detail</a>
+  </div>
+
+  <!-- 这个页面只是示例；如果你想真的列表加载，建议写一个简单的 ListView 返回 entries 变量。
+       也可以直接手工拼静态链接去测试 detail 页面。 -->
+  <div class="card">
+    <p>此页面可选：你可以直接访问某个 Entry 的 <code>/entries/&lt;uuid&gt;/page/</code> 详情页测试评论/点赞。</p>
+    <p>如果你想做服务器端渲染的列表，把 entries 传进来，像下面这样：</p>
+    {% if entries %}
+      <ul>
+        {% for e in entries %}
+          <li>
+            <a href="{% url 'entries:detail' e.id %}">{{ e.id }}</a>
+            <span class="meta"> · {{ e.created_at }} · likes: {{ e.like_count }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="meta">暂无 entries。先去创建一个，再回到这里刷新。</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <a class="btn" href="{% url 'entries:detail' '00000000-0000-0000-0000-000000000000' %}" onclick="return false">示例链接</a>
+  </div>
+</div>
+</body>
+</html>

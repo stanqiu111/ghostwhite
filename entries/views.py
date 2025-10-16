@@ -7,6 +7,10 @@ from rest_framework.exceptions import PermissionDenied
 from .models import Entry, Comment, EntryLike, CommentLike
 from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework import generics, status
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
 
 
 class EntryListView(generics.ListAPIView):
@@ -73,38 +77,29 @@ class EntryDeleteView(generics.DestroyAPIView):
         instance.soft_delete()
 
 
-
-from rest_framework import generics, status
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
-
 # -------------------------------------------------------------------------
 # COMMENTS AND LIKES AS DRF VIEWS (API, no direct request.POST)
 # -------------------------------------------------------------------------
-
 class CommentCreateView(generics.CreateAPIView):
     """
     POST /entries/<uuid:pk>/comments/
     Create a new comment for a specific entry.
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, *args, **kwargs):
         entry = get_object_or_404(Entry, pk=pk)
-        username = request.user.username or "Anonymous"
         content = (request.data.get("content") or "").strip()
+        author = request.user
 
         if not content:
-            return Response({"detail": "Content is required."},
-                            status=status.HTTP_400_BAD_REQUEST)
-        if len(username) > 32:
-            return Response({"detail": "Username too long."},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Content is required."}, status=status.HTTP_400_BAD_REQUEST
+            )
 
-        Comment.objects.create(entry=entry, username=username, content=content)
-        return Response({"detail": "Comment added."},
-                        status=status.HTTP_201_CREATED)
+        Comment.objects.create(entry=entry, author=author, content=content)
+        return Response({"detail": "Comment added."}, status=status.HTTP_201_CREATED)
 
 
 class EntryLikeToggleView(generics.DestroyAPIView):
@@ -112,19 +107,19 @@ class EntryLikeToggleView(generics.DestroyAPIView):
     POST /entries/<uuid:pk>/like/
     Toggle a like on an entry for the current user/session.
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, *args, **kwargs):
         entry = get_object_or_404(Entry, pk=pk)
-        fp = _ensure_fingerprint(request)
 
-        like, created = EntryLike.objects.get_or_create(entry=entry, fingerprint=fp)
+        like, created = EntryLike.objects.get_or_create(
+            entry=entry, author=request.user
+        )
         if not created:
             like.delete()
-            return Response({"detail": "Like removed."},
-                            status=status.HTTP_200_OK)
-        return Response({"detail": "Like added."},
-                        status=status.HTTP_201_CREATED)
+            return Response({"detail": "Like removed."}, status=status.HTTP_200_OK)
+        return Response({"detail": "Like added."}, status=status.HTTP_201_CREATED)
 
 
 class CommentLikeToggleView(generics.DestroyAPIView):
@@ -132,16 +127,21 @@ class CommentLikeToggleView(generics.DestroyAPIView):
     POST /entries/<uuid:pk>/comments/<int:comment_id>/like/
     Toggle a like on a comment for the current user/session.
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, comment_id, *args, **kwargs):
         comment = get_object_or_404(Comment, pk=comment_id)
-        fp = _ensure_fingerprint(request)
 
-        like, created = CommentLike.objects.get_or_create(comment=comment, fingerprint=fp)
+        like, created = CommentLike.objects.get_or_create(
+            comment=comment,
+            author=request.user,
+        )
         if not created:
             like.delete()
-            return Response({"detail": "Comment like removed."},
-                            status=status.HTTP_200_OK)
-        return Response({"detail": "Comment like added."},
-                        status=status.HTTP_201_CREATED)
+            return Response(
+                {"detail": "Comment like removed."}, status=status.HTTP_200_OK
+            )
+        return Response(
+            {"detail": "Comment like added."}, status=status.HTTP_201_CREATED
+        )

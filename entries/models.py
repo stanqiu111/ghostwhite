@@ -71,11 +71,7 @@ class EntryLike(models.Model):
     author = models.ForeignKey(
         Author, on_delete=models.CASCADE, related_name="entrylikes"
     )
-    fingerprint = models.CharField(max_length=64, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ("entry", "fingerprint")
 
 
 class CommentLike(models.Model):
@@ -83,8 +79,4 @@ class CommentLike(models.Model):
     author = models.ForeignKey(
         Author, on_delete=models.CASCADE, related_name="commentlikes"
     )
-    fingerprint = models.CharField(max_length=64, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ("comment", "fingerprint")

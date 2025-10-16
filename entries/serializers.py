@@ -1,16 +1,28 @@
 from rest_framework import serializers
-from .models import Entry
+from .models import Entry, Comment
 from authors.serializers import AuthorSerializer
 from nodes.serializers import NodeSerializer
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = [
+            "id",
+            "content",
+            "created_at",
+        ]
 
 
 class EntryRetrieveSerializer(serializers.ModelSerializer):
     author = AuthorSerializer()
     node = NodeSerializer()
+    comments = CommentSerializer(many=True)
 
     class Meta:
         model = Entry
         fields = [
+            "comments",
             "id",
             "author",
             "content",

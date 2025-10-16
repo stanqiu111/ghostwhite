@@ -78,44 +78,74 @@ def _ensure_fingerprint(request) -> str:
     return request.session.session_key
 
 
-def add_comment(request, pk):
+from rest_framework import generics, status
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
+
+# -------------------------------------------------------------------------
+# COMMENTS AND LIKES AS DRF VIEWS (API, no direct request.POST)
+# -------------------------------------------------------------------------
+
+class CommentCreateView(generics.CreateAPIView):
     """
-    Create a Comment for the given entry and redirect to the entry detail.
-    - Only accept POST
-    - username and content required; username <= 32
+    POST /entries/<uuid:pk>/comments/
+    Create a new comment for a specific entry.
     """
-    entry = get_object_or_404(Entry, pk=pk)
+    permission_classes = [IsAuthenticated]
 
-    if request.method != "POST":
-        return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": entry.id}))
+    def post(self, request, pk, *args, **kwargs):
+        entry = get_object_or_404(Entry, pk=pk)
+        username = request.user.username or "Anonymous"
+        content = (request.data.get("content") or "").strip()
 
-    username = (request.POST.get("username") or "").strip()
-    content = (request.POST.get("content") or "").strip()
+        if not content:
+            return Response({"detail": "Content is required."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if len(username) > 32:
+            return Response({"detail": "Username too long."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-    if username and content and len(username) <= 32:
         Comment.objects.create(entry=entry, username=username, content=content)
+        return Response({"detail": "Comment added."},
+                        status=status.HTTP_201_CREATED)
 
-    return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": entry.id}))
 
-def like_entry(request, pk):
-    entry = get_object_or_404(Entry, pk=pk)
-    fp = _ensure_fingerprint(request)
-    like, created = EntryLike.objects.get_or_create(entry=entry, fingerprint=fp)
-    if not created:
-        like.delete()
-    return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": entry.id}))
+class EntryLikeToggleView(generics.DestroyAPIView):
+    """
+    POST /entries/<uuid:pk>/like/
+    Toggle a like on an entry for the current user/session.
+    """
+    permission_classes = [IsAuthenticated]
 
-def like_comment(request, pk, comment_id):
-    # pk is present in URL for consistency, but we derive the entry from the comment
-    comment = get_object_or_404(Comment, pk=comment_id)
-    fp = _ensure_fingerprint(request)
-    like, created = CommentLike.objects.get_or_create(comment=comment, fingerprint=fp)
-    if not created:
-        like.delete()
-    return HttpResponseRedirect(reverse("entries:entry-detail", kwargs={"pk": comment.entry_id}))
-        
-#For testing
-def entry_detail_page(request, pk):
-    entry = get_object_or_404(Entry, pk=pk)
-    comments = entry.comments.order_by("-created_at")
-    return render(request, "entries/detail.html", {"entry": entry, "comments": comments})
+    def post(self, request, pk, *args, **kwargs):
+        entry = get_object_or_404(Entry, pk=pk)
+        fp = _ensure_fingerprint(request)
+
+        like, created = EntryLike.objects.get_or_create(entry=entry, fingerprint=fp)
+        if not created:
+            like.delete()
+            return Response({"detail": "Like removed."},
+                            status=status.HTTP_200_OK)
+        return Response({"detail": "Like added."},
+                        status=status.HTTP_201_CREATED)
+
+
+class CommentLikeToggleView(generics.DestroyAPIView):
+    """
+    POST /entries/<uuid:pk>/comments/<int:comment_id>/like/
+    Toggle a like on a comment for the current user/session.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk, comment_id, *args, **kwargs):
+        comment = get_object_or_404(Comment, pk=comment_id)
+        fp = _ensure_fingerprint(request)
+
+        like, created = CommentLike.objects.get_or_create(comment=comment, fingerprint=fp)
+        if not created:
+            like.delete()
+            return Response({"detail": "Comment like removed."},
+                            status=status.HTTP_200_OK)
+        return Response({"detail": "Comment like added."},
+                        status=status.HTTP_201_CREATED)

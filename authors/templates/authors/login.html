@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -284,6 +285,7 @@
       </form>
     </div>
 
+    <script src="{% static 'js/api.js' %}"></script>
     <script>
       let isSignupMode = false; // for login mode, we only shows 1 password input, for signup mode, we shows 2 password inputs
 
@@ -360,10 +362,8 @@
           };
           fetch("/api/authors/login/", {
             method: "POST",
+            headers: getHeaders(),
             body: JSON.stringify(data),
-            headers: {
-              "Content-Type": "application/json",
-            },
           })
             .then((response) => response.json())
             .then((data) => {
@@ -411,7 +411,11 @@
             bio: "",
             github_url: "",
           };
-          apiPost("/api/authors/register/", data)
+          fetch("/api/authors/register/", {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+          })
             .then((response) => response.json())
             .then((data) => {
               console.log(data);

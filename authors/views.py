@@ -39,3 +39,6 @@ class AuthorRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+def profile_page(request):
+    return render(request, "profile_page.html")

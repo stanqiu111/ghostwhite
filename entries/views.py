@@ -112,9 +112,10 @@ class EntryLikeToggleView(generics.DestroyAPIView):
 
     def post(self, request, pk, *args, **kwargs):
         entry = get_object_or_404(Entry, pk=pk)
+        author = request.user.author
 
         like, created = EntryLike.objects.get_or_create(
-            entry=entry, author=request.user
+            entry=entry, author= author
         )
         if not created:
             like.delete()
@@ -132,10 +133,11 @@ class CommentLikeToggleView(generics.DestroyAPIView):
 
     def post(self, request, pk, comment_id, *args, **kwargs):
         comment = get_object_or_404(Comment, pk=comment_id)
+        author = request.user.author
 
         like, created = CommentLike.objects.get_or_create(
             comment=comment,
-            author=request.user,
+            author=author
         )
         if not created:
             like.delete()

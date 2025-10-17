@@ -46,37 +46,33 @@ class Entry(models.Model):
         self.deleted_at = timezone.now()
         self.save()
 
+    @property
     def like_count(self):
-        return self.entrylike_set.count()
+        return self.likes.count()
+
 
 
 class Comment(models.Model):
     entry = models.ForeignKey(Entry, on_delete=models.CASCADE, related_name="comments")
-    author = models.ForeignKey(
-        Author, on_delete=models.CASCADE, related_name="comments"
-    )
+    author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="comments")
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.username}: {self.content[:20]}"
+        return f"{self.author.username}: {self.content[:20]}"
 
     @property
-    def like_count(self) -> int:
-        return self.commentlike_set.count()
+    def like_count(self):
+        return self.likes.count()
 
 
 class EntryLike(models.Model):
-    entry = models.ForeignKey(Entry, on_delete=models.CASCADE)
-    author = models.ForeignKey(
-        Author, on_delete=models.CASCADE, related_name="entrylikes"
-    )
+    entry = models.ForeignKey(Entry, on_delete=models.CASCADE, related_name="likes")
+    author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="entrylikes")
     created_at = models.DateTimeField(auto_now_add=True)
 
 
 class CommentLike(models.Model):
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
-    author = models.ForeignKey(
-        Author, on_delete=models.CASCADE, related_name="commentlikes"
-    )
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="likes")
+    author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="commentlikes")
     created_at = models.DateTimeField(auto_now_add=True)

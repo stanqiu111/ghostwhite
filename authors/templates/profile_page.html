@@ -5,6 +5,8 @@
   <meta charset="utf-8">
   <title>Profile Setting Page</title>
   <link rel="stylesheet" href="{% static 'authors/profile.css' %}">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -16,13 +18,13 @@
     <form class="search" role="search">
         <input id = "search" type="search" placeholder="Search...">
             <button class="search-btn" >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg width="29" height="29" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M9.58342 18.125C4.87508 18.125 1.04175 14.2917 1.04175 9.58333C1.04175 4.875 4.87508 1.04167 9.58342 1.04167C14.2917 1.04167 18.1251 4.875 18.1251 9.58333C18.1251 14.2917 14.2917 18.125 9.58342 18.125ZM9.58342 2.29167C5.55841 2.29167 2.29175 5.56667 2.29175 9.58333C2.29175 13.6 5.55841 16.875 9.58342 16.875C13.6084 16.875 16.8751 13.6 16.8751 9.58333C16.8751 5.56667 13.6084 2.29167 9.58342 2.29167Z" fill="#909090"/>
                     <path d="M18.3333 18.9583C18.175 18.9583 18.0166 18.9 17.8916 18.775L16.225 17.1083C15.9833 16.8667 15.9833 16.4667 16.225 16.225C16.4666 15.9833 16.8666 15.9833 17.1083 16.225L18.775 17.8917C19.0166 18.1333 19.0166 18.5333 18.775 18.775C18.65 18.9 18.4916 18.9583 18.3333 18.9583Z" fill="#909090"/>
                 </svg>
             </button>
             <button class="clear-search" >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg width="30" height="30" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M10 18.9583C5.05835 18.9583 1.04169 14.9417 1.04169 9.99999C1.04169 5.05832 5.05835 1.04166 10 1.04166C14.9417 1.04166 18.9584 5.05832 18.9584 9.99999C18.9584 14.9417 14.9417 18.9583 10 18.9583ZM10 2.29166C5.75002 2.29166 2.29169 5.74999 2.29169 9.99999C2.29169 14.25 5.75002 17.7083 10 17.7083C14.25 17.7083 17.7084 14.25 17.7084 9.99999C17.7084 5.74999 14.25 2.29166 10 2.29166Z" fill="#909090"/>
                     <path d="M7.64165 12.9833C7.48332 12.9833 7.32499 12.925 7.19999 12.8C6.95832 12.5583 6.95832 12.1583 7.19999 11.9167L11.9167 7.19999C12.1583 6.95832 12.5583 6.95832 12.8 7.19999C13.0417 7.44165 13.0417 7.84165 12.8 8.08332L8.08332 12.8C7.96665 12.925 7.79999 12.9833 7.64165 12.9833Z" fill="#909090"/>
                     <path d="M12.3583 12.9833C12.2 12.9833 12.0417 12.925 11.9167 12.8L7.19999 8.08332C6.95832 7.84165 6.95832 7.44165 7.19999 7.19999C7.44165 6.95832 7.84165 6.95832 8.08332 7.19999L12.8 11.9167C13.0417 12.1583 13.0417 12.5583 12.8 12.8C12.675 12.925 12.5167 12.9833 12.3583 12.9833Z" fill="#909090"/>
@@ -30,10 +32,14 @@
             </button>
     </form>    
     <ul class="nav-toolbar">
-        <li><button class="primary">+ Create</button></li>
+        <li>
+          <button class="create-button">
+            <span class="plus">+</span>
+            <span class="text">Create</span>
+          </button>
         <li>
           <button class="bell icon">
-            <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg width="40" height="37" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M13 6.97665V10.5842" stroke="#292D32" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round"/>
               <path d="M22.3059 16.4342C23.0967 17.7558 22.4684 19.4675 21.0059 19.955C15.8275 21.6775 10.2267 21.6775 5.04838 19.955C3.48838 19.435 2.89255 17.8533 3.74838 16.4342L5.12422 14.1375C5.50338 13.5092 5.80672 12.3933 5.80672 11.6675V9.39249C5.80672 5.39499 9.03505 2.16666 13.0217 2.16666C16.9867 2.16666 20.2367 5.41666 20.2367 9.38166V11.6567C20.2367 11.8517 20.2584 12.0683 20.2909 12.2958" stroke="#292D32" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round"/>
               <path d="M16.6075 20.3883C16.6075 22.3708 14.9825 23.9958 13 23.9958C12.0141 23.9958 11.1041 23.5842 10.4541 22.9342C9.80412 22.2842 9.39246 21.3742 9.39246 20.3883" stroke="#292D32" stroke-width="1.5" stroke-miterlimit="10"/>
@@ -42,7 +48,10 @@
 
           </button>
         </li>
-        <li><img class="avatar sm" id="smallAvatar" alt="User Avatar"></li>
+        <li><img class="avatar sm" id="smallAvatar" 
+                 src="{% static 'authors/avatar1.png' %}"
+                 alt="User Avatar">
+        </li>
     </ul>
   </nav>
 
@@ -55,17 +64,31 @@
       
 
       <section class="profile-stats">
-        <h2 class = "profile-name" id="profile-name">Reze</h2>
+        <h2 class="profile-name" id="profile-name">Reze</h2>
         <ul class="stats">
-          <li id="statEntries">200<br>Entries</li>
-          <li id="statFollowers">100<br>Followers</li>
-          <li id="statFollowing">105<br>Following</li>
+          <li id="statEntries">
+            <span class="num">200</span><br>
+            <span class="label">Entries</span>
+          </li>
+          <li id="statFollowers">
+            <span class="num">100</span><br>
+            <span class="label">Followers</span>
+          </li>
+          <li id="statFollowing">
+            <span class="num">105</span><br>
+            <span class="label">Following</span>
+          </li>
         </ul>
       </section>
 
       <section class="friends">
         <h3>Friends</h3>
-        <ul class="friend-grid" id="friendsGrid"></ul>
+        <ul class="friend-grid" id="friendsGrid"><li><img src="https://i.pravatar.cc/80?img=1" alt="Friend 1"></li>
+            <li><img src="https://i.pravatar.cc/80?img=2" alt="Friend 2"></li>
+            <li><img src="https://i.pravatar.cc/80?img=3" alt="Friend 3"></li>
+            <li><img src="https://i.pravatar.cc/80?img=4" alt="Friend 4"></li>
+            <li><img src="https://i.pravatar.cc/80?img=5" alt="Friend 5"></li>
+        </ul>
       </section>
     </section>
 
@@ -92,7 +115,7 @@
           </label>
         </section>
 
-        <button id="saveBtn" class="primary" type="submit">Save</button>
+        <button id="saveBtn" class="saveBtn" type="submit">Save</button>
       </form>
 
       <hr>
@@ -100,9 +123,14 @@
       <section class="entries">
         <h3>Entries</h3>
         <ul class="gallery" id="entriesGallery">
+              <li><img src="https://i.pravatar.cc/200?img=10" alt="Entry 1"></li>
+              <li><img src="https://i.pravatar.cc/200?img=11" alt="Entry 2"></li>
+              <li><img src="https://i.pravatar.cc/200?img=12" alt="Entry 3"></li>
+              <li><img src="https://i.pravatar.cc/200?img=13" alt="Entry 4"></li>
+              <li><img src="https://i.pravatar.cc/200?img=14" alt="Entry 5"></li>
           <li class="upload-tile no-image">
             <button class="upload-btn" type="button">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                <svg width="35" height="35" viewBox="0 0 24 24" fill="none"
                 xmlns="http://www.w3.org/2000/svg">
                 <path d="M18 6C17.39 6 16.83 5.65 16.55 5.11L15.83 3.66C15.37 2.75 14.17 2 13.15 2H10.86C9.83005 2 8.63005 2.75 8.17005 3.66L7.45005 5.11C7.17004 5.65 6.61005 6 6.00005 6C3.83005 6 2.11005 7.83 2.25005 9.99L2.77005 18.25C2.89005 20.31 4.00005 22 6.76005 22H17.24C20 22 21.1 20.31 21.23 18.25L21.75 9.99C21.89 7.83 20.17 6 18 6ZM10.5 7.25H13.5C13.91 7.25 14.25 7.59 14.25 8C14.25 8.41 13.91 8.75 13.5 8.75H10.5C10.09 8.75 9.75005 8.41 9.75005 8C9.75005 7.59 10.09 7.25 10.5 7.25ZM12 18.12C10.14 18.12 8.62005 16.61 8.62005 14.74C8.62005 12.87 10.13 11.36 12 11.36C13.87 11.36 15.38 12.87 15.38 14.74C15.38 16.61 13.86 18.12 12 18.12Z"
                     fill="white" />
@@ -118,7 +146,7 @@
   <script>
 
     function buildAuthHeaders(extra = {}) {
-      const token = localStorage.getItem('access');
+      const token = localStorage.getItem('access'); //not sure, may change later
       const headers = { ...extra };
       if (token) headers['Authorization'] = `Bearer ${token}`;
       return headers;
@@ -130,17 +158,18 @@
          })
         .then(r => r.json()).then(d => {
           document.getElementById('username').value = d.username || '';
-          if (d.display_name) {
+          if (d.display_name) { //no auth for now, display plain text
             document.getElementById('profile-name').textContent = d.display_name;
           }
           document.getElementById('display_name').value = d.display_name || '';
           document.getElementById('github_url').value = d.github_url || '';
           document.getElementById('bio').value = d.bio || '';
-          document.getElementById('mainAvatar').src = d.image || '';
-          document.getElementById('smallAvatar').src = d.image || '';
+          document.getElementById('mainAvatar').src = d.image || document.getElementById('smallAvatar').src; //upload img for testing
+          document.getElementById('smallAvatar').src = d.image || document.getElementById('smallAvatar').src; //upload img for testing
         });
     }
     document.addEventListener('input', (e) => {
+      //change the display name: profile detail & name under main avatar
       if (e.target && e.target.id === 'display_name') {
         const v = e.target.value.trim();
         if (v) document.getElementById('profile-name').textContent = v;

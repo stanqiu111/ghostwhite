@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Éthéré - Login</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background-color: #f5f5f5;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .login-container {
+        background-color: #f5f5f5;
+        padding: 40px;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 400px;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 40px;
+      }
+
+      .logo {
+        width: 24px;
+        height: 24px;
+        background-color: #000;
+        border-radius: 50%;
+        margin-right: 12px;
+      }
+
+      .brand-name {
+        font-size: 24px;
+        font-weight: 600;
+        color: #000;
+        letter-spacing: -0.5px;
+      }
+
+      .form-group {
+        margin-bottom: 24px;
+      }
+
+      .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: #000;
+        margin-bottom: 8px;
+      }
+
+      .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 16px;
+        background-color: #fff;
+        transition: border-color 0.2s ease;
+      }
+
+      .form-input:focus {
+        outline: none;
+        border-color: #007bff;
+      }
+
+      .password-container {
+        position: relative;
+      }
+
+      .password-toggle {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+      }
+
+      .password-toggle:hover {
+        background-color: #f0f0f0;
+      }
+
+      .password-toggle svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 32px;
+      }
+
+      .login-button,
+      .signup-button {
+        flex: 1;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .login-button {
+        background-color: #000;
+        color: #fff;
+      }
+
+      .login-button:hover {
+        background-color: #333;
+      }
+
+      .signup-button {
+        background-color: #fff;
+        color: #000;
+        border: 1px solid #e0e0e0;
+      }
+
+      .signup-button:hover {
+        background-color: #f8f8f8;
+      }
+
+      .error-message {
+        background-color: #fee;
+        color: #c33;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        display: none;
+      }
+
+      .success-message {
+        background-color: #efe;
+        color: #3c3;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        display: none;
+      }
+
+      @media (max-width: 480px) {
+        .login-container {
+          padding: 30px 20px;
+          margin: 10px;
+        }
+
+        .button-group {
+          flex-direction: column;
+          gap: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="header">
+        <div class="logo"></div>
+        <div class="brand-name">Éthéré</div>
+      </div>
+
+      <div id="error-message" class="error-message"></div>
+      <div id="success-message" class="success-message"></div>
+
+      <form id="auth-form">
+        <div class="form-group">
+          <label for="username" class="form-label">Username</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            class="form-input"
+            required
+          />
+        </div>
+
+        <div class="form-group" display: none>
+          <label for="password1" class="form-label">Password1</label>
+          <div class="password-container">
+            <input
+              type="password"
+              id="password1"
+              name="password1"
+              class="form-input"
+              required
+            />
+            <button
+              type="button"
+              class="password-toggle"
+              onclick="togglePassword('password1')"
+            >
+              <!-- Eye icon SVG -->
+              <svg
+                width="20"
+                height="18"
+                viewBox="0 0 20 18"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M19.25 6.14999C16.94 2.51999 13.56 0.429993 10 0.429993C8.22 0.429993 6.49 0.949993 4.91 1.91999C3.33 2.89999 1.91 4.32999 0.75 6.14999C-0.25 7.71999 -0.25 10.27 0.75 11.84C3.06 15.48 6.44 17.56 10 17.56C11.78 17.56 13.51 17.04 15.09 16.07C16.67 15.09 18.09 13.66 19.25 11.84C20.25 10.28 20.25 7.71999 19.25 6.14999ZM10 13.04C7.76 13.04 5.96 11.23 5.96 8.99999C5.96 6.76999 7.76 4.95999 10 4.95999C12.24 4.95999 14.04 6.76999 14.04 8.99999C14.04 11.23 12.24 13.04 10 13.04Z"
+                  fill="#292D32"
+                />
+                <path
+                  d="M10 6.14C8.43002 6.14 7.15002 7.42 7.15002 9C7.15002 10.57 8.43002 11.85 10 11.85C11.57 11.85 12.86 10.57 12.86 9C12.86 7.43 11.57 6.14 10 6.14Z"
+                  fill="#292D32"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password2" class="form-label">Password2</label>
+          <div class="password-container">
+            <input
+              type="password"
+              id="password2"
+              name="password2"
+              class="form-input"
+            />
+            <button
+              type="button"
+              class="password-toggle"
+              onclick="togglePassword('password2')"
+            >
+              <svg
+                width="20"
+                height="18"
+                viewBox="0 0 20 18"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M19.25 6.14999C16.94 2.51999 13.56 0.429993 10 0.429993C8.22 0.429993 6.49 0.949993 4.91 1.91999C3.33 2.89999 1.91 4.32999 0.75 6.14999C-0.25 7.71999 -0.25 10.27 0.75 11.84C3.06 15.48 6.44 17.56 10 17.56C11.78 17.56 13.51 17.04 15.09 16.07C16.67 15.09 18.09 13.66 19.25 11.84C20.25 10.28 20.25 7.71999 19.25 6.14999ZM10 13.04C7.76 13.04 5.96 11.23 5.96 8.99999C5.96 6.76999 7.76 4.95999 10 4.95999C12.24 4.95999 14.04 6.76999 14.04 8.99999C14.04 11.23 12.24 13.04 10 13.04Z"
+                  fill="#292D32"
+                />
+                <path
+                  d="M10 6.14C8.43002 6.14 7.15002 7.42 7.15002 9C7.15002 10.57 8.43002 11.85 10 11.85C11.57 11.85 12.86 10.57 12.86 9C12.86 7.43 11.57 6.14 10 6.14Z"
+                  fill="#292D32"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button type="button" class="login-button" onclick="handleLogin()">
+            Login
+          </button>
+          <button type="button" class="signup-button" onclick="handleSignup()">
+            Signup
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <script>
+      let isSignupMode = false; // for login mode, we only shows 1 password input, for signup mode, we shows 2 password inputs
+
+      function togglePassword(inputId) {
+        // here the original input type is password, so by toggling, we will convert it to text and vice versa
+        const input = document.getElementById(inputId);
+
+        if (input.type === "password") {
+          input.type = "text";
+        } else {
+          input.type = "password";
+        }
+      }
+
+      function toggleMode() {
+        isSignupMode = !isSignupMode;
+        const password2Group = document.querySelector('label[for="password2"]').parentElement;
+        
+        if (isSignupMode) {
+          // Show password2 field
+          password2Group.style.display = "block";
+          document.getElementById("password2").required = true;
+         
+          // Update button styling - Signup active
+          document.querySelector('.signup-button').style.backgroundColor = '#000';
+          document.querySelector('.signup-button').style.color = '#fff';
+          document.querySelector('.signup-button').style.border = 'none';
+          
+          document.querySelector('.login-button').style.backgroundColor = '#fff';
+          document.querySelector('.login-button').style.color = '#000';
+          document.querySelector('.login-button').style.border = '1px solid #e0e0e0';
+          
+        } else {
+          // Hide password2 field
+          password2Group.style.display = "none";
+          document.getElementById("password2").required = false;
+          document.getElementById("password2").value = "";
+          
+          // Update button styling - Login active
+          document.querySelector('.login-button').style.backgroundColor = '#000';
+          document.querySelector('.login-button').style.color = '#fff';
+          document.querySelector('.login-button').style.border = 'none';
+          
+          document.querySelector('.signup-button').style.backgroundColor = '#fff';
+          document.querySelector('.signup-button').style.color = '#000';
+          document.querySelector('.signup-button').style.border = '1px solid #e0e0e0';
+        }
+      }
+
+      function handleLogin() {
+        // if signup mode was selected, switch to login mode
+        if (isSignupMode) {
+          toggleMode();
+        } else {
+          // validate and send information to call login API
+          const validationError = validateInputs();
+          if (validationError) {
+            showError(validationError);
+            return;
+          }
+          
+          const username = document.getElementById("username").value;
+          const password = document.getElementById("password1").value;
+          const data = {
+            username: username,
+            password: password,
+          };
+          fetch("/api/authors/login/", {
+            method: "POST",
+            body: JSON.stringify(data),
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              console.log(data);
+              if (data.access) {
+                showSuccess("Login successful");
+                // Store tokens and redirect
+                localStorage.setItem("access_token", data.access);
+                localStorage.setItem("refresh_token", data.refresh);
+                localStorage.setItem("user_data", JSON.stringify(data.user));
+                setTimeout(() => {
+                  window.location.href = "/home/";
+                }, 1500);
+              } else {
+                showError("Invalid username or password");
+              }
+            })
+            .catch((error) => {
+              console.error("Error:", error);
+              showError("Network error. Please try again.");
+            });
+        }
+      }
+
+      function handleSignup() {
+        // if login mode was selected, switch to signup mode
+        if (!isSignupMode) {
+          toggleMode();
+        } else {
+          // validate and send information to call signup API
+          const validationError = validateInputs();
+          if (validationError) {
+            showError(validationError);
+            return;
+          }
+          
+          const username = document.getElementById("username").value;
+          const password = document.getElementById("password1").value;
+          const password2 = document.getElementById("password2").value;
+          const data = {
+            username: username,
+            display_name: username,
+            password: password,
+            password2: password2,
+            bio: "",
+            github_url: "",
+          };
+          apiPost("/api/authors/register/", data)
+            .then((response) => response.json())
+            .then((data) => {
+              console.log(data);
+              if (data.access) {
+                showSuccess("Signup successful");
+                // Store tokens and redirect
+                localStorage.setItem("access_token", data.access);
+                localStorage.setItem("refresh_token", data.refresh);
+                localStorage.setItem("user_data", JSON.stringify(data.user));
+                setTimeout(() => {
+                  window.location.href = "/home/";
+                }, 1500);
+              } else {
+                // Handle validation errors
+                let errorMessage = "Registration failed. ";
+                if (data.password) {
+                  const passwordErrors = data.password;
+                  if (passwordErrors.some(error => error.includes("too common"))) {
+                    errorMessage += "Password is too common. Please use a stronger password with at least 8 characters, including uppercase, lowercase, numbers, and special characters.";
+                  } else if (passwordErrors.some(error => error.includes("too short"))) {
+                    errorMessage += "Password is too short. Please use at least 8 characters.";
+                  } else if (passwordErrors.some(error => error.includes("entirely numeric"))) {
+                    errorMessage += "Password cannot be entirely numeric. Please include letters and special characters.";
+                  } else {
+                    errorMessage += passwordErrors.join(", ");
+                  }
+                } else if (data.username) {
+                  errorMessage += data.username.join(", ");
+                } else if (data.non_field_errors) {
+                  errorMessage += data.non_field_errors.join(", ");
+                } else {
+                  errorMessage += "Please check your input.";
+                }
+                showError(errorMessage);
+              }
+            })
+            .catch((error) => {
+              console.error("Error:", error);
+              showError("Network error. Please try again.");
+            });
+        }
+      }
+
+      function validateInputs() {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password1").value;
+        const password2 = document.getElementById("password2").value;
+        if (isSignupMode) {
+          if (password !== password2) {
+            return "Passwords don't match";
+          }
+          if (password === "" || password2 === "" || username === "") {
+            return "Please fill in all fields";
+          }
+        }
+        if (password === "" || username === "") {
+          // log in mode
+          return "Please fill in all fields";
+        }
+        return null;
+      }
+
+      function showError(message) {
+        const errorDiv = document.getElementById("error-message");
+        const successDiv = document.getElementById("success-message");
+        errorDiv.innerHTML = message;
+        errorDiv.style.display = "block";
+        successDiv.style.display = "none";
+      }
+
+      function showSuccess(message) {
+        const successDiv = document.getElementById("success-message");
+        const errorDiv = document.getElementById("error-message");
+        successDiv.textContent = message;
+        successDiv.style.display = "block";
+        errorDiv.style.display = "none";
+      }
+
+      function clearMessages() {
+        document.getElementById("error-message").style.display = "none";
+        document.getElementById("success-message").style.display = "none";
+      }
+
+      // Initialize the page
+      document.addEventListener("DOMContentLoaded", function() {
+        // Hide password2 field initially (login mode)
+        const password2Group = document.querySelector('label[for="password2"]').parentElement;
+        password2Group.style.display = "none";
+        document.getElementById("password2").required = false;
+        
+        // Set initial button styling (Login active)
+        document.querySelector('.login-button').style.backgroundColor = '#000';
+        document.querySelector('.login-button').style.color = '#fff';
+        document.querySelector('.login-button').style.border = 'none';
+        
+        document.querySelector('.signup-button').style.backgroundColor = '#fff';
+        document.querySelector('.signup-button').style.color = '#000';
+        document.querySelector('.signup-button').style.border = '1px solid #e0e0e0';
+      });
+    </script>
+  </body>
+</html>

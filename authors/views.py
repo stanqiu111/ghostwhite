@@ -39,3 +39,8 @@ class AuthorRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+def login_view(request):
+    """Open the login and sign up html"""
+    return render(request, "authors/login.html")

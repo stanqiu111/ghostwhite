@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from rest_framework import generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -41,4 +41,5 @@ class AuthorRetrieveUpdateView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 def profile_page(request):
+    #author = get_object_or_404(Author, username=username)
     return render(request, "profile_page.html")

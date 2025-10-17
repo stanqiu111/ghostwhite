@@ -130,16 +130,24 @@
          })
         .then(r => r.json()).then(d => {
           document.getElementById('username').value = d.username || '';
-          document.getElementById('profile-name').textContent = d.display_name|| '';
+          if (d.display_name) {
+            document.getElementById('profile-name').textContent = d.display_name;
+          }
+          document.getElementById('display_name').value = d.display_name || '';
           document.getElementById('github_url').value = d.github_url || '';
           document.getElementById('bio').value = d.bio || '';
-          document.getElementById('profile-name').textContent = d.display_name || '';
           document.getElementById('mainAvatar').src = d.image || '';
           document.getElementById('smallAvatar').src = d.image || '';
         });
     }
+    document.addEventListener('input', (e) => {
+      if (e.target && e.target.id === 'display_name') {
+        const v = e.target.value.trim();
+        if (v) document.getElementById('profile-name').textContent = v;
+      }
+    });
 
-    document.getElementById('profileForm').addEventListener('submit', (e) => {
+      document.getElementById('profileForm').addEventListener('submit', (e) => {
       e.preventDefault();
       const body = {
         display_name: document.getElementById('display_name').value,

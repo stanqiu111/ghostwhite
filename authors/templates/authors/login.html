@@ -203,7 +203,7 @@
           />
         </div>
 
-        <div class="form-group" display: none>
+        <div class="form-group">
           <label for="password1" class="form-label">Password1</label>
           <div class="password-container">
             <input
@@ -300,36 +300,43 @@
 
       function toggleMode() {
         isSignupMode = !isSignupMode;
-        const password2Group = document.querySelector('label[for="password2"]').parentElement;
-        
+        const password2Group = document.querySelector(
+          'label[for="password2"]'
+        ).parentElement;
+
         if (isSignupMode) {
           // Show password2 field
           password2Group.style.display = "block";
           document.getElementById("password2").required = true;
-         
+
           // Update button styling - Signup active
-          document.querySelector('.signup-button').style.backgroundColor = '#000';
-          document.querySelector('.signup-button').style.color = '#fff';
-          document.querySelector('.signup-button').style.border = 'none';
-          
-          document.querySelector('.login-button').style.backgroundColor = '#fff';
-          document.querySelector('.login-button').style.color = '#000';
-          document.querySelector('.login-button').style.border = '1px solid #e0e0e0';
-          
+          document.querySelector(".signup-button").style.backgroundColor =
+            "#000";
+          document.querySelector(".signup-button").style.color = "#fff";
+          document.querySelector(".signup-button").style.border = "none";
+
+          document.querySelector(".login-button").style.backgroundColor =
+            "#fff";
+          document.querySelector(".login-button").style.color = "#000";
+          document.querySelector(".login-button").style.border =
+            "1px solid #e0e0e0";
         } else {
           // Hide password2 field
           password2Group.style.display = "none";
           document.getElementById("password2").required = false;
           document.getElementById("password2").value = "";
-          
+
           // Update button styling - Login active
-          document.querySelector('.login-button').style.backgroundColor = '#000';
-          document.querySelector('.login-button').style.color = '#fff';
-          document.querySelector('.login-button').style.border = 'none';
-          
-          document.querySelector('.signup-button').style.backgroundColor = '#fff';
-          document.querySelector('.signup-button').style.color = '#000';
-          document.querySelector('.signup-button').style.border = '1px solid #e0e0e0';
+          document.querySelector(".login-button").style.backgroundColor =
+            "#000";
+          document.querySelector(".login-button").style.color = "#fff";
+          document.querySelector(".login-button").style.border = "none";
+
+          document.querySelector(".signup-button").style.backgroundColor =
+            "#fff";
+          document.querySelector(".signup-button").style.color = "#000";
+          document.querySelector(".signup-button").style.border =
+            "1px solid #e0e0e0";
         }
       }
 
@@ -344,7 +351,7 @@
             showError(validationError);
             return;
           }
-          
+
           const username = document.getElementById("username").value;
           const password = document.getElementById("password1").value;
           const data = {
@@ -392,7 +399,7 @@
             showError(validationError);
             return;
           }
-          
+
           const username = document.getElementById("username").value;
           const password = document.getElementById("password1").value;
           const password2 = document.getElementById("password2").value;
@@ -422,12 +429,23 @@
                 let errorMessage = "Registration failed. ";
                 if (data.password) {
                   const passwordErrors = data.password;
-                  if (passwordErrors.some(error => error.includes("too common"))) {
-                    errorMessage += "Password is too common. Please use a stronger password with at least 8 characters, including uppercase, lowercase, numbers, and special characters.";
-                  } else if (passwordErrors.some(error => error.includes("too short"))) {
-                    errorMessage += "Password is too short. Please use at least 8 characters.";
-                  } else if (passwordErrors.some(error => error.includes("entirely numeric"))) {
-                    errorMessage += "Password cannot be entirely numeric. Please include letters and special characters.";
+                  if (
+                    passwordErrors.some((error) => error.includes("too common"))
+                  ) {
+                    errorMessage +=
+                      "Password is too common. Please use a stronger password with at least 8 characters, including uppercase, lowercase, numbers, and special characters.";
+                  } else if (
+                    passwordErrors.some((error) => error.includes("too short"))
+                  ) {
+                    errorMessage +=
+                      "Password is too short. Please use at least 8 characters.";
+                  } else if (
+                    passwordErrors.some((error) =>
+                      error.includes("entirely numeric")
+                    )
+                  ) {
+                    errorMessage +=
+                      "Password cannot be entirely numeric. Please include letters and special characters.";
                   } else {
                     errorMessage += passwordErrors.join(", ");
                   }
@@ -489,20 +507,23 @@
       }
 
       // Initialize the page
-      document.addEventListener("DOMContentLoaded", function() {
+      document.addEventListener("DOMContentLoaded", function () {
         // Hide password2 field initially (login mode)
-        const password2Group = document.querySelector('label[for="password2"]').parentElement;
+        const password2Group = document.querySelector(
+          'label[for="password2"]'
+        ).parentElement;
         password2Group.style.display = "none";
         document.getElementById("password2").required = false;
-        
+
         // Set initial button styling (Login active)
-        document.querySelector('.login-button').style.backgroundColor = '#000';
-        document.querySelector('.login-button').style.color = '#fff';
-        document.querySelector('.login-button').style.border = 'none';
-        
-        document.querySelector('.signup-button').style.backgroundColor = '#fff';
-        document.querySelector('.signup-button').style.color = '#000';
-        document.querySelector('.signup-button').style.border = '1px solid #e0e0e0';
+        document.querySelector(".login-button").style.backgroundColor = "#000";
+        document.querySelector(".login-button").style.color = "#fff";
+        document.querySelector(".login-button").style.border = "none";
+
+        document.querySelector(".signup-button").style.backgroundColor = "#fff";
+        document.querySelector(".signup-button").style.color = "#000";
+        document.querySelector(".signup-button").style.border =
+          "1px solid #e0e0e0";
       });
     </script>
   </body>

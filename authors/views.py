@@ -76,3 +76,12 @@ def login_view(request):
         return redirect("home")
 
     return render(request, "authors/login.html")
+
+
+def logout_view(request):
+    """
+    Logout user:
+    - remove django session
+    """
+    logout(request)
+    return redirect("authors:auth_page")

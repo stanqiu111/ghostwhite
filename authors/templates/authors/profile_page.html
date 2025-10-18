@@ -17,13 +17,13 @@
     </div>
     <form class="search" role="search">
         <input id = "search" type="search" placeholder="Search...">
-            <button class="search-btn" >
+            <button class="search-btn" type="button">
                 <svg width="29" height="29" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M9.58342 18.125C4.87508 18.125 1.04175 14.2917 1.04175 9.58333C1.04175 4.875 4.87508 1.04167 9.58342 1.04167C14.2917 1.04167 18.1251 4.875 18.1251 9.58333C18.1251 14.2917 14.2917 18.125 9.58342 18.125ZM9.58342 2.29167C5.55841 2.29167 2.29175 5.56667 2.29175 9.58333C2.29175 13.6 5.55841 16.875 9.58342 16.875C13.6084 16.875 16.8751 13.6 16.8751 9.58333C16.8751 5.56667 13.6084 2.29167 9.58342 2.29167Z" fill="#909090"/>
                     <path d="M18.3333 18.9583C18.175 18.9583 18.0166 18.9 17.8916 18.775L16.225 17.1083C15.9833 16.8667 15.9833 16.4667 16.225 16.225C16.4666 15.9833 16.8666 15.9833 17.1083 16.225L18.775 17.8917C19.0166 18.1333 19.0166 18.5333 18.775 18.775C18.65 18.9 18.4916 18.9583 18.3333 18.9583Z" fill="#909090"/>
                 </svg>
             </button>
-            <button class="clear-search" >
+            <button class="clear-search" type="button">
                 <svg width="30" height="30" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M10 18.9583C5.05835 18.9583 1.04169 14.9417 1.04169 9.99999C1.04169 5.05832 5.05835 1.04166 10 1.04166C14.9417 1.04166 18.9584 5.05832 18.9584 9.99999C18.9584 14.9417 14.9417 18.9583 10 18.9583ZM10 2.29166C5.75002 2.29166 2.29169 5.74999 2.29169 9.99999C2.29169 14.25 5.75002 17.7083 10 17.7083C14.25 17.7083 17.7084 14.25 17.7084 9.99999C17.7084 5.74999 14.25 2.29166 10 2.29166Z" fill="#909090"/>
                     <path d="M7.64165 12.9833C7.48332 12.9833 7.32499 12.925 7.19999 12.8C6.95832 12.5583 6.95832 12.1583 7.19999 11.9167L11.9167 7.19999C12.1583 6.95832 12.5583 6.95832 12.8 7.19999C13.0417 7.44165 13.0417 7.84165 12.8 8.08332L8.08332 12.8C7.96665 12.925 7.79999 12.9833 7.64165 12.9833Z" fill="#909090"/>
@@ -49,8 +49,8 @@
           </button>
         </li>
         <li><img class="avatar sm" id="smallAvatar" 
-                 src="{% static 'authors/avatar1.png' %}"
-                 alt="User Avatar">
+              src="" data-fallback="{% static 'authors/avatar1.png' %}"
+              alt="User Avatar">
         </li>
     </ul>
   </nav>
@@ -59,12 +59,22 @@
   <main class="layout">
     <section class="profile-card">
       <figure class="mainAvatar">
-        <img class="avatar lg" id="mainAvatar" alt="User Avatar">    
+       <img class="avatar lg" id="mainAvatar" 
+            src="" data-fallback="{% static 'authors/avatar1.jpg' %}"
+            alt="User Avatar">
+        <div class="avatar-overlay">
+          <button id="uploadBtn" type="button" class="upload-btn">
+            <svg width="20" height="20" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10.5 3.50001C10.1442 3.50001 9.81748 3.29584 9.65415 2.98084L9.23415 2.13501C8.96582 1.60417 8.26582 1.16667 7.67082 1.16667H6.33499C5.73415 1.16667 5.03415 1.60417 4.76582 2.13501L4.34582 2.98084C4.18249 3.29584 3.85582 3.50001 3.49999 3.50001C2.23415 3.50001 1.23082 4.5675 1.31249 5.8275L1.61582 10.6458C1.68582 11.8475 2.33332 12.8333 3.94332 12.8333H10.0567C11.6667 12.8333 12.3083 11.8475 12.3842 10.6458L12.6875 5.8275C12.7692 4.5675 11.7658 3.50001 10.5 3.50001ZM6.12499 4.22917H7.87499C8.11415 4.22917 8.31249 4.42751 8.31249 4.66667C8.31249 4.90584 8.11415 5.10417 7.87499 5.10417H6.12499C5.88582 5.10417 5.68749 4.90584 5.68749 4.66667C5.68749 4.42751 5.88582 4.22917 6.12499 4.22917ZM6.99999 10.57C5.91499 10.57 5.02832 9.68917 5.02832 8.59834C5.02832 7.5075 5.90915 6.62667 6.99999 6.62667C8.09082 6.62667 8.97165 7.5075 8.97165 8.59834C8.97165 9.68917 8.08499 10.57 6.99999 10.57Z" fill="#EDEDED"/>
+            </svg>
+          </button>
+        </div>
+        <input type="file" id="avatarInput" accept="image/*" style="display:none;">
       </figure>
       
 
       <section class="profile-stats">
-        <h2 class="profile-name" id="profile-name">Reze</h2>
+        <h2 class="profile-name" id="profile-name"></h2>
         <ul class="stats">
           <li id="statEntries">
             <span class="num">200</span><br>
@@ -145,68 +155,189 @@
 
   <script>
 
+  
+    // Read csrftoken from cookie for Django's CSRF protection
+    function getCsrfToken() {
+      const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : null;
+    }
+
     function buildAuthHeaders(extra = {}) {
-      const token = localStorage.getItem('access'); //not sure, may change later
-      const headers = { ...extra };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const jwt  = localStorage.getItem('access_token');
+      const csrf = getCsrfToken();
+      const headers = { 'Content-Type': 'application/json', ...extra };
+      if (jwt)  headers['Authorization'] = `Bearer ${jwt}`;
+      if (csrf) headers['X-CSRFToken']   = csrf;      // important for PUT/POST with session
       return headers;
     }
 
-    function getProfile(){
-        fetch('/api/authors/author_profile/', { 
-            headers: buildAuthHeaders()
-         })
-        .then(r => r.json()).then(d => {
-          document.getElementById('username').value = d.username || '';
-          if (d.display_name) { //no auth for now, display plain text
-            document.getElementById('profile-name').textContent = d.display_name;
-          }
-          document.getElementById('display_name').value = d.display_name || '';
-          document.getElementById('github_url').value = d.github_url || '';
-          document.getElementById('bio').value = d.bio || '';
-          document.getElementById('mainAvatar').src = d.image || document.getElementById('smallAvatar').src; //upload img for testing
-          document.getElementById('smallAvatar').src = d.image || document.getElementById('smallAvatar').src; //upload img for testing
-        });
+    function getUsernameFromPath() {
+      const m = location.pathname.match(/\/api\/authors\/([^\/]+)\/?$/);
+      return m ? decodeURIComponent(m[1]) : null;
     }
-    document.addEventListener('input', (e) => {
-      //change the display name: profile detail & name under main avatar
-      if (e.target && e.target.id === 'display_name') {
-        const v = e.target.value.trim();
-        if (v) document.getElementById('profile-name').textContent = v;
-      }
-    });
 
-      document.getElementById('profileForm').addEventListener('submit', (e) => {
+    const API = {
+      getProfile(username) {
+        return fetch(`/api/authors/${encodeURIComponent(username)}/json/`, {
+          headers: buildAuthHeaders(),
+          credentials: 'same-origin'
+        });
+      },
+      updateProfile(username, body) {
+        return fetch(`/api/authors/${encodeURIComponent(username)}/json/`, {
+          method: 'PATCH',
+          headers: buildAuthHeaders(),
+          body: JSON.stringify(body),
+          credentials: 'same-origin'
+        });
+      }
+    };
+
+  
+    // --- Avatar upload: bind once ---
+    const uploadBtn   = document.getElementById('uploadBtn');
+    const avatarInput = document.getElementById('avatarInput');
+    const mainAvatar  = document.getElementById('mainAvatar');
+    let selectedAvatarFile = null;  // keep selected file for later upload (backend not wired yet)
+
+    if (uploadBtn && avatarInput && mainAvatar) {
+      uploadBtn.addEventListener('click', () => avatarInput.click());
+      avatarInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        selectedAvatarFile = file;                         // remember for Save
+        const reader = new FileReader();
+        reader.onload = () => { mainAvatar.src = reader.result; }; // instant preview only
+        reader.readAsDataURL(file);
+        // Do not upload here; upload happens on Save
+      });
+    }
+
+    // Preload then swap in to support fallback/default avatar cleanly
+    function swapAvatar(imgEl, url) {
+      if (!imgEl || !url) return;
+      const tmp = new Image();
+      tmp.onload = () => { imgEl.src = url; };
+      tmp.src = url;
+    }
+
+    async function getProfile() {
+      const usernameInUrl = getUsernameFromPath();
+      if (!usernameInUrl) {
+        console.error('Cannot parse username from URL.');
+        return;
+      }
+
+      try {
+        const r = await API.getProfile(usernameInUrl);
+
+        if (r.status === 401){
+          window.location = '/api/authors/auth/';
+          return;
+        }
+        if (!r.ok) {
+          const errText = await r.text();
+          console.error('Failed to load profile:', r.status, errText);
+          alert('Failed to load profile details.');
+          return;
+        }
+
+        const d = await r.json();
+
+        document.getElementById('username').value = d.username || usernameInUrl || '';
+        document.getElementById('profile-name').textContent = d.display_name || d.username || usernameInUrl || '';
+        document.getElementById('display_name').value = d.display_name || d.username || usernameInUrl || '';
+        document.getElementById('github_url').value = d.github_url || '';
+        document.getElementById('bio').value = d.bio || '';
+
+        const main = document.getElementById('mainAvatar');
+        const small = document.getElementById('smallAvatar');
+        const fallbackSrc = main?.dataset?.fallback || "{% static 'authors/avatar1.jpg' %}";
+
+        if (d.image) {
+          const bust = d.image + '?t=' + Date.now();  // prevent stale cache
+          swapAvatar(main, bust);
+          if (small) swapAvatar(small, bust);
+        } else {
+          // no uploaded avatar -> use static fallback for both
+          swapAvatar(main, fallbackSrc);
+          if (small) swapAvatar(small, fallbackSrc);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Network error. Please try again.');
+      }
+    }
+    
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      const usernameInUrl = getUsernameFromPath();
+      if (!usernameInUrl) {
+        alert('Invalid profile URL.');
+        return;
+      }
       const body = {
         display_name: document.getElementById('display_name').value,
         github_url: document.getElementById('github_url').value,
         bio: document.getElementById('bio').value
       };
-      document.getElementById('saveBtn').disabled = true;
-      fetch('/api/authors/author_profile/', {
-        method: 'PUT',
-        headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(body)
-      }).then(async r => {
-        document.getElementById('saveBtn').disabled = false;
-        if (r.ok) getProfile();
-      });
-    });
-    function renderGallery(images = []) {
-        const gallery = document.getElementById('entriesGallery');
-        const uploadTile = document.querySelector('.upload-tile');
-        
-        gallery.innerHTML = ''; 
-        images.slice(0, 5).forEach(url => {
-            const li = document.createElement('li');
-            li.innerHTML = `<img src="${url}" alt="entry">`;
-            gallery.appendChild(li);
-        });
-        gallery.appendChild(uploadTile); 
+
+      const saveBtn = document.getElementById('saveBtn');
+      const prevText = saveBtn.textContent;
+      saveBtn.disabled = true;
+      
+      try {
+        const r = await API.updateProfile(usernameInUrl, body);
+
+        saveBtn.disabled = false;
+        saveBtn.textContent = prevText;
+
+        if (r.status === 401) {
+          window.location = '/api/authors/auth/';
+          return;
+        }
+        if (!r.ok) {
+          const errText = await r.text();
+          console.error('Update failed:', r.status, errText);
+          alert('Failed to save. Please try again.');
+          return;
         }
 
-    getProfile();
+        // If a new avatar file was selected, upload it now
+        if (selectedAvatarFile) {
+          const fd = new FormData();
+          fd.append("image", selectedAvatarFile);
+          const up = await fetch(`/api/authors/${encodeURIComponent(usernameInUrl)}/avatar/`, {
+            method: "POST",
+            body: fd,
+            credentials: "same-origin"
+          });
+          if (!up.ok) {
+            const t = await up.text();
+            console.error("Avatar upload failed", up.status, t);
+            alert("Avatar upload failed");
+            return;    // stop here; don't overwrite preview with old data
+          }
+          const data = await up.json();
+          const newUrl = data.image + "?t=" + Date.now();
+          swapAvatar(document.getElementById('mainAvatar'), newUrl);
+          const smallAvatar = document.getElementById('smallAvatar');
+          if (smallAvatar) swapAvatar(smallAvatar, newUrl);
+          selectedAvatarFile = null;   // clear after successful upload
+        }
+        
+        await getProfile();
+      } catch (err) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = prevText;
+        console.error(err);
+        alert('Network error. Please try again.');
+      }
+    });
+
+   getProfile();
+
   </script>
   
 </body>

@@ -146,6 +146,7 @@ ul{
 .avatar.sm{
   width: 58px;
   height: 58px;
+  gap: 24px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -176,6 +177,8 @@ ul{
   height: 180px;
   margin: 0 auto 20px;
   border-radius: 50%;  
+  overflow: hidden;  
+  
 }
 
 .avatar.lg{
@@ -185,6 +188,34 @@ ul{
   object-fit: cover;
   border: none;
   display: block;
+  position: relative;
+  
+}
+
+.profile-card .mainAvatar .avatar-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 21%; /* smaller bar */
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom-left-radius: 90px;
+  border-bottom-right-radius: 90px;
+  z-index: 2;
+}
+
+.upload-btn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.upload-btn svg { 
+  display: block; 
 }
 
 /* profile name under main avatar */
@@ -323,6 +354,7 @@ h2.profile-name {
   border: none;
   font-size: 20px;
   font-weight: bold;
+  cursor: pointer;
 }
 
 hr{
@@ -366,7 +398,8 @@ hr{
 }
 
 
-.upload-tile.no-en::after{
+
+.upload-tile.no-image::after{
   content: "";
   position: absolute;
   inset: 0;
@@ -383,3 +416,4 @@ hr{
   place-items: center;
   cursor: pointer;
 }
+

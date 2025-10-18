@@ -75,7 +75,13 @@ class EntryDeleteView(generics.DestroyAPIView):
             raise PermissionDenied("Only the author can delete their own entry.")
 
         instance.soft_delete()
-
+        
+def entries_feed_page(request):
+    """
+    Render entries.html — the front-end page that fetches /api/entries/
+    and renders the feed (likes, comments, comment-likes).
+    """
+    return render(request, "entries/entries.html")
 
 # -------------------------------------------------------------------------
 # COMMENTS AND LIKES AS DRF VIEWS (API, no direct request.POST)

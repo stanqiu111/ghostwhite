@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from django.views.generic import TemplateView
 
 app_name = "entries"
 urlpatterns = [
@@ -11,6 +12,5 @@ urlpatterns = [
     
     path("entries/<uuid:pk>/addcomments/", views.CommentCreateView.as_view(), name="add_comment"),
     path("entries/<uuid:pk>/like/", views.EntryLikeToggleView.as_view(), name="like_entry"),
-    path("entries/<uuid:pk>/comments/<int:comment_id>/like/", views.CommentLikeToggleView.as_view(),
-         name="like_comment"),
+    path("entries/<uuid:pk>/comments/<int:comment_id>/like/", views.CommentLikeToggleView.as_view(),name="like_comment"),
 ]

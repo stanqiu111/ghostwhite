@@ -49,6 +49,7 @@
     <div class="content">
       <h2>You're logged in!</h2>
       <p>This is your home page.</p>
+      <button onclick="navigateToDetail()">Test detail page</button>
     </div>
 
     <script>
@@ -59,6 +60,11 @@
         localStorage.removeItem("user_data");
 
         window.location.href = "/api/authors/logout/";
+      }
+
+      function navigateToDetail() {
+        window.location.href =
+          "/api/entries/67c6fa42-b6cd-4b7e-8dea-7543eb8fe3b1/view/";
       }
     </script>
   </body>

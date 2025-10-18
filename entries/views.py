@@ -6,6 +6,7 @@ from django.db import models
 from django.utils import timezone
 from .models import Entry
 from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
+from django.shortcuts import render, get_object_or_404
 
 
 class EntryListView(generics.ListAPIView):
@@ -26,7 +27,7 @@ class EntryRetrieveView(generics.RetrieveAPIView):
     """Retrieve a single entry by ID"""
 
     serializer_class = EntryRetrieveSerializer
-    permission_classes = [AllowAny] # this allows anyone with link can view the entry
+    permission_classes = [AllowAny]  # this allows anyone with link can view the entry
 
     def get_queryset(self):
         if self.request.user.is_authenticated and self.request.user.is_staff:
@@ -70,3 +71,9 @@ class EntryDeleteView(generics.DestroyAPIView):
             raise PermissionDenied("Only the author can delete their own entry.")
 
         instance.soft_delete()
+
+
+def view_entry_detail(request, pk):
+    # initial entry detail page load
+    entry = get_object_or_404(Entry, pk=pk)
+    return render(request, "entries/entry_detail.html", {"entry": entry})

@@ -4,125 +4,40 @@
   <meta charset="utf-8" />
   <title>Create Entry</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <!-- Minimal, clean styling -->
   <style>
     :root{
-        --bg:#f8f8fa;
-        --card:#fff;
-        --ink:#0f172a;
-        --muted:#6b7280;
-        --line:#e5e7eb;
-        --ink-weak:#1f2937;
-        --brand:#111827;
-        --brand-ink:#fff;
+      --bg:#f8f8fa; --card:#fff; --ink:#0f172a; --muted:#6b7280; --line:#e5e7eb;
+      --ink-weak:#1f2937; --brand:#111827; --brand-ink:#fff;
+      --pad:16px; --topbar-h:64px; --maxw:1280px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial}
 
-        /* layout knobs */
-        --pad: 16px;          /* outer padding + column gap + card body padding */
-        --topbar-h: 64px;     /* visual height of top bar */
-        --maxw: 1280px;       /* page max width */
-    }
-
-    *{ box-sizing:border-box }
-    html, body { height: 100%; }
-    body{
-        margin:0;
-        background:var(--bg);
-        color:var(--ink);
-        font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial;
-    }
-
-    /* Top bar */
-    .topbar{
-        position:sticky; top:0; z-index:10;
-        height: var(--topbar-h);
-        background:#fff; border-bottom:1px solid var(--line);
-    }
-    .topbar .inner{
-        max-width: var(--maxw);
-        height: 100%;
-        margin: 0 auto;
-        padding: 10px var(--pad);
-        display:flex; gap:12px; align-items:center;
-    }
+    /* top bar */
+    .topbar{position:sticky;top:0;z-index:10;height:var(--topbar-h);background:#fff;border-bottom:1px solid var(--line)}
+    .topbar .inner{max-width:var(--maxw);height:100%;margin:0 auto;padding:10px var(--pad);display:flex;gap:12px;align-items:center}
     .avatar{width:36px;height:36px;border-radius:50%;background:#111}
     .spacer{flex:1}
 
-    /* Page container fills viewport under the top bar */
-    .container{
-        max-width: var(--maxw);
-        margin: 0 auto;
-        padding: var(--pad);
-        min-height: calc(100vh - var(--topbar-h));
-    }
+    /* page */
+    .container{max-width:var(--maxw);margin:0 auto;padding:var(--pad);min-height:calc(100vh - var(--topbar-h))}
+    .row{height:calc(100vh - var(--topbar-h) - 2*var(--pad));display:grid;grid-template-columns:1fr;gap:var(--pad);align-items:stretch}
+    @media (min-width:980px){ .row{grid-template-columns:2fr 1fr} }
 
-    /* Two columns stretch to the bottom */
-    .row{
-        height: calc(100vh - var(--topbar-h) - 2*var(--pad));
-        display:grid;
-        grid-template-columns:1fr;
-        gap: var(--pad);
-        align-items: stretch;
-    }
-    @media(min-width:980px){
-        .row{ grid-template-columns:2fr 1fr; }
-    }
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.03);height:100%;display:flex;flex-direction:column;min-height:0}
+    .card .head{display:flex;gap:8px;align-items:center;padding:calc(var(--pad)*0.6);border-bottom:1px solid var(--line)}
+    .body{padding:var(--pad);flex:1;display:flex;flex-direction:column;min-height:0}
 
-    /* Cards fill column height */
-    .card{
-        background:var(--card);
-        border:1px solid var(--line);
-        border-radius:16px;
-        box-shadow:0 1px 2px rgba(0,0,0,.03);
-        height: 100%;
-        display:flex;
-        flex-direction:column;
-        min-height: 0; /* allow inner scroll */
-    }
-    .card .head{
-        display:flex; gap:8px; align-items:center;
-        padding: calc(var(--pad) * 0.6);
-        border-bottom:1px solid var(--line);
-    }
-    .body{
-        padding: var(--pad);
-        flex: 1;               /* take remaining space */
-        display:flex;
-        flex-direction:column;
-        min-height: 0;         /* enable textarea/preview scrolling */
-    }
-
-    /* Controls */
-    .pill{
-        border-radius:12px; padding:8px 14px;
-        border:1px solid var(--line); background:#f4f4f6;
-        color:var(--ink-weak); font-weight:600; font-size:14px;
-    }
-    .pill.active{ background:var(--brand); border-color:var(--brand); color:var(--brand-ink) }
+    .pill{border-radius:12px;padding:8px 14px;border:1px solid var(--line);background:#f4f4f6;color:var(--ink-weak);font-weight:600;font-size:14px}
+    .pill.active{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
     .grow{flex:1}
-    .select{ appearance:none; border:1px solid var(--line); border-radius:12px; padding:8px 12px; background:#fff }
+    .select{appearance:none;border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:#fff}
 
-    /* Editor / Preview fill the card */
-    textarea{
-        width:100%;
-        flex: 1;               /* grow taller */
-        min-height: 0;
-        resize:vertical;
-        border:1px solid var(--line);
-        border-radius:12px;
-        padding:14px;
-        font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    }
-    .preview{
-        border:1px solid var(--line);
-        border-radius:12px;
-        padding:16px;
-        background:#fff;
-        flex: 1;               /* grow taller */
-        min-height: 0;
-        overflow:auto;
-    }
+    textarea{width:100%;flex:1;min-height:0;resize:vertical;border:1px solid var(--line);border-radius:12px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .preview{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fff;flex:1;min-height:0;overflow:auto}
 
-    /* Preview typography */
+    /* preview prose */
     .prose h1{font-size:1.8rem;margin:0.8em 0 .4em}
     .prose h2{font-size:1.5rem;margin:0.8em 0 .4em}
     .prose h3{font-size:1.25rem;margin:0.8em 0 .4em}
@@ -130,23 +45,20 @@
     .prose code{background:#f3f4f6;padding:.15em .35em;border-radius:6px}
     .prose pre{background:#0b1020;color:#eaeaff;padding:12px;border-radius:12px;overflow:auto}
 
-    /* Photos */
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    .thumb{position:relative}
-    .thumb img{width:100%;height:112px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+    /* single photo picker */
+    .photo-wrap{display:flex;flex-direction:column;gap:12px}
+    .thumb{position:relative;width:180px;height:180px;border:1px dashed var(--line);border-radius:16px;background:#fafafa;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+    .thumb img{width:100%;height:100%;object-fit:cover;border-radius:16px}
     .thumb .x{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.7);color:#fff;border:0;border-radius:20px;padding:2px 6px;cursor:pointer}
-    .add{display:flex;align-items:center;justify-content:center;height:112px;border:2px dashed var(--line);border-radius:12px;background:#fafafa;color:var(--muted);cursor:pointer}
+    .add{display:flex;align-items:center;justify-content:center;width:180px;height:180px;border:2px dashed var(--line);border-radius:16px;background:#fafafa;color:var(--muted);cursor:pointer}
 
-    /* Buttons */
     .btn{width:100%;padding:14px 18px;border-radius:12px;border:0;background:var(--brand);color:#fff;font-weight:700;cursor:pointer}
     .btn:disabled{opacity:.6;cursor:not-allowed}
     .note{margin-top:10px;color:var(--muted);font-size:.95rem}
-</style>
-  <!-- Markdown parser -->
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
-  <!-- top bar -->
   <div class="topbar">
     <div class="inner">
       <div class="avatar"></div>
@@ -186,9 +98,11 @@
             <button class="pill" data-visibility="unlisted">Private</button>
           </div>
 
-          <h3 class="h3">Photos (Optional)</h3>
-          <div id="thumbs" class="grid" style="margin-bottom:16px;"></div>
-          <input id="fileInput" type="file" accept="image/*" multiple hidden />
+          <h3 class="h3">Photo (Optional)</h3>
+          <div class="photo-wrap">
+            <div id="photoSlot" class="add">Add photo</div>
+            <input id="fileInput" type="file" accept="image/*" hidden />
+          </div>
 
           <div style="margin-top:18px">
             <button id="postBtn" class="btn">Post</button>
@@ -200,143 +114,137 @@
   </div>
 
 <script>
-  // --- State ---
-  const state = {
-    tab: 'edit',
-    contentType: 'markdown',
-    visibility: 'public',
-    images: [], // File[]
-    posting: false,
-  };
+/* ----------- state ----------- */
+const state = {
+  tab: 'edit',
+  contentType: 'markdown',
+  visibility: 'public',
+  image: null,      // single File or null
+  posting: false,
+};
 
-  // --- Elements ---
-  const tabEdit = document.getElementById('tabEdit');
-  const tabPreview = document.getElementById('tabPreview');
-  const contentTypeSel = document.getElementById('contentType');
-  const contentArea = document.getElementById('contentArea');
-  const preview = document.getElementById('preview');
-  const visButtons = Array.from(document.querySelectorAll('[data-visibility]'));
-  const thumbs = document.getElementById('thumbs');
-  const fileInput = document.getElementById('fileInput');
-  const postBtn = document.getElementById('postBtn');
-  const note = document.getElementById('note');
+/* ----------- els ----------- */
+const tabEdit = document.getElementById('tabEdit');
+const tabPreview = document.getElementById('tabPreview');
+const contentTypeSel = document.getElementById('contentType');
+const contentArea = document.getElementById('contentArea');
+const preview = document.getElementById('preview');
 
-  // --- Tabs ---
-  tabEdit.addEventListener('click', () => setTab('edit'));
-  tabPreview.addEventListener('click', () => setTab('preview'));
+const visButtons = Array.from(document.querySelectorAll('[data-visibility]'));
+const photoSlot = document.getElementById('photoSlot');
+const fileInput = document.getElementById('fileInput');
 
-  function setTab(t) {
-    state.tab = t;
-    tabEdit.classList.toggle('active', t === 'edit');
-    tabPreview.classList.toggle('active', t === 'preview');
-    contentArea.style.display = t === 'edit' ? 'block' : 'none';
-    preview.style.display = t === 'preview' ? 'block' : 'none';
-    if (t === 'preview') renderPreview();
+const postBtn = document.getElementById('postBtn');
+const note = document.getElementById('note');
+
+/* ----------- sample text ----------- */
+contentArea.value = `# Hello!
+
+Upload a single image with this entry. **Markdown** supported.
+`;
+
+/* ----------- tabs ----------- */
+tabEdit.addEventListener('click', () => setTab('edit'));
+tabPreview.addEventListener('click', () => setTab('preview'));
+
+function setTab(t){
+  state.tab = t;
+  tabEdit.classList.toggle('active', t==='edit');
+  tabPreview.classList.toggle('active', t==='preview');
+  contentArea.style.display = t==='edit' ? 'block' : 'none';
+  preview.style.display = t==='preview' ? 'block' : 'none';
+  if (t==='preview') renderPreview();
+}
+
+contentTypeSel.addEventListener('change', e => {
+  state.contentType = e.target.value;
+  if (state.tab==='preview') renderPreview();
+});
+
+function renderPreview(){
+  const text = contentArea.value || '';
+  if (state.contentType === 'markdown') {
+    marked.setOptions({ breaks:true, gfm:true });
+    preview.innerHTML = marked.parse(text);
+  } else {
+    preview.textContent = text;
   }
+}
 
-  // --- Content type ---
-  contentTypeSel.addEventListener('change', e => {
-    state.contentType = e.target.value;
-    if (state.tab === 'preview') renderPreview();
+/* ----------- privacy ----------- */
+visButtons.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    state.visibility = btn.dataset.visibility;
+    visButtons.forEach(b=>b.classList.toggle('active', b===btn));
   });
+});
 
-  function renderPreview() {
-    const text = contentArea.value;
-    if (state.contentType === 'markdown') {
-      marked.setOptions({ breaks: true, gfm: true });
-      preview.innerHTML = marked.parse(text || '');
-    } else {
-      preview.textContent = text || '';
-    }
+/* ----------- single image picker ----------- */
+photoSlot.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+  state.image = file;
+  renderPhoto();
+  fileInput.value = ''; // allow picking the same file again if wanted
+});
+
+function renderPhoto(){
+  if (!state.image) {
+    photoSlot.className = 'add';
+    photoSlot.textContent = 'Add photo';
+    return;
   }
+  const url = URL.createObjectURL(state.image);
+  // replace slot with preview + remove button
+  photoSlot.className = 'thumb';
+  photoSlot.innerHTML = `<img src="${url}" alt="preview"><button class="x" title="Remove">✕</button>`;
+  photoSlot.querySelector('.x').addEventListener('click', ()=>{
+    state.image = null;
+    renderPhoto();
+  });
+}
 
-  // --- Privacy ---
-  visButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.visibility = btn.dataset.visibility;
-      visButtons.forEach(b => b.classList.toggle('active', b === btn));
+/* ----------- submit ----------- */
+postBtn.addEventListener('click', async ()=>{
+  if (state.posting) return;
+  state.posting = true;
+  postBtn.disabled = true;
+  note.textContent = '';
+
+  try{
+    const fd = new FormData();
+    fd.append('content', contentArea.value || '');
+    fd.append('content_type', state.contentType);
+    fd.append('visibility', state.visibility);
+    if (state.image) fd.append('image', state.image); // single file named "image"
+
+    const token = localStorage.getItem('access');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const res = await fetch('http://127.0.0.1:8000/api/entries/create/', {
+      method: 'POST',
+      headers,          // IMPORTANT: no manual Content-Type
+      body: fd
     });
-  });
 
-  // --- Image Upload ---
-  // When the thumbs grid is clicked, open file selector
-  thumbs.addEventListener('click', e => {
-    if (e.target.classList.contains('add')) fileInput.click();
-  });
-
-  // Handle file input
-  fileInput.addEventListener('change', () => {
-    const files = Array.from(fileInput.files || []);
-    state.images.push(...files);  // ✅ No slice — unlimited images
-    fileInput.value = '';
-    renderThumbs();
-  });
-
-  function renderThumbs() {
-    thumbs.innerHTML = '';
-    state.images.forEach((file, idx) => {
-      const url = URL.createObjectURL(file);
-      const div = document.createElement('div');
-      div.className = 'thumb';
-      div.innerHTML = `
-        <img src="${url}" alt="upload-${idx}">
-        <button class="x">✕</button>
-      `;
-      div.querySelector('.x').addEventListener('click', () => {
-        state.images.splice(idx, 1);
-        renderThumbs();
-      });
-      thumbs.appendChild(div);
-    });
-    // ✅ Always keep one "Add photo" slot
-    const add = document.createElement('div');
-    add.className = 'add';
-    add.textContent = 'Add photo';
-    thumbs.appendChild(add);
-  }
-
-  renderThumbs();
-
-  // --- Submit ---
-  postBtn.addEventListener('click', async () => {
-    if (state.posting) return;
-    state.posting = true;
-    postBtn.disabled = true;
-    note.textContent = '';
-
-    try {
-      const fd = new FormData();
-      fd.append('content', contentArea.value || '');
-      fd.append('content_type', state.contentType);
-      fd.append('visibility', state.visibility);
-
-      // ✅ Upload all selected images
-      state.images.forEach(img => fd.append('images', img));
-
-      const headers = {};
-      const token = localStorage.getItem('access');
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch('/api/entries/create/', {
-        method: 'POST',
-        headers,
-        body: fd
-      });
-
-      if (!res.ok) {
-        const data = await safeJson(res);
-        throw new Error(data?.detail || `Failed (${res.status})`);
-      }
-      note.textContent = '✅ Posted!';
-    } catch (err) {
-      note.textContent = `⚠️ ${err.message || err}`;
-    } finally {
-      state.posting = false;
-      postBtn.disabled = false;
+    let data = null;
+    try { data = await res.json(); } catch {}
+    if (!res.ok) {
+      throw new Error(data?.detail || `Failed (${res.status})`);
     }
-  });
 
-  async function safeJson(res) {
-    try { return await res.json(); } catch { return null; }
+    note.textContent = '✅ Posted!';
+    // Optional: go see the entry page
+    // window.location.href = `/entries/${data.id}/`;
+    console.log('Created entry:', data);
+  }catch(err){
+    note.textContent = `⚠️ ${err.message || err}`;
+  }finally{
+    state.posting = false;
+    postBtn.disabled = false;
   }
+});
 </script>
+</body>
+</html>

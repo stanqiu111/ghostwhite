@@ -20,11 +20,13 @@ from django.urls import path, include
 from django.views.generic import RedirectView
 from .views import home_view
 
-
 urlpatterns = [
     path("", RedirectView.as_view(url="/api/authors/auth/", permanent=False)),
     path("home/", home_view, name="home"),
     path("admin/", admin.site.urls),
     path("api/authors/", include("authors.urls")),
-    path("api/", include("entries.urls")),
+    #path("api/", include("entries.urls")),
+    #path("", include("entries.page_urls")),  
+    path("api/", include(("entries.urls", "entries_api"), namespace="entries_api")), 
+    path("", include(("entries.page_urls", "entries_pages"), namespace="entries_pages")), 
 ]

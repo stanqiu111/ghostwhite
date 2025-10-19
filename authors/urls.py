@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
 from .views import AuthorPublicGetUpdate, AuthorListView
@@ -13,7 +13,9 @@ urlpatterns = [
     path("register/", views.AuthorRegistrationView.as_view(), name="register"),
     path("author_profile/", views.AuthorRetrieveUpdateView.as_view(), name="profile"),
     path("<uuid:author_id>/", AuthorPublicGetUpdate.as_view(), name="author_public"),
+    path("<uuid:author_id>/entries/", include("entries.urls")),
     path("<str:username>/json/", views.author_profile_json, name="author_rofile_json"),
     path("<str:username>/avatar/", views.author_avatar_upload, name="author_avatar_upload"),
+  
     
 ] 

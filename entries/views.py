@@ -78,11 +78,10 @@ class EntryDeleteView(generics.DestroyAPIView):
         instance.soft_delete()
 
 
-def view_entry_detail(request, pk):
+def entry_detail_page(request, pk):
     # initial entry detail page load
     entry = get_object_or_404(Entry, pk=pk)
-    return render(request, "entries/entry_detail.html", {"entry": entry})
-
+    return render(request, "entries/entry_detail.html", {"entry_id": pk})
 
 # -------------------------------------------------------------------------
 # COMMENTS AND LIKES AS DRF VIEWS (API, no direct request.POST)
@@ -119,7 +118,7 @@ class EntryLikeToggleView(generics.DestroyAPIView):
 
     def post(self, request, pk, *args, **kwargs):
         entry = get_object_or_404(Entry, pk=pk)
-        author = request.user.author
+        author = request.user
 
         like, created = EntryLike.objects.get_or_create(entry=entry, author=author)
         if not created:
@@ -138,7 +137,7 @@ class CommentLikeToggleView(generics.DestroyAPIView):
 
     def post(self, request, pk, comment_id, *args, **kwargs):
         comment = get_object_or_404(Comment, pk=comment_id)
-        author = request.user.author
+        author = request.user
 
         like, created = CommentLike.objects.get_or_create(
             comment=comment, author=author

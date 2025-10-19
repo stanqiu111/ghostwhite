@@ -1,64 +1,234 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Post Detail</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        max-width: 800px;
-        margin: 50px auto;
-        padding: 20px;
-        background-color: #f9f9f9;
-      }
-      .post-box {
-        background: white;
-        padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      }
-      .post-meta {
-        color: #666;
-        font-size: 14px;
-        margin-bottom: 20px;
-      }
-      .post-content {
-        line-height: 1.6;
-        margin: 20px 0;
-      }
-      a {
-        color: #007bff;
-        text-decoration: none;
-      }
-      a:hover {
-        text-decoration: underline;
-      }
-    </style>
-  </head>
-  <body>
-    <a href="/">← Back</a>
+<head>
+<meta charset="utf-8" />
+<title>Entry • Éthéré</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--line:#e5e7eb;--ink:#0f172a;--muted:#6b7280;
+        --brand:#111827;--pad:16px;--maxw:1180px;}
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:var(--pad)}
+  .row{display:grid;grid-template-columns:1fr 360px;gap:var(--pad)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .section{padding:var(--pad)}
+  .head{display:flex;gap:12px;align-items:center}
+  .pfp{width:44px;height:44px;border-radius:999px;object-fit:cover;background:#ddd;border:1px solid var(--line)}
+  .name{font-weight:700}
+  .time{color:var(--muted);font-size:13px}
+  .content{white-space:pre-wrap;margin-top:10px}
+  .hero{width:100%;max-height:520px;object-fit:cover;border-radius:12px;border:1px solid var(--line);display:none;margin-top:12px}
+  .actions{display:flex;gap:14px;align-items:center;margin-top:10px}
+  .chip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:8px 12px}
+  .muted{color:var(--muted)}
+  .right .tabs{display:flex;gap:8px;padding:var(--pad) var(--pad) 8px}
+  .pill{border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:#fff;cursor:pointer}
+  .pill.active{background:#111827;color:#fff;border-color:#111827}
+  .list{padding:0 var(--pad) var(--pad);max-height:70vh;overflow:auto}
+  .item{display:grid;grid-template-columns:44px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .small{width:30px;height:30px;border-radius:999px;object-fit:cover;background:#ddd;border:1px solid var(--line)}
+  .cmeta{font-size:12px;color:var(--muted)}
+  .field{display:flex;gap:10px;border-top:1px solid var(--line);padding:var(--pad)}
+  .input{flex:1;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .btn{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer}
+  .bar{display:flex;align-items:center;gap:8px;margin:0 0 var(--pad)}
+  .back{border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px 10px;cursor:pointer}
+  @media (max-width:980px){ .row{grid-template-columns:1fr} .right{order:2} }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <button class="back" onclick="history.back()">← Home</button>
+    <strong>Entry</strong>
+    <span id="authWarn" class="muted" style="margin-left:auto"></span>
+  </div>
 
-    <div class="post-box">
-      <h1>{{ entry.author.username }}'s Post</h1>
+  <div class="row">
+    <!-- Center column -->
+    <main class="card">
+      <div class="section">
+        <div class="head">
+          <img id="entryAuthorAvatar" class="pfp" alt="Author avatar">
+          <div>
+            <div class="name" id="entryAuthorName">—</div>
+            <div class="time" id="entryTime">—</div>
+          </div>
+          <div class="muted" style="margin-left:auto;cursor:pointer" id="refreshBtn">↻ Refresh</div>
+        </div>
 
-      <div class="post-meta">
-        Posted on {{ entry.created_at|date:"F d, Y" }} | Visibility: {{
-        entry.get_visibility_display }}
+        <div id="entryContent" class="content"></div>
+        <img id="entryImage" class="hero" alt="Entry image">
+
+        <div class="actions">
+          <span class="chip" id="likeChip">♡ <span id="likeCount">0</span></span>
+          <span class="chip" id="commentChip">💬 <span id="commentCount">0</span></span>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right column -->
+    <aside class="card right">
+      <div class="tabs">
+        <button id="tabComments" class="pill active">Comments</button>
+        <button id="tabLikes" class="pill">Likes</button>
       </div>
 
-      {% if entry.image %}
-      <img
-        src="{{ entry.image.url }}"
-        alt="Post image"
-        style="max-width: 100%; border-radius: 4px"
-      />
-      {% endif %}
+      <div id="commentsList" class="list"></div>
+      <div id="likesList" class="list" style="display:none"></div>
 
-      <div class="post-content">{{ entry.content }}</div>
+      <div class="field" id="commentField">
+        <img id="meAvatar" class="small" alt="me">
+        <input id="commentInput" class="input" placeholder="Add a comment…">
+        <button id="postComment" class="btn">Post</button>
+      </div>
+    </aside>
+  </div>
+</div>
 
-      <hr />
-      <small style="color: #999">Post ID: {{ entry.id }}</small>
-    </div>
-  </body>
+<script>
+/* ============ CONFIG ============ */
+const API_BASE = "http://127.0.0.1:8000/api";   // adjust if needed
+const DEFAULT_PFP = "/static/images/default_pfp.png"; // change if your path differs
+const token = localStorage.getItem("access");   // JWT stored earlier
+const headersAuth = token ? { Authorization: `Bearer ${token}` } : {};
+if (!token) document.getElementById("authWarn").textContent = "Given token not valid for any token type";
+
+/* ============ HELPERS =========== */
+const $ = (sel, root=document)=> root.querySelector(sel);
+const el = (html)=>{ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; };
+const fmtTime = iso => { try{return new Date(iso).toLocaleString();}catch{return iso||"";} };
+const esc = s => (s||"").replace(/[&<>'"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[m]));
+
+/* ============== API ============= */
+async function api(path, opts={}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...opts,
+    headers: { ...(opts.headers||{}), ...headersAuth }
+  });
+  let data = null; try{ data = await res.json(); }catch{}
+  if (!res.ok) throw new Error(data?.detail || `${res.status} ${res.statusText}`);
+  return data;
+}
+const getEntry = id => api(`/entries/${id}/`);
+const toggleEntryLike = id => api(`/entries/${id}/like/`, { method:'POST' });
+const addComment = (id, content) => api(`/entries/${id}/addcomments/`, {
+  method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content})
+});
+const likeComment = (entryId, commentId) => api(`/entries/${entryId}/comments/${commentId}/like/`, { method:'POST' });
+
+/* ============= STATE ============ */
+let ENTRY_ID = null;
+let ENTRY = null;
+
+/* ======= BOOT / ROUTING ========= */
+function getIdFromURL(){
+  // Expect …/entries/<uuid>/view/
+  const parts = location.pathname.split('/').filter(Boolean);
+  // ["entries","<uuid>","view"]
+  if (parts[0]==='entries' && parts[1]) return parts[1];
+  return null;
+}
+
+async function boot(){
+  ENTRY_ID = getIdFromURL();
+  if (!ENTRY_ID) { alert('No entry id in URL'); return; }
+  $('#meAvatar').src = DEFAULT_PFP;  // your own avatar if you want to fetch it separately
+  await load();
+}
+async function load(){
+  try{
+    ENTRY = await getEntry(ENTRY_ID);
+    renderEntry(ENTRY);
+    renderRight(ENTRY);
+  }catch(e){ alert(e.message || 'Failed to load entry'); }
+}
+
+/* ============ RENDER ============ */
+function renderEntry(e){
+  // avatar with fallback
+  const avatar = $('#entryAuthorAvatar');
+  avatar.src = (e.author && e.author.image) ? e.author.image : DEFAULT_PFP;
+
+  $('#entryAuthorName').textContent = e.author?.display_name || e.author?.username || '—';
+  $('#entryTime').textContent = fmtTime(e.created_at);
+
+  const contentNode = $('#entryContent');
+  const ct = (e.content_type||'plain_text').toLowerCase();
+  if (ct.includes('markdown')) { marked.setOptions({gfm:true,breaks:true}); contentNode.innerHTML = marked.parse(e.content||''); }
+  else { contentNode.textContent = e.content || ''; }
+
+  const img = $('#entryImage');
+  if (e.image) { img.src = e.image; img.style.display = 'block'; } else { img.style.display = 'none'; }
+
+  $('#likeCount').textContent = (e.like_count ?? e.likes?.length ?? 0);
+  $('#commentCount').textContent = (e.comments?.length ?? 0);
+
+  $('#refreshBtn').onclick = load;
+  $('#likeChip').onclick = async ()=>{ try{ await toggleEntryLike(e.id); await load(); setTab('likes'); }catch(err){ alert(err.message); } };
+  $('#commentChip').onclick = ()=> setTab('comments');
+}
+
+function setTab(which){
+  const isComments = which==='comments';
+  $('#tabComments').classList.toggle('active', isComments);
+  $('#tabLikes').classList.toggle('active', !isComments);
+  $('#commentsList').style.display = isComments ? '' : 'none';
+  $('#likesList').style.display = isComments ? 'none' : '';
+  $('#commentField').style.display = isComments ? '' : 'none';
+}
+
+function renderRight(e){
+  // tabs
+  $('#tabComments').onclick = ()=> setTab('comments');
+  $('#tabLikes').onclick = ()=> setTab('likes');
+
+  // comments
+  const clist = $('#commentsList'); clist.innerHTML = '';
+  (e.comments||[]).forEach(c=>{
+    const node = el(`
+      <div class="item">
+        <img class="pfp" style="width:36px;height:36px" src="${(c.author && c.author.image) ? c.author.image : DEFAULT_PFP}" alt="">
+        <div>
+          <div><strong>${esc(c.author?.display_name || c.author?.username || '—')}</strong> <span class="cmeta">${fmtTime(c.created_at)}</span></div>
+          <div>${esc(c.content||'')}</div>
+          <div class="cmeta" style="margin-top:6px">${c.like_count ?? 0} likes</div>
+        </div>
+        <button class="btn" style="background:#fff;color:#111;border:1px solid var(--line)" title="Like">♡</button>
+      </div>
+    `);
+    node.querySelector('button').onclick = async ()=>{ try{ await likeComment(e.id, c.id); await load(); }catch(err){ alert(err.message); } };
+    clist.append(node);
+  });
+
+  // likes
+  const llist = $('#likesList'); llist.innerHTML = '';
+  (e.likes||[]).forEach(l=>{
+    llist.append(el(`
+      <div class="item">
+        <img class="pfp" style="width:36px;height:36px" src="${(l.author && l.author.image) ? l.author.image : DEFAULT_PFP}" alt="">
+        <div>
+          <div><strong>${esc(l.author?.display_name || l.author?.username || '—')}</strong></div>
+          <div class="cmeta">${fmtTime(l.created_at)}</div>
+        </div>
+        <div></div>
+      </div>
+    `));
+  });
+
+  // add comment
+  $('#postComment').onclick = async ()=>{
+    const val = $('#commentInput').value.trim();
+    if (!val) return;
+    try{ await addComment(e.id, val); $('#commentInput').value=''; await load(); setTab('comments'); }
+    catch(err){ alert(err.message || 'Failed to add comment'); }
+  };
+}
+
+/* ============ START ============ */
+boot();
+</script>
+</body>
 </html>

@@ -642,9 +642,8 @@
       }
 
       function navigateToEntry(entryId) {
-        window.location.href = `/api/entries/${entryId}/view/`;
+        window.location.href = `/entries/${entryId}/view/`;
       }
-
       function logout() {
         // Clear JWT tokens from localStorage
         localStorage.removeItem("access_token");

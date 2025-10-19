@@ -1,6 +1,6 @@
 from django.urls import path
 from django.views.generic import TemplateView
-from .views import view_entry_detail
+from .views import entry_detail_page
 
 app_name = "entries_pages"
 
@@ -11,6 +11,6 @@ urlpatterns = [
         name="create-entry-page",
     ),
     path(
-        "entries/<uuid:pk>/view/", view_entry_detail, name="entry-detail-html"
-    ),  # HTML page
+        "entries/<uuid:pk>/view/", entry_detail_page, name="entry-detail-html"
+    ),   
 ]

@@ -124,13 +124,29 @@ def author_profile_json(request, username):
 @require_http_methods(["POST"])
 def author_avatar_upload(request, username):
     author = get_object_or_404(Author, username=username)
+
+    # Expect multipart/form-data with a file field named "image"
     f = request.FILES.get("image")
     if not f:
         return JsonResponse({"error": "image file required"}, status=400)
 
-    _, ext = os.path.splitext(f.name)
-    safe_name = f"{uuid.uuid4().hex}{ext.lower()}"
-    return JsonResponse({"image": request.build_absolute_uri(author.image.url)})
+    # Validate extension
+    _, ext = os.path.splitext(f.name or "")
+    ext = (ext or "").lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
+        return JsonResponse({"error": "unsupported file type"}, status=400)
+
+    # Generate a safe unique name and save to the model field
+    safe_name = f"{uuid.uuid4().hex}{ext}"
+    # Optionally delete old image (commented out by default)
+    # if author.image and getattr(author.image, "name", ""):
+    #     author.image.delete(save=False)
+    author.image.save(safe_name, f, save=True)
+
+    return JsonResponse(
+        {"image": request.build_absolute_uri(author.image.url)},
+        status=200,
+    )
 
 class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
     """

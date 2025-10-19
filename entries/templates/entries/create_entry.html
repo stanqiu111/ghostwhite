@@ -222,7 +222,7 @@ postBtn.addEventListener('click', async ()=>{
     const token = localStorage.getItem('access');
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const res = await fetch('http://127.0.0.1:8000/api/entries/create/', {
+    const res = await fetch('http://localhost:8000/api/entries/create/', {
       method: 'POST',
       headers,          // IMPORTANT: no manual Content-Type
       body: fd

@@ -25,8 +25,14 @@ urlpatterns = [
     path("home/", home_view, name="home"),
     path("admin/", admin.site.urls),
     path("api/authors/", include("authors.urls")),
-    #path("api/", include("entries.urls")),
-    #path("", include("entries.page_urls")),  
-    path("api/", include(("entries.urls", "entries_api"), namespace="entries_api")), 
-    path("", include(("entries.page_urls", "entries_pages"), namespace="entries_pages")), 
+    # path("api/", include("entries.urls")),
+    # path("", include("entries.page_urls")),
+    path("api/", include(("entries.urls", "entries_api"), namespace="entries_api")),
+    path(
+        "api/",
+        include(("entries.page_urls", "entries_pages"), namespace="entries_pages"),
+    ),
+    path(
+        "", include(("entries.page_urls", "entries_pages"), namespace="entries_pages")
+    ),
 ]

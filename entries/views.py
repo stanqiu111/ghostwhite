@@ -32,7 +32,7 @@ class EntryRetrieveView(generics.RetrieveAPIView):
     """Retrieve a single entry by ID"""
 
     serializer_class = EntryRetrieveSerializer
-    permission_classes = [AllowAny]   # this allows anyone with link can view the entry
+    permission_classes = [AllowAny]  # this allows anyone with link can view the entry
 
     def get_queryset(self):
         if self.request.user.is_authenticated and self.request.user.is_staff:
@@ -82,13 +82,7 @@ def view_entry_detail(request, pk):
     # initial entry detail page load
     entry = get_object_or_404(Entry, pk=pk)
     return render(request, "entries/entry_detail.html", {"entry": entry})
-        
-def entries_feed_page(request):
-    """
-    Render entries.html — the front-end page that fetches /api/entries/
-    and renders the feed (likes, comments, comment-likes).
-    """
-    return render(request, "entries/entries.html")
+
 
 # -------------------------------------------------------------------------
 # COMMENTS AND LIKES AS DRF VIEWS (API, no direct request.POST)
@@ -127,9 +121,7 @@ class EntryLikeToggleView(generics.DestroyAPIView):
         entry = get_object_or_404(Entry, pk=pk)
         author = request.user.author
 
-        like, created = EntryLike.objects.get_or_create(
-            entry=entry, author= author
-        )
+        like, created = EntryLike.objects.get_or_create(entry=entry, author=author)
         if not created:
             like.delete()
             return Response({"detail": "Like removed."}, status=status.HTTP_200_OK)
@@ -149,8 +141,7 @@ class CommentLikeToggleView(generics.DestroyAPIView):
         author = request.user.author
 
         like, created = CommentLike.objects.get_or_create(
-            comment=comment,
-            author=author
+            comment=comment, author=author
         )
         if not created:
             like.delete()

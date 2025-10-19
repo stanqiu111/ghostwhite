@@ -172,7 +172,7 @@
     }
 
     function getUsernameFromPath() {
-      const m = location.pathname.match(/\/api\/authors\/([^\/]+)\/?$/);
+      const m = location.pathname.match(/\/authors\/([^\/]+)\/?$/);
       return m ? decodeURIComponent(m[1]) : null;
     }
 
@@ -194,7 +194,7 @@
     };
 
   
-    // --- Avatar upload: bind once ---
+    //Avatar upload
     const uploadBtn   = document.getElementById('uploadBtn');
     const avatarInput = document.getElementById('avatarInput');
     const mainAvatar  = document.getElementById('mainAvatar');
@@ -205,7 +205,7 @@
       avatarInput.addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
-        selectedAvatarFile = file;                         // remember for Save
+        selectedAvatarFile = file;           // remember for Save
         const reader = new FileReader();
         reader.onload = () => { mainAvatar.src = reader.result; }; // instant preview only
         reader.readAsDataURL(file);

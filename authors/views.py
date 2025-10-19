@@ -1,20 +1,22 @@
+import os, uuid
+import json
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login, logout
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from rest_framework import generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.pagination import PageNumberPagination
 from .models import Author
 from .serializers import AuthorSerializer, AuthorRegistrationSerializer
-from django.contrib.auth import authenticate, login, logout
-from django.http import JsonResponse
-import json
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.core.files.base import ContentFile
-import os, uuid
 
-
+ 
 # Create your views here.
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
@@ -129,3 +131,51 @@ def author_avatar_upload(request, username):
     _, ext = os.path.splitext(f.name)
     safe_name = f"{uuid.uuid4().hex}{ext.lower()}"
     return JsonResponse({"image": request.build_absolute_uri(author.image.url)})
+
+class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
+    """
+    GET: Allowed for Anyone to Get Author's Info
+    PUT/PATCH: Only Allowed for Node Admin/ Author itself
+    """
+    queryset = Author.objects.all()
+    serializer_class = AuthorSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+   
+    lookup_field = "id"
+    lookup_url_kwarg = "author_id"
+  
+    def perform_update(self, serializer):
+        author = self.get_object()
+        user = self.request.user
+        if not (user.is_authenticated and (user == author or user.is_staff)):
+            raise PermissionDenied("Forbidden")
+        serializer.save()
+    
+
+class AuthorPagination(PageNumberPagination):
+    page_query_param = "page"
+    page_size_query_param = "size"
+    page_size = 5 
+    max_page_size = 100
+    
+    def get_paginated_response(self, data):
+        return Response({
+            "type": "authors",
+            "authors": data
+        })
+
+class AuthorListView(generics.ListAPIView):
+    queryset = Author.objects.all().order_by("username")
+    serializer_class = AuthorSerializer
+    pagination_class = AuthorPagination
+
+    def list(self, request, *args, **kwargs):
+        page = self.paginate_queryset(self.get_queryset())
+        if page is not None:
+            serializer = self.get_serializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response({"type": "authors", 
+                         "authors": serializer.data})

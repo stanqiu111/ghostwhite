@@ -357,10 +357,11 @@ h2.profile-name {
   cursor: pointer;
 }
 
-hr{
-  width: 100%;
+hr {
+  border: none;
+  border-top: 1.5px solid #CFCFCF;
   margin: 24px 0 16px;
-  border-top: 1px solid #CFCFCF; 
+
 }
 
 /* Entries */
@@ -389,6 +390,7 @@ hr{
   display: block;
 }
 
+
 .upload-tile{
   background: #686868;
   display: flex;
@@ -396,8 +398,6 @@ hr{
   justify-content: center;
   position: relative;
 }
-
-
 
 .upload-tile.no-image::after{
   content: "";

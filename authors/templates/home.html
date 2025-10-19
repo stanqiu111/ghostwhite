@@ -362,7 +362,7 @@
           </button>
         </div>
         <div class="header-actions">
-          <button class="header-btn" title="Add Entry">
+          <button class="header-btn" title="Add Entry" onclick="navigateToCreateEntry()">
             <svg
               width="27"
               height="27"
@@ -651,6 +651,10 @@
         localStorage.removeItem("user_data");
 
         window.location.href = "/api/authors/logout/";
+      }
+
+      function navigateToCreateEntry() {
+        window.location.href = "/entries/create/";
       }
 
       // Load entries when page loads

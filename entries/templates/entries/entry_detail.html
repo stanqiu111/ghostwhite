@@ -1,3 +1,4 @@
+{% load static %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -87,14 +88,12 @@
     </aside>
   </div>
 </div>
-
+<script src="{% static 'js/api.js' %}"></script>
 <script>
 /* ============ CONFIG ============ */
 const API_BASE = "http://localhost:8000/api";   // adjust if needed
 const DEFAULT_PFP = "/static/images/default_pfp.png"; // change if your path differs
-const token = localStorage.getItem("access");   // JWT stored earlier
-const headersAuth = token ? { Authorization: `Bearer ${token}` } : {};
-if (!token) document.getElementById("authWarn").textContent = "Given token not valid for any token type";
+const headersAuth = getHeaders();
 
 /* ============ HELPERS =========== */
 const $ = (sel, root=document)=> root.querySelector(sel);

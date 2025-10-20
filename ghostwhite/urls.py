@@ -30,7 +30,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path("", RedirectView.as_view(url="/api/authors/auth/", permanent=False)),
+    path("", RedirectView.as_view(url="/home/", permanent=False)),
     path("home/", home_view, name="home"),
     path("admin/", admin.site.urls),
     path("api/authors/", include("authors.urls")),

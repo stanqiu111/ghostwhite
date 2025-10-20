@@ -105,7 +105,11 @@
       <div id="likesList" class="list" style="display:none"></div>
 
       <div class="field" id="commentField">
-        <img id="meAvatar" class="small" alt="me">
+        {% if user.image %}
+          <img class="small" src="{{ user.image.url }}" alt="me">
+        {% else %}
+          <img class="small" src="{% static 'images/default_pfp.png' %}" alt="me">
+        {% endif %}
         <input id="commentInput" class="input" placeholder="Add a comment…">
         <button id="postComment" class="btn">Post</button>
       </div>
@@ -187,7 +191,6 @@ function getIdFromURL(){
 async function boot(){
   ENTRY_ID = getIdFromURL();
   if (!ENTRY_ID) { alert('No entry id in URL'); return; }
-  $('#meAvatar').src = DEFAULT_PFP;  // your own avatar if you want to fetch it separately
   await load();
 }
 async function load(){

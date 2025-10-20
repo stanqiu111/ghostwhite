@@ -88,7 +88,8 @@ def entry_detail_page(request, pk):
     # initial entry detail page load
     entry = get_object_or_404(Entry, pk=pk)
     user_has_liked = EntryLike.objects.filter(entry=entry, author=request.user).exists()
-    return render(request, "entries/entry_detail.html", {"entry_id": pk, "user_has_liked": user_has_liked})
+    user = request.user
+    return render(request, "entries/entry_detail.html", {"entry_id": pk, "user_has_liked": user_has_liked, "user": user})
 
 
 def entry_create_page(request):

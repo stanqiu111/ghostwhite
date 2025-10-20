@@ -154,24 +154,8 @@
     </section>
   </main>
 
+  <script src="{% static 'js/api.js' %}"></script>
   <script>
-
-  
-    // Read csrftoken from cookie for Django's CSRF protection; Without it, “403 Forbidden”
-    function getCsrfToken() {
-      const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-      return m ? decodeURIComponent(m[1]) : null;
-    }
-
-    //Builds standard headers for all fetch() API calls
-    function buildAuthHeaders(extra = {}) {
-      const jwt  = localStorage.getItem('access_token');
-      const csrf = getCsrfToken();
-      const headers = { 'Content-Type': 'application/json', ...extra };
-      if (jwt)  headers['Authorization'] = `Bearer ${jwt}`;
-      if (csrf) headers['X-CSRFToken']   = csrf;      // important for PUT/POST with session
-      return headers;
-    }
     //Extracts the username from the current URL, e.g. /authors/makima/ --> "makiam".Used to know whose profile to fetch.
     function getUsernameFromPath() {
       const m = location.pathname.match(/\/authors\/([^\/]+)\/?$/);
@@ -181,14 +165,14 @@
     const API = {
       getProfile(username) {    //get author info
         return fetch(`/api/authors/${encodeURIComponent(username)}/json/`, {
-          headers: buildAuthHeaders(),
+          headers: getHeaders(),
           credentials: 'same-origin'
         });
       },
       updateProfile(username, body) {    // update author info
         return fetch(`/api/authors/${encodeURIComponent(username)}/json/`, {
           method: 'PUT',
-          headers: buildAuthHeaders(),
+          headers: getHeaders(),
           body: JSON.stringify(body),
           credentials: 'same-origin'
         });

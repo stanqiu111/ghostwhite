@@ -100,8 +100,6 @@
     </div>
   </div>
 
-
-
   <main class="layout">
     <section class="profile-card">
       <figure class="mainAvatar">
@@ -127,11 +125,15 @@
             <span class="label">Entries</span>
           </li>
           <li id="statFollowers">
-            <span class="num">100</span><br>
+            <span class="num">
+              {{ follower_count }}
+            </span><br>
             <span class="label">Followers</span>
           </li>
           <li id="statFollowing">
-            <span class="num">105</span><br>
+            <span class="num">
+              {{ following_count }}
+            </span><br>
             <span class="label">Following</span>
           </li>
         </ul>

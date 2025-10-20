@@ -107,7 +107,9 @@ def author_profile_page(request, username):
     author = Author.objects.get(username=username)
     top_5_entries = Entry.objects.filter(author=author.id, deleted_at__isnull=True).order_by('-created_at')[:5]
     entry_count = Entry.objects.filter(author=author.id, deleted_at__isnull=True).count()
-    return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count})
+    follower_count = Follow.objects.filter(following=author.id, approved=True).count()
+    following_count = Follow.objects.filter(follower=author.id, approved=True).count()
+    return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count, 'follower_count': follower_count, 'following_count': following_count})
 
 
 class AuthorByUsernameView(generics.RetrieveUpdateAPIView):

@@ -531,13 +531,12 @@
             headers: getHeaders(),
           });
 
-          console.log("Response status:", response.status);
-
           if (!response.ok) {
             throw new Error("Failed to load entries");
           }
 
           const entries = await response.json();
+          
           displayEntries(entries);
         } catch (error) {
           console.error("Error loading entries:", error);
@@ -637,8 +636,7 @@
       }
 
       function likeEntry(entryId) {
-        // TODO: Implement like functionality
-        console.log("Like entry:", entryId);
+        
       }
 
       function navigateToEntry(entryId) {

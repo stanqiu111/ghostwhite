@@ -35,6 +35,9 @@
   .btn{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer}
   .bar{display:flex;align-items:center;gap:8px;margin:0 0 var(--pad)}
   .back{border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px 10px;cursor:pointer}
+  .button_panel{display:flex;gap:10px;}
+  .delete_button{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer}
+  .edit_button{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer}
   @media (max-width:980px){ .row{grid-template-columns:1fr} .right{order:2} }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -58,6 +61,10 @@
             <div class="time" id="entryTime">—</div>
           </div>
           <div class="muted" style="margin-left:auto;cursor:pointer" id="refreshBtn">↻ Refresh</div>
+          <div id="button_panel" class="button_panel" style="display:none">
+            <button class="delete_button" onclick="deleteEntry()">Delete</button>
+            <button class="edit_button" onclick="editEntry()">Edit</button>
+          </div>
         </div>
 
         <div id="entryContent" class="content"></div>
@@ -91,7 +98,6 @@
 <script src="{% static 'js/api.js' %}"></script>
 <script>
 /* ============ CONFIG ============ */
-const API_BASE = "http://localhost:8000/api";   // adjust if needed
 const DEFAULT_PFP = "/static/images/default_pfp.png"; // change if your path differs
 const headersAuth = getHeaders();
 
@@ -103,7 +109,7 @@ const esc = s => (s||"").replace(/[&<>'"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&
 
 /* ============== API ============= */
 async function api(path, opts={}) {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`/api${path}`, {
     ...opts,
     headers: { ...(opts.headers||{}), ...headersAuth }
   });
@@ -147,6 +153,10 @@ async function load(){
 
 /* ============ RENDER ============ */
 function renderEntry(e){
+  // show edits and delete button is the entry belongs to the user
+  if (e.author.id === localStorage.getItem('user_id')) {
+    $('#button_panel').style.display = 'flex';
+  }
   // avatar with fallback
   const avatar = $('#entryAuthorAvatar');
   avatar.src = (e.author && e.author.image) ? e.author.image : DEFAULT_PFP;
@@ -226,6 +236,22 @@ function renderRight(e){
   };
 }
 
+async function deleteEntry() {
+  try{
+    const res = await fetch(`/api/entries/${ENTRY_ID}/delete/`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      throw new Error(data?.detail || `Failed (${res.status})`);
+    }
+    window.location.href = '/home/';
+  }catch(err){ alert(err.message || 'Failed to delete entry'); }
+}
+
+function editEntry() {
+  window.location.href = `/entries/${ENTRY_ID}/edit/`;
+}
 /* ============ START ============ */
 boot();
 </script>

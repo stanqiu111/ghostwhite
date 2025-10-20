@@ -1,3 +1,4 @@
+{% load static %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -13,12 +14,6 @@
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial}
-
-    /* top bar */
-    .topbar{position:sticky;top:0;z-index:10;height:var(--topbar-h);background:#fff;border-bottom:1px solid var(--line)}
-    .topbar .inner{max-width:var(--maxw);height:100%;margin:0 auto;padding:10px var(--pad);display:flex;gap:12px;align-items:center}
-    .avatar{width:36px;height:36px;border-radius:50%;background:#111}
-    .spacer{flex:1}
 
     /* page */
     .container{max-width:var(--maxw);margin:0 auto;padding:var(--pad);min-height:calc(100vh - var(--topbar-h))}
@@ -59,16 +54,6 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
-  <div class="topbar">
-    <div class="inner">
-      <div class="avatar"></div>
-      <strong>Éthéré</strong>
-      <div class="spacer"></div>
-      <button class="pill active">+ Create</button>
-      <div class="avatar" style="background:#ddd"></div>
-    </div>
-  </div>
-
   <div class="container">
     <div class="row">
       <!-- Editor -->
@@ -113,13 +98,19 @@
     </div>
   </div>
 
+<script src="{% static 'js/api.js' %}"></script>
 <script>
+/* ----------- MODE: create or edit ----------- */
+const ENTRY_ID = '{{ entry_id|default:"" }}'; // we need id passed from django to know if we are editing or creating
+const IS_EDITING = !!ENTRY_ID;
+
 /* ----------- state ----------- */
 const state = {
   tab: 'edit',
   contentType: 'markdown',
   visibility: 'public',
   image: null,      // single File or null
+  existingImageUrl: null, 
   posting: false,
 };
 
@@ -137,11 +128,18 @@ const fileInput = document.getElementById('fileInput');
 const postBtn = document.getElementById('postBtn');
 const note = document.getElementById('note');
 
-/* ----------- sample text ----------- */
-contentArea.value = `# Hello!
+if (IS_EDITING) {
+  postBtn.textContent = 'Update';
+  document.title = 'Edit Entry';
+}
+
+// if we are creating, we will set dummy text
+if (!IS_EDITING) {
+  contentArea.value = `# Hello!
 
 Upload a single image with this entry. **Markdown** supported.
 `;
+}
 
 /* ----------- tabs ----------- */
 tabEdit.addEventListener('click', () => setTab('edit'));
@@ -190,19 +188,53 @@ fileInput.addEventListener('change', () => {
 });
 
 function renderPhoto(){
-  if (!state.image) {
+  if (!state.image && !state.existingImageUrl) {
     photoSlot.className = 'add';
     photoSlot.textContent = 'Add photo';
     return;
   }
-  const url = URL.createObjectURL(state.image);
-  // replace slot with preview + remove button
+  // Show new image if selected, otherwise show existing
+  const url = state.image ? URL.createObjectURL(state.image) : state.existingImageUrl;
   photoSlot.className = 'thumb';
   photoSlot.innerHTML = `<img src="${url}" alt="preview"><button class="x" title="Remove">✕</button>`;
   photoSlot.querySelector('.x').addEventListener('click', ()=>{
     state.image = null;
+    state.existingImageUrl = null;
     renderPhoto();
   });
+}
+
+/* ----------- load existing entry if editing ----------- */
+async function loadEntry() {
+  if (!IS_EDITING) return;
+  
+  try {
+    const res = await fetch(`/api/entries/${ENTRY_ID}/`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to load entry');
+    
+    const entry = await res.json();
+    
+    // Populate form
+    contentArea.value = entry.content || '';
+    state.contentType = entry.content_type || 'markdown';
+    contentTypeSel.value = state.contentType;
+    state.visibility = entry.visibility || 'public';
+    
+    // Set active visibility button
+    visButtons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.visibility === state.visibility);
+    });
+    
+    // Show existing image
+    if (entry.image) {
+      state.existingImageUrl = entry.image;
+      renderPhoto();
+    }
+  } catch (err) {
+    alert('Failed to load entry: ' + err.message);
+  }
 }
 
 /* ----------- submit ----------- */
@@ -217,14 +249,17 @@ postBtn.addEventListener('click', async ()=>{
     fd.append('content', contentArea.value || '');
     fd.append('content_type', state.contentType);
     fd.append('visibility', state.visibility);
-    if (state.image) fd.append('image', state.image); // single file named "image"
-
-    const token = localStorage.getItem('access');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-    const res = await fetch('http://127.0.0.1:8000/api/entries/create/', {
-      method: 'POST',
-      headers,          // IMPORTANT: no manual Content-Type
+    
+    if (state.image) {
+      fd.append('image', state.image);
+    }
+    
+    const url = IS_EDITING ? `/api/entries/${ENTRY_ID}/update/` : '/api/entries/create/';
+    const method = IS_EDITING ? 'PUT' : 'POST';
+    
+    const res = await fetch(url, {
+      method: method,
+      headers: getHeadersWithNoContentType(),         
       body: fd
     });
 
@@ -234,10 +269,11 @@ postBtn.addEventListener('click', async ()=>{
       throw new Error(data?.detail || `Failed (${res.status})`);
     }
 
-    note.textContent = '✅ Posted!';
-    // Optional: go see the entry page
-    // window.location.href = `/entries/${data.id}/`;
-    console.log('Created entry:', data);
+    note.textContent = IS_EDITING ? '✅ Updated!' : '✅ Posted!';
+    // Redirect to entry page after success
+    setTimeout(() => {
+      window.location.href = `/entries/${data.id}/`;
+    }, 800);
   }catch(err){
     note.textContent = `⚠️ ${err.message || err}`;
   }finally{
@@ -245,6 +281,8 @@ postBtn.addEventListener('click', async ()=>{
     postBtn.disabled = false;
   }
 });
+
+loadEntry();
 </script>
 </body>
 </html>

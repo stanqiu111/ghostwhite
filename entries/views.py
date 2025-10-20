@@ -83,6 +83,20 @@ def entry_detail_page(request, pk):
     entry = get_object_or_404(Entry, pk=pk)
     return render(request, "entries/entry_detail.html", {"entry_id": pk})
 
+
+def entry_create_page(request):
+    # Render create entry page
+    return render(request, "entries/create_entry.html")
+
+
+def entry_edit_page(request, pk):
+    # Render edit entry page with entry_id
+    entry = get_object_or_404(Entry, pk=pk)
+    # Check if user owns the entry
+    if request.user != entry.author:
+        return render(request, "entries/entry_detail.html", {"entry_id": pk})
+    return render(request, "entries/create_entry.html", {"entry_id": pk})
+
 # -------------------------------------------------------------------------
 # COMMENTS AND LIKES AS DRF VIEWS (API, no direct request.POST)
 # -------------------------------------------------------------------------

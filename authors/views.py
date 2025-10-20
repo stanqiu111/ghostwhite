@@ -64,6 +64,7 @@ def handle_login(request):
                 {
                     "access": str(refresh.access_token),
                     "refresh": str(refresh),
+                    "user_id": user.id,
                 }
             )
         else:

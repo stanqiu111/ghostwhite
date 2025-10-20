@@ -32,7 +32,7 @@ urlpatterns = [
     path( "", RedirectView.as_view(url="/authors/auth/", permanent=False), name="home"),
     path("api/authors/", include(("authors.urls", "authors_api"), namespace="authors_api")),
     path("home/", home_view, name="home"),
-    path("authors/", include(("authors.page_urls", "authors"), namespace="authors")),
+    path("authors/", include(("authors.page_urls", "authors"), namespace="authors_pages")),
 
 ]
 

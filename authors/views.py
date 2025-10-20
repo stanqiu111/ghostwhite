@@ -94,7 +94,7 @@ def logout_view(request):
     - remove django session
     """
     logout(request)
-    return redirect("authors:auth_page")
+    return redirect("authors_pages:auth_page")
 
 def author_profile_page(request, username):
     return render(request, "authors/profile_page.html")

@@ -32,7 +32,6 @@ class AuthorManager(BaseUserManager):
         return self.create_user(username, password, **extra_fields)
 
 
-# Create your models here.
 # How to override User in Django: https://servidorandycode.medium.com/django-overwrite-user-model-b91bcbbbefa2
 class Author(AbstractBaseUser, PermissionsMixin):
     """

@@ -107,7 +107,9 @@ def author_profile_page(request, username):
     author = Author.objects.get(username=username)
     top_5_entries = Entry.objects.filter(author=author.id, deleted_at__isnull=True).order_by('-created_at')[:5]
     entry_count = Entry.objects.filter(author=author.id, deleted_at__isnull=True).count()
-    return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count})
+    follower_count = Follow.objects.filter(following=author.id, approved=True).count()
+    following_count = Follow.objects.filter(follower=author.id, approved=True).count()
+    return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count, 'follower_count': follower_count, 'following_count': following_count})
 
 
 class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
@@ -202,54 +204,54 @@ class FollowRequestView(generics.CreateAPIView):
         following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
         serializer.save(follower=self.request.user, following=following_author)
 
-class FollowRequestsListView(generics.ListAPIView):
-    """
-    Get /api/follow-requests/
-    List all follow requests for the authenticated user
-    """
-    serializer_class = FollowRequestSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class FollowRequestsListView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        return (
+    def get(self, request):
+        pending = (
             Follow.objects
-            .select_related('follower')
-            .filter(following=self.request.user, status=Follow.PENDING)
-            .order_by('-created_at')
+            .select_related("follower")
+            .filter(following=request.user, approved=False)  # <-- must be False
+            .order_by("-created_at")
         )
+        data = [{
+            "id": str(fr.id),
+            "follower_username": fr.follower.username,
+            "follower_display": fr.follower.display_name,
+            "created_at": fr.created_at.isoformat(),
+        } for fr in pending]
+        return Response(data)
 
 class FollowDecisionView(APIView): 
     """
     I used APIView for FollowDecisionView because 
     this endpoint a model—it's a custom action (“approve” or “deny” a pending follow). 
-    
-    POST /api/follows/<uuid:pk>/decision/   { "decision": "accept" | "deny" }
-    Only the followee can decide; only when pending.
-    Uses a single constrained UPDATE for concurrency safety.
+
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        decision = (request.data.get("decision") or "").lower()
-        if decision not in ("accept", "deny"):
-            return Response(
-                {"detail": "decision must be 'accept' or 'deny'"},
-                status=status.HTTP_400_BAD_REQUEST,
+        """
+        Accept or deny a follow request.
+        decision: "accept" | "deny"
+        Only the followee (request.user) can decide.
+        """
+        decision = (request.data or {}).get("decision", "").lower()
+        try:
+            fr = Follow.objects.select_related("follower", "following").get(
+                id=pk, following=request.user, approved=False  # must still be pending
             )
+        except Follow.DoesNotExist:
+            return Response({"detail": "Request not found or already handled."},
+                            status=status.HTTP_404_NOT_FOUND)
 
-        new_status = Follow.ACCEPTED if decision == "accept" else Follow.DENIED
+        if decision == "accept":
+            fr.approved = True
+            fr.save(update_fields=["approved"])
+            return Response({"detail": "Follow request accepted."}, status=status.HTTP_200_OK)
 
-        # One-shot update: authorize + ensure pending in the WHERE clause
-        updated = (
-            Follow.objects
-            .filter(id=pk, following=request.user, status=Follow.PENDING)
-            .update(status=new_status, decided_at=timezone.now())
-        )
+        if decision == "deny":
+            fr.delete()  # simply drop the pending request
+            return Response({"detail": "Follow request denied."}, status=status.HTTP_200_OK)
 
-        if updated != 1:
-            return Response(
-                {"detail": "Not allowed or request is not pending."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        return Response({"id": str(pk), "status": new_status}, status=status.HTTP_200_OK)
+        return Response({"detail": "Invalid decision."}, status=status.HTTP_400_BAD_REQUEST)

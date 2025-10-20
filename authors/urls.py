@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
-from .views import AuthorListView, AuthorByUsernameView, AuthorByUsernameView
+from .views import AuthorPublicGetUpdate, AuthorListView, AuthorByUsernameView
 
 
 app_name = "authors" 

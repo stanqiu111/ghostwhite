@@ -517,7 +517,12 @@
                 <div class="entry-time">{{ entry.created_at|timesince }} ago</div>
               </div>
             </div>
-            <button class="follow-btn" disabled>Follow</button>
+            {% if entry.author.id != user.id %}
+            <button class="follow-btn"
+                    data-author-id="{{ entry.author.id }}"
+                    onclick="followFromButton(this)">Follow</button>
+            {% endif %}
+
           </div>
 
           <div class="entry_body" onclick="navigateToEntry('{{ entry.id }}')">
@@ -599,7 +604,10 @@
               </div>
               <div class="suggestion-name">{{ suggestion.display_name }}</div>
             </div>
-            <button class="follow-btn" disabled>Follow</button>
+            <button class="follow-btn"
+                    data-author-id="{{ suggestion.id }}"
+                    onclick="followFromButton(this)">Follow</button>
+
           </div>
           {% empty %}
           <div class="empty-state">No suggestions available</div>
@@ -682,7 +690,7 @@
         const counter = document.getElementById('frCount');
         try {
           wrap.innerHTML = '<div class="empty-state">Loading…</div>';
-          const items = await api(`/follow-requests/`, { method: 'GET' });
+          const items = await api(`/authors/follow-requests/`, { method: 'GET' });
           counter.textContent = items.length;
 
           if (!items.length) {
@@ -742,27 +750,28 @@
 
       async function decideFollow(id, decision, rowEl) {
         const counter = document.getElementById('frCount');
+        const url = `/authors/follows/${id}/decision/`;   // <-- IMPORTANT
+        console.log('POST', '/api' + url, { decision });  // helps you confirm in Console
+
         try {
-          // optimistic disable
           rowEl.style.opacity = .6;
-          const res = await api(`/follows/${id}/decision/`, {
+          await api(url, {
             method: 'POST',
             body: JSON.stringify({ decision })
           });
-          // remove row & update count
+
           rowEl.remove();
           counter.textContent = Math.max(0, (+counter.textContent || 0) - 1);
-          // if none left, show empty state
           const wrap = document.getElementById('followRequests');
           if (!wrap.children.length) {
             wrap.innerHTML = '<div class="empty-state">No follow requests</div>';
           }
         } catch (e) {
-          console.error(e);
           rowEl.style.opacity = 1;
           alert(e.message || 'Failed to update request');
         }
       }
+
 
       function esc(s='') {
         return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -770,6 +779,31 @@
 
       // kick off on load
       document.addEventListener('DOMContentLoaded', loadFollowRequests);
+
+      async function followFromButton(btn) {
+        const id = btn.dataset.authorId;
+        if (!id) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Requesting…';
+
+        try {
+          // api() already prefixes `/api`
+          await api(`/authors/${id}/follow/`, {
+            method: 'POST',
+            body: '{}'   // keep body to satisfy DRF parsers if needed
+          });
+
+          // Success (201) or 400 duplicate -> show as requested
+          btn.textContent = 'Requested';
+        } catch (e) {
+          console.error(e);
+          btn.disabled = false;
+          btn.textContent = 'Follow';
+          alert(e.message || 'Failed to send follow request');
+        }
+      }
+      
     </script>
   </body>
 </html>

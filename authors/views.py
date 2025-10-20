@@ -222,34 +222,32 @@ class FollowDecisionView(APIView):
     """
     I used APIView for FollowDecisionView because 
     this endpoint a model—it's a custom action (“approve” or “deny” a pending follow). 
-    
-    POST /api/follows/<uuid:pk>/decision/   { "decision": "accept" | "deny" }
-    Only the followee can decide; only when pending.
-    Uses a single constrained UPDATE for concurrency safety.
+
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        decision = (request.data.get("decision") or "").lower()
-        if decision not in ("accept", "deny"):
-            return Response(
-                {"detail": "decision must be 'accept' or 'deny'"},
-                status=status.HTTP_400_BAD_REQUEST,
+        """
+        Accept or deny a follow request.
+        decision: "accept" | "deny"
+        Only the followee (request.user) can decide.
+        """
+        decision = (request.data or {}).get("decision", "").lower()
+        try:
+            fr = Follow.objects.select_related("follower", "following").get(
+                id=pk, following=request.user, approved=False  # must still be pending
             )
+        except Follow.DoesNotExist:
+            return Response({"detail": "Request not found or already handled."},
+                            status=status.HTTP_404_NOT_FOUND)
 
-        new_status = Follow.ACCEPTED if decision == "accept" else Follow.DENIED
+        if decision == "accept":
+            fr.approved = True
+            fr.save(update_fields=["approved"])
+            return Response({"detail": "Follow request accepted."}, status=status.HTTP_200_OK)
 
-        # One-shot update: authorize + ensure pending in the WHERE clause
-        updated = (
-            Follow.objects
-            .filter(id=pk, following=request.user, status=Follow.PENDING)
-            .update(status=new_status, decided_at=timezone.now())
-        )
+        if decision == "deny":
+            fr.delete()  # simply drop the pending request
+            return Response({"detail": "Follow request denied."}, status=status.HTTP_200_OK)
 
-        if updated != 1:
-            return Response(
-                {"detail": "Not allowed or request is not pending."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        return Response({"id": str(pk), "status": new_status}, status=status.HTTP_200_OK)
+        return Response({"detail": "Invalid decision."}, status=status.HTTP_400_BAD_REQUEST)

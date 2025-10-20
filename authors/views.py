@@ -28,6 +28,7 @@ import json
 from django.views.decorators.csrf import csrf_exempt
 from entries.models import Entry
 from entries.serializers import EntryRetrieveSerializer
+from django.db import IntegrityError
  
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
@@ -195,7 +196,7 @@ class AuthorListView(generics.ListAPIView):
 
 
 
-class FollowRequestView(generics.CreateAPIView):
+class FollowRequestViewww(generics.CreateAPIView):
     queryset = Follow.objects.all()
     serializer_class = FollowRequestSerializer
     permission_classes = [IsAuthenticated]
@@ -204,23 +205,82 @@ class FollowRequestView(generics.CreateAPIView):
         following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
         serializer.save(follower=self.request.user, following=following_author)
 
-class FollowRequestsListView(APIView):
+class FollowRequestView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        pending = (
-            Follow.objects
-            .select_related("follower")
-            .filter(following=request.user, approved=False)  # <-- must be False
-            .order_by("-created_at")
+    def post(self, request, author_id):
+        followee = get_object_or_404(Author, id=author_id)
+        follower = request.user
+
+        # 1) block self-follow
+        if follower.id == followee.id:
+            return Response({"detail": "Cannot follow yourself."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2) if already exists, return 409
+        if Follow.objects.filter(follower=follower, following=followee).exists():
+            return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
+
+        # 3) create pending request (approved=False)
+        try:
+            f = Follow.objects.create(follower=follower, following=followee, approved=False)
+        except IntegrityError:
+            # race-safe fallback
+            return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
+
+        # serialize minimal response (id is enough for tests)
+        data = {"id": str(f.id), "follower": str(f.follower_id), "following": str(f.following_id), "approved": f.approved}
+        return Response(data, status=status.HTTP_201_CREATED)
+
+class FollowRequestsListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = FollowRequestSerializer
+
+    def get_queryset(self):
+        # pending for ME (I am the followee), approved == False
+        return Follow.objects.select_related("follower").filter(
+            following=self.request.user, approved=False
         )
-        data = [{
-            "id": str(fr.id),
-            "follower_username": fr.follower.username,
-            "follower_display": fr.follower.display_name,
-            "created_at": fr.created_at.isoformat(),
-        } for fr in pending]
-        return Response(data)
+
+class FollowRequestsListViewwww(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
+        follower = request.user
+
+        # 1) block self-follow
+        if follower.id == following_author.id:
+            return Response({"detail": "Cannot follow yourself."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2) if already exists, return 409 (or 400 if you prefer)
+        existing = Follow.objects.filter(follower=follower, following=following_author).first()
+        if existing:
+            # you can include approved flag in the payload if you want
+            return Response(
+                {"detail": "Follow request already exists.", "approved": existing.approved},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # 3) create pending request
+        serializer = self.get_serializer(data={})
+        serializer.is_valid(raise_exception=True)
+        try:
+            instance = serializer.save(follower=follower, following=following_author)
+        except IntegrityError:
+            # race-safe
+            return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            {
+                "id": str(instance.id),
+                "follower": str(instance.follower_id),
+                "following": str(instance.following_id),
+                "approved": instance.approved,
+            },
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
 
 class FollowDecisionView(APIView): 
     """

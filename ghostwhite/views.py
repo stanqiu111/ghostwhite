@@ -8,7 +8,7 @@ def home_view(request):
     Requires authentication
     """
     if not request.user.is_authenticated:
-        return redirect("authors:auth_page")  # Redirect to login
+        return redirect("authors_pages:auth_page")  # Redirect to login
 
     user = request.user
     entry_count = Entry.objects.filter(author=user, deleted_at__isnull=True).count()

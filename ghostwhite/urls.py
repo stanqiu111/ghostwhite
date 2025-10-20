@@ -36,7 +36,7 @@ urlpatterns = [
     path("api/authors/", include("authors.urls")),
     path("api/", include(("entries.urls", "entries"), namespace="entries_api")),
     path("", include(("entries.page_urls", "entries_pages"), namespace="entries_pages")),
-    path("authors/", include(("authors.page_urls", "authors"), namespace="authors")),
+    path("authors/", include(("authors.page_urls", "authors"), namespace="authors_pages")),
 ]
 
 # https://stackoverflow.com/questions/60052020/render-images-from-media-directory-django

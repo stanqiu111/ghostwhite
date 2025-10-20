@@ -6,8 +6,6 @@ from .views import FollowRequestView, FollowRequestsListView, FollowDecisionView
 from django.views.generic import TemplateView
 
 
-app_name = "authors" 
-
 app_name = "authors"
 
 urlpatterns = [
@@ -23,6 +21,5 @@ urlpatterns = [
     path("follows/<uuid:pk>/decision/", FollowDecisionView.as_view(), name="follow-decision"),
     path("<str:username>/", AuthorByUsernameView.as_view(), name="author_by_username"),
     path("authors/<str:username>/", TemplateView.as_view(template_name="authors/author_public.html"), name="author_public_page"),
-    path("auth/", views.login_view, name="auth_page"),
     path("logout/", views.logout_view, name="logout"),
 ]

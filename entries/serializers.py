@@ -26,11 +26,13 @@ class CommentSerializer(serializers.ModelSerializer):
         ]
 
 class EntryLikeSerializer(serializers.ModelSerializer):
+    author = AuthorSerializer()
     class Meta:
         model = EntryLike
         fields = [
             "id",
             "created_at",
+            "author"
         ]
 
 

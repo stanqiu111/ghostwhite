@@ -4,10 +4,7 @@ from . import views
 from .views import AuthorPublicGetUpdate, AuthorListView, AuthorByUsernameView
 from .views import FollowRequestView, FollowRequestsListView, FollowDecisionView
 
-
 app_name = "authors" 
-
-app_name = "authors"
 
 urlpatterns = [
     path("", AuthorListView.as_view(), name="authors-list"),

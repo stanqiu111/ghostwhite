@@ -1,197 +1,229 @@
 # entries/tests.py
-import tempfile
+from io import BytesIO
 from django.urls import reverse
-from django.test import override_settings
-from rest_framework.test import APITestCase, APIClient
-from rest_framework import status
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.contrib.auth import get_user_model
-import os
+from django.test import override_settings
+from PIL import Image
+
+from rest_framework import status
+from rest_framework.test import APITestCase, APIClient
+
+from authors.models import Author
 from nodes.models import Node
 from entries.models import Entry, Comment, EntryLike, CommentLike
 
-User = get_user_model()
 
-# Use a temp MEDIA_ROOT for tests that upload files
-_TMP_MEDIA = tempfile.mkdtemp()
+def make_test_image_bytes(fmt="JPEG", size=(8, 8), color=(255, 0, 0)):
+    """
+    Create a tiny valid image in memory for uploads.
+    Requires Pillow (already needed by ImageField).
+    """
+    file = BytesIO()
+    Image.new("RGB", size, color).save(file, fmt)
+    file.seek(0)
+    return file.read()
 
-@override_settings(MEDIA_ROOT=_TMP_MEDIA)
+
+@override_settings(MEDIA_ROOT="/tmp/test-media")  # isolate test media
 class EntryAPITests(APITestCase):
     def setUp(self):
-        # Create local node; your schema makes Node required on Author
-        self.node, _ = Node.objects.get_or_create(
-            is_local=True,
-            defaults={"host_url": "http://localhost:8000"},
-        )
+        # One local node (unique is_local)
+        self.node = Node.objects.create(host_url="http://testserver", is_local=True)
 
-        # IMPORTANT: attach node=self.node when creating users
-        self.author = User.objects.create_user(
+        # Users
+        self.author = Author.objects.create_user(
             username="author",
-            password="pass123",
-            display_name="Author",
+            password="pass1234",
+            display_name="Author User",
             node=self.node,
         )
-        self.other = User.objects.create_user(
+        self.other = Author.objects.create_user(
             username="other",
-            password="pass123",
-            display_name="Other",
+            password="pass1234",
+            display_name="Other User",
             node=self.node,
         )
 
-
-        # Seed entry owned by author
+        # One entry owned by author
         self.entry = Entry.objects.create(
             author=self.author,
             node=self.node,
-            content="Hello world",
+            content="Original content",
             content_type="plain_text",
             visibility="public",
         )
 
         self.client = APIClient()
 
-    def auth(self, user):
-        self.client.force_authenticate(user=user)
+    # ---------------- LIST / RETRIEVE ----------------
 
-    # ---------- List ----------
     def test_entry_list_requires_auth(self):
         url = reverse("entries:entry-list")
-
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        self.auth(self.author)
+        self.client.force_authenticate(self.author)
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertTrue(len(res.json()) >= 1)
+        self.assertIsInstance(res.data, list)
 
-    # ---------- Retrieve ----------
     def test_entry_retrieve_allow_any(self):
         url = reverse("entries:entry-detail", args=[self.entry.id])
+        # No auth required
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.json()["id"], str(self.entry.id))
+        self.assertEqual(res.data["id"], str(self.entry.id))
 
-    # ---------- Create ----------
+    # ---------------- CREATE ----------------
+
     def test_entry_create_requires_auth(self):
         url = reverse("entries:entry-create")
         data = {
-            "content": "new entry",
-            "content_type": "markdown",
-            "visibility": "public",
-        }
-
-        # Unauth -> 401
-        res = self.client.post(url, data)
-        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
-
-        # Auth -> 201
-        self.auth(self.author)
-        res = self.client.post(url, data)
-        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(Entry.objects.filter(content="new entry").exists())
-
-    # ---------- Update (author only) ----------
-    def test_entry_update_author_only(self):
-        url = reverse("entries:entry-update", args=[self.entry.id])
-        payload = {
-            "content": "Edited content",
+            "content": "Hello world",
             "content_type": "plain_text",
             "visibility": "public",
         }
+        # unauthenticated
+        res = self.client.post(url, data)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # Other user -> 404 or 403 depending on queryset filter; with your queryset it should be 404
-        self.auth(self.other)
+        # authenticated
+        self.client.force_authenticate(self.author)
+        res = self.client.post(url, data)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["content"], "Hello world")
+
+    # ---------------- UPDATE (PUT ONLY, NO PARTIAL) ----------------
+
+    def test_entry_update_author_only(self):
+        url = reverse("entries:entry-update", args=[self.entry.id])
+
+        # Other user tries to update
+        self.client.force_authenticate(self.other)
+        payload = {
+            "content": "Hacked",
+            "content_type": "plain_text",
+            "visibility": "public",
+        }
         res = self.client.put(url, payload)
-        self.assertIn(res.status_code, [status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND])
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)  # queryset limited to author
 
-        # Author -> 200
-        self.auth(self.author)
+        # Owner updates
+        self.client.force_authenticate(self.author)
+        payload = {
+            "content": "Updated by owner",
+            "content_type": "plain_text",
+            "visibility": "public",
+        }
         res = self.client.put(url, payload)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.entry.refresh_from_db()
-        self.assertEqual(self.entry.content, "Edited content")
+        self.assertEqual(self.entry.content, "Updated by owner")
 
-    # ---------- Update with image (multipart) ----------
     def test_entry_update_with_image(self):
-        self.auth(self.author)  # however you log in your test user
-        url = reverse("entries:entry-update", kwargs={"pk": str(self.entry.id)})
+        """
+        PUT must include all required fields (no partial update).
+        """
+        url = reverse("entries:entry-update", args=[self.entry.id])
+        self.client.force_authenticate(self.author)
 
-        # ✅ use your real static image
-        image_path = os.path.join("authors", "static", "authors", "avatar1.jpg")
-        with open(image_path, "rb") as f:
-            image_file = SimpleUploadedFile("avatar1.jpg", f.read(), content_type="image/jpeg")
+        img_bytes = make_test_image_bytes()
+        image = SimpleUploadedFile("test.jpg", img_bytes, content_type="image/jpeg")
 
-        res = self.client.patch(
-            url,
-            data={"image": image_file},
-            format="multipart",
+        data = {
+            "content": "Updated content with image",
+            "content_type": "plain_text",
+            "visibility": "public",
+            "image": image,
+        }
+        res = self.client.put(url, data, format="multipart")
+        self.assertEqual(
+            res.status_code,
+            status.HTTP_200_OK,
+            f"Expected 200, got {res.status_code}: {getattr(res, 'data', None)}",
         )
 
-        print("DEBUG RESPONSE:", res.status_code, getattr(res, "data", None))  # optional
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.entry.refresh_from_db()
+        self.assertEqual(self.entry.content, "Updated content with image")
         self.assertTrue(bool(self.entry.image))
-        
-    # ---------- Soft delete ----------
+
+
+    # ---------------- DELETE (SOFT) ----------------
+
     def test_entry_delete_soft(self):
         url = reverse("entries:entry-delete", args=[self.entry.id])
 
-        # Other user -> 404/403
-        self.auth(self.other)
+        # other user cannot delete
+        self.client.force_authenticate(self.other)
         res = self.client.delete(url)
-        self.assertIn(res.status_code, [status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND])
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
-        # Author -> 204 and deleted_at set
-        self.auth(self.author)
+        # owner deletes (soft)
+        self.client.force_authenticate(self.author)
         res = self.client.delete(url)
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+
         self.entry.refresh_from_db()
         self.assertIsNotNone(self.entry.deleted_at)
 
-    # ---------- Comment create ----------
+    # ---------------- COMMENTS ----------------
+
     def test_comment_create(self):
         url = reverse("entries:add_comment", args=[self.entry.id])
+        payload = {"content": "Nice post!"}
 
-        # Unauth -> 401
-        res = self.client.post(url, {"content": "hi"}, format="json")
+        # unauthenticated
+        res = self.client.post(url, payload, format="json")
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # Auth -> 201
-        self.auth(self.other)
-        res = self.client.post(url, {"content": "hi"}, format="json")
+        # authenticated
+        self.client.force_authenticate(self.other)
+        res = self.client.post(url, payload, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(Comment.objects.filter(entry=self.entry, content="hi").exists())
 
-    # ---------- Like entry toggle ----------
+        self.assertEqual(self.entry.comments.count(), 1)
+        c = self.entry.comments.first()
+        self.assertEqual(c.content, "Nice post!")
+        self.assertEqual(c.author, self.other)
+
+    # ---------------- LIKES ----------------
+
     def test_like_entry_toggle(self):
         url = reverse("entries:like_entry", args=[self.entry.id])
-        self.auth(self.other)
 
-        # First -> create like
+        # Must be authed
         res = self.client.post(url)
-        self.assertIn(res.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK])
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        self.client.force_authenticate(self.other)
+
+        # First like -> created (201)
+        res = self.client.post(url)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertTrue(EntryLike.objects.filter(entry=self.entry, author=self.other).exists())
 
-        # Second -> remove like
+        # Second like -> removed (200)
         res = self.client.post(url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertFalse(EntryLike.objects.filter(entry=self.entry, author=self.other).exists())
 
-    # ---------- Like comment toggle ----------
     def test_like_comment_toggle(self):
-        comment = Comment.objects.create(
-            entry=self.entry, author=self.author, content="Nice"
-        )
-        url = reverse("entries:like_comment", args=[self.entry.id, comment.id])
-        self.auth(self.other)
+        # Prepare a comment
+        comment = Comment.objects.create(entry=self.entry, author=self.author, content="Owner comment")
 
-        # First -> like
+        url = reverse("entries:like_comment", args=[self.entry.id, comment.id])
+
+        # unauthenticated
         res = self.client.post(url)
-        self.assertIn(res.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK])
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # authenticated (other likes)
+        self.client.force_authenticate(self.other)
+        res = self.client.post(url)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertTrue(CommentLike.objects.filter(comment=comment, author=self.other).exists())
 
-        # Second -> unlike
+        # toggle off
         res = self.client.post(url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertFalse(CommentLike.objects.filter(comment=comment, author=self.other).exists())

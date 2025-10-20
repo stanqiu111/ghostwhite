@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     # authentication
     "rest_framework",
     "rest_framework_simplejwt",
+    # documentation
+    "drf_spectacular",
 ]
 
 AUTH_USER_MODEL = "authors.Author"
@@ -61,6 +63,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema"
 }
 
 SIMPLE_JWT = {

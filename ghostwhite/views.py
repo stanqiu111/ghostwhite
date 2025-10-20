@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from entries.models import Entry, EntryLike
+from authors.models import Author, Follow
 
 
 def home_view(request):
@@ -18,8 +19,8 @@ def home_view(request):
     for entry in entries:
         entry.user_has_liked = EntryLike.objects.filter(entry=entry, author=user).exists()
     
-    follower_count = 0
-    following_count = 0
+    follower_count = Follow.objects.filter(following=user, approved=True).count()
+    following_count = Follow.objects.filter(follower=user, approved=True).count()
 
     context = {
         'user': user,

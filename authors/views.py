@@ -1,6 +1,6 @@
 import os, uuid
 import json
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -17,6 +17,10 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied
 from .models import Author
 from .serializers import AuthorSerializer, AuthorRegistrationSerializer
+from django.contrib.auth import authenticate, login, logout
+from django.http import JsonResponse
+import json
+from django.views.decorators.csrf import csrf_exempt
 
  
 @method_decorator(csrf_exempt, name="dispatch")
@@ -51,7 +55,6 @@ class AuthorRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
-
 
 @csrf_exempt
 def handle_login(request):

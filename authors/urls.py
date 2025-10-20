@@ -6,6 +6,8 @@ from .views import AuthorPublicGetUpdate, AuthorListView
 
 app_name = "authors" 
 
+app_name = "authors"
+
 urlpatterns = [
     path("", AuthorListView.as_view(), name="authors-list"),
     path("login/", views.handle_login, name="login"),
@@ -19,3 +21,6 @@ urlpatterns = [
   
     
 ] 
+    path("auth/", views.login_view, name="auth_page"),
+    path("logout/", views.logout_view, name="logout"),
+]

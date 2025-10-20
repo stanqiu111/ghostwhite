@@ -45,7 +45,7 @@
 <body>
 <div class="wrap">
   <div class="bar">
-    <button class="back" onclick="history.back()">← Home</button>
+    <button class="back" onclick="navigateToHome()">← Home</button>
     <strong>Entry</strong>
     <span id="authWarn" class="muted" style="margin-left:auto"></span>
   </div>
@@ -251,6 +251,10 @@ async function deleteEntry() {
 
 function editEntry() {
   window.location.href = `/entries/${ENTRY_ID}/edit/`;
+}
+
+function navigateToHome(){
+  window.location.href = '/home/';
 }
 /* ============ START ============ */
 boot();

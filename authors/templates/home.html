@@ -471,7 +471,7 @@
               <div class="stat-label">Following</div>
             </div>
           </div>
-          <button class="profile-btn">My Profile</button>
+          <button class="profile-btn" onclick="navigateToProfile('{{ user.username }}')">My Profile</button>
         </div>
 
         <div class="card">
@@ -660,6 +660,10 @@
 
       function shareEntry(entryId) {
         // TODO: Implement share functionality
+      }
+
+      function navigateToProfile(username) {
+        window.location.href = `/authors/${username}/`;
       }
     </script>
   </body>

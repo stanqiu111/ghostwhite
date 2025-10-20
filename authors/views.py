@@ -23,7 +23,6 @@ import json
 from django.views.decorators.csrf import csrf_exempt
 
  
-@method_decorator(csrf_exempt, name="dispatch")
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
     authentication_classes = []  # disable SessionAuthentication -> no CSRF required

@@ -93,6 +93,7 @@ def entry_edit_page(request, pk):
     # Render edit entry page with entry_id
     entry = get_object_or_404(Entry, pk=pk)
     # Check if user owns the entry
+    
     if request.user != entry.author:
         return render(request, "entries/entry_detail.html", {"entry_id": pk})
     return render(request, "entries/create_entry.html", {"entry_id": pk})

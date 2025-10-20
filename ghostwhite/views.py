@@ -12,6 +12,7 @@ def home_view(request):
 
     user = request.user
     entry_count = Entry.objects.filter(author=user, deleted_at__isnull=True).count()
+    entries = Entry.objects.all()
     
     follower_count = 0
     following_count = 0
@@ -21,6 +22,7 @@ def home_view(request):
         'entry_count': entry_count,
         'follower_count': follower_count,
         'following_count': following_count,
+        'entries': entries
     }
 
     return render(request, "home.html", context)

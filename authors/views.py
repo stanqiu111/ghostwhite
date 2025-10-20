@@ -4,6 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_http_methods
 from rest_framework import generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -13,13 +14,15 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.exceptions import PermissionDenied
 from .models import Author
 from .serializers import AuthorSerializer, AuthorRegistrationSerializer
 
  
-# Create your views here.
+@method_decorator(csrf_exempt, name="dispatch")
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
+    authentication_classes = []  # disable SessionAuthentication -> no CSRF required
     permission_classes = [
         AllowAny
     ]  # anyone can access this instead of just authenticated users
@@ -91,16 +94,15 @@ def logout_view(request):
     logout(request)
     return redirect("authors:auth_page")
 
-# views.py
 def author_profile_page(request, username):
     return render(request, "authors/profile_page.html")
 
 @csrf_exempt
-@require_http_methods(["GET", "PUT", "PATCH"])
+@require_http_methods(["GET", "PUT"])
 def author_profile_json(request, username):
     author = get_object_or_404(Author, username=username)
 
-    if request.method in ("PUT", "PATCH"):
+    if request.method == "PUT":
         # Parse JSON body; allow partial updates for specific fields only
         try:
             data = json.loads(request.body or "{}")
@@ -157,11 +159,11 @@ class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
     serializer_class = AuthorSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
+    http_method_names = ["get", "put", "head", "options"]
 
-   
     lookup_field = "id"
     lookup_url_kwarg = "author_id"
-  
+
     def perform_update(self, serializer):
         author = self.get_object()
         user = self.request.user

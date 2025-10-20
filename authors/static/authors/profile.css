@@ -101,12 +101,11 @@ ul{
 }
 
 
-/* nav toolbar, notification&create&avatar */
+/* nav toolbar, notification icon & + create & small avatar */
 .nav-toolbar{
   display: inline-flex;
   align-items: center;
-  gap: 24px;
-  margin-left: 24;
+  gap: 25px;
 }
 
 .nav-toolbar li{
@@ -136,7 +135,7 @@ ul{
   line-height: 1;
 }
 
-/* notification */
+/* notification icon*/
 .icon.bell{
   border: 0;
   background: transparent;
@@ -197,7 +196,7 @@ ul{
   left: 0;
   right: 0;
   bottom: 0;
-  height: 21%; /* smaller bar */
+  height: 21%;
   background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;

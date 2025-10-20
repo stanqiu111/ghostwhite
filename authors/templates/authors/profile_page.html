@@ -186,7 +186,7 @@
       },
       updateProfile(username, body) {
         return fetch(`/api/authors/${encodeURIComponent(username)}/json/`, {
-          method: 'PATCH',
+          method: 'PUT',
           headers: buildAuthHeaders(),
           body: JSON.stringify(body),
           credentials: 'same-origin'

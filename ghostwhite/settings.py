@@ -156,6 +156,11 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
+#uploading author profile avatar
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+
 # Media files (user uploads)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

@@ -2,22 +2,17 @@
 from io import BytesIO
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import override_settings
+from django.test import override_settings, TestCase
 from PIL import Image
-
 from rest_framework import status
-from rest_framework.test import APITestCase, APIClient
-
-from authors.models import Author
+from rest_framework.test import APIClient
+from authors.models import Author as User
 from nodes.models import Node
 from entries.models import Entry, Comment, EntryLike, CommentLike
 
 
 def make_test_image_bytes(fmt="JPEG", size=(8, 8), color=(255, 0, 0)):
-    """
-    Create a tiny valid image in memory for uploads.
-    Requires Pillow (already needed by ImageField).
-    """
+    """Create a tiny valid image in memory for uploads."""
     file = BytesIO()
     Image.new("RGB", size, color).save(file, fmt)
     file.seek(0)
@@ -25,26 +20,24 @@ def make_test_image_bytes(fmt="JPEG", size=(8, 8), color=(255, 0, 0)):
 
 
 @override_settings(MEDIA_ROOT="/tmp/test-media")  # isolate test media
-class EntryAPITests(APITestCase):
+class EntryAPITests(TestCase):
     def setUp(self):
         # One local node (unique is_local)
         self.node, _ = Node.objects.get_or_create(is_local=True, defaults={'host_url': 'http://testserver'})
 
-        # Users
-        self.author = Author.objects.create_user(
-            username="author",
+        # Create users and ensure node is provided at creation (required FK)
+        self.author = User.objects.create_user(
+            username="alice",
             password="pass1234",
-            display_name="Author User",
             node=self.node,
         )
-        self.other = Author.objects.create_user(
-            username="other",
-            password="pass1234",
-            display_name="Other User",
+        self.other = User.objects.create_user(
+            username="bob",
+            password="pass5678",
             node=self.node,
         )
 
-        # One entry owned by author
+        # One base entry owned by author
         self.entry = Entry.objects.create(
             author=self.author,
             node=self.node,
@@ -59,9 +52,12 @@ class EntryAPITests(APITestCase):
 
     def test_entry_list_requires_auth(self):
         url = reverse("entries:entry-list")
+
+        # unauthenticated
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
+        # authenticated
         self.client.force_authenticate(self.author)
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
@@ -69,8 +65,7 @@ class EntryAPITests(APITestCase):
 
     def test_entry_retrieve_allow_any(self):
         url = reverse("entries:entry-detail", args=[self.entry.id])
-        # No auth required
-        res = self.client.get(url)
+        res = self.client.get(url)  # AllowAny
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["id"], str(self.entry.id))
 
@@ -98,7 +93,7 @@ class EntryAPITests(APITestCase):
     def test_entry_update_author_only(self):
         url = reverse("entries:entry-update", args=[self.entry.id])
 
-        # Other user tries to update
+        # Other user tries to update -> queryset limits to owner => 404
         self.client.force_authenticate(self.other)
         payload = {
             "content": "Hacked",
@@ -106,9 +101,9 @@ class EntryAPITests(APITestCase):
             "visibility": "public",
         }
         res = self.client.put(url, payload)
-        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)  # queryset limited to author
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
-        # Owner updates
+        # Owner updates successfully
         self.client.force_authenticate(self.author)
         payload = {
             "content": "Updated by owner",
@@ -121,9 +116,7 @@ class EntryAPITests(APITestCase):
         self.assertEqual(self.entry.content, "Updated by owner")
 
     def test_entry_update_with_image(self):
-        """
-        PUT must include all required fields (no partial update).
-        """
+        """PUT must include all required fields (no partial update)."""
         url = reverse("entries:entry-update", args=[self.entry.id])
         self.client.force_authenticate(self.author)
 
@@ -147,7 +140,6 @@ class EntryAPITests(APITestCase):
         self.assertEqual(self.entry.content, "Updated content with image")
         self.assertTrue(bool(self.entry.image))
 
-
     # ---------------- DELETE (SOFT) ----------------
 
     def test_entry_delete_soft(self):
@@ -162,7 +154,6 @@ class EntryAPITests(APITestCase):
         self.client.force_authenticate(self.author)
         res = self.client.delete(url)
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
-
         self.entry.refresh_from_db()
         self.assertIsNotNone(self.entry.deleted_at)
 
@@ -176,11 +167,10 @@ class EntryAPITests(APITestCase):
         res = self.client.post(url, payload, format="json")
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # authenticated
+        # authenticated (other user comments)
         self.client.force_authenticate(self.other)
         res = self.client.post(url, payload, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-
         self.assertEqual(self.entry.comments.count(), 1)
         c = self.entry.comments.first()
         self.assertEqual(c.content, "Nice post!")
@@ -208,9 +198,7 @@ class EntryAPITests(APITestCase):
         self.assertFalse(EntryLike.objects.filter(entry=self.entry, author=self.other).exists())
 
     def test_like_comment_toggle(self):
-        # Prepare a comment
         comment = Comment.objects.create(entry=self.entry, author=self.author, content="Owner comment")
-
         url = reverse("entries:like_comment", args=[self.entry.id, comment.id])
 
         # unauthenticated

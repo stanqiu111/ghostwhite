@@ -60,7 +60,6 @@
             <div class="name" id="entryAuthorName">—</div>
             <div class="time" id="entryTime">—</div>
           </div>
-          <div class="muted" style="margin-left:auto;cursor:pointer" id="refreshBtn">↻ Refresh</div>
           <div id="button_panel" class="button_panel" style="display:none">
             <button class="delete_button" onclick="deleteEntry()">Delete</button>
             <button class="edit_button" onclick="editEntry()">Edit</button>
@@ -223,7 +222,6 @@ function renderEntry(e){
   $('#likeCount').textContent = (e.like_count ?? e.likes?.length ?? 0);
   $('#commentCount').textContent = (e.comments?.length ?? 0);
 
-  $('#refreshBtn').onclick = load;
   $('#likeChip').onclick = async ()=>{ try{ await likeEntry(e.id, $('#likeChip')); }catch(err){ alert(err.message); } };
   $('#commentChip').onclick = ()=> setTab('comments');
 }

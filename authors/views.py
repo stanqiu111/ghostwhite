@@ -101,7 +101,8 @@ def logout_view(request):
 def author_profile_page(request, username):
     author = Author.objects.get(username=username)
     top_5_entries = Entry.objects.filter(author=author.id, deleted_at__isnull=True).order_by('-created_at')[:5]
-    return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries})
+    entry_count = Entry.objects.filter(author=author.id, deleted_at__isnull=True).count()
+    return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count})
 
 
 class AuthorByUsernameView(generics.RetrieveUpdateAPIView):

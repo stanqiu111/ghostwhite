@@ -15,6 +15,12 @@
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial}
 
+    /* top bar */
+    .topbar{position:sticky;top:0;z-index:10;height:var(--topbar-h);background:#fff;border-bottom:1px solid var(--line)}
+    .topbar .inner{max-width:var(--maxw);height:100%;margin:0 auto;padding:10px var(--pad);display:flex;gap:12px;align-items:center}
+    .avatar{width:36px;height:36px;border-radius:50%;background:#111}
+    .spacer{flex:1}
+
     /* page */
     .container{max-width:var(--maxw);margin:0 auto;padding:var(--pad);min-height:calc(100vh - var(--topbar-h))}
     .row{height:calc(100vh - var(--topbar-h) - 2*var(--pad));display:grid;grid-template-columns:1fr;gap:var(--pad);align-items:stretch}
@@ -54,6 +60,18 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
+  <div class="topbar">
+    <div class="inner">
+      <a id="homeBtn" href="/" class="home-link" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit">
+        <div class="avatar" style="background:#ddd"></div>
+        <strong>Éthéré</strong>
+      </a>
+      <div class="spacer"></div>
+      <button class="pill active">+ Create</button>
+      <div class="avatar" style="background:#ddd"></div>
+    </div>
+  </div>
+  
   <div class="container">
     <div class="row">
       <!-- Editor -->
@@ -281,7 +299,15 @@ postBtn.addEventListener('click', async ()=>{
     postBtn.disabled = false;
   }
 });
-
+const homeBtn = document.getElementById('homeBtn');
+if (homeBtn) {
+  homeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (confirm("Are you sure you want to leave? Your unsaved post will be lost.")) {
+      window.location.href = homeBtn.href;
+    }
+  });
+}
 loadEntry();
 </script>
 </body>

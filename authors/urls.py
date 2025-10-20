@@ -1,7 +1,11 @@
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
-from .views import AuthorPublicGetUpdate, AuthorListView, AuthorByUsernameView, AuthorEntriesView
+from .views import AuthorPublicGetUpdate, AuthorListView, AuthorByUsernameView
+from .views import FollowRequestView, FollowRequestsListView, FollowDecisionView
+
+
+app_name = "authors" 
 
 app_name = "authors"
 
@@ -12,7 +16,10 @@ urlpatterns = [
     path("register/", views.AuthorRegistrationView.as_view(), name="register"),
     path("author_profile/", views.AuthorRetrieveUpdateView.as_view(), name="profile"),
     path("<uuid:author_id>/", AuthorPublicGetUpdate.as_view(), name="author_public"),
-    path("<uuid:author_id>/entries/", AuthorEntriesView.as_view(), name="author_entries"),
+    #path("<uuid:author_id>/entries/", include("entries.urls")),
+    path('<uuid:author_id>/follow/', views.FollowRequestView.as_view(), name='follow-request'),
+    path("follow-requests/", FollowRequestsListView.as_view(), name="follow-requests"),
+    path("follows/<uuid:pk>/decision/", FollowDecisionView.as_view(), name="follow-decision"),
     path("<str:username>/", AuthorByUsernameView.as_view(), name="author_by_username"),
     path("auth/", views.login_view, name="auth_page"),
     path("logout/", views.logout_view, name="logout"),

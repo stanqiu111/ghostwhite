@@ -6,6 +6,8 @@ from django.contrib.auth.models import (
 )
 import uuid
 from nodes.models import Node
+from django.utils import timezone
+import django.db.transaction as transaction
 
 
 # Customize User model and Authentication: https://medium.com/django-unleashed/a-quick-way-to-customize-authentication-backends-user-manager-user-and-permissions-in-django-54f9359e31eb
@@ -60,3 +62,67 @@ class Author(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+
+class Follow(models.Model):
+    """
+        follower: the author who is following
+        following: the author being followed
+        approved: whether the follow request is approved or not
+        status: pending, accepted, denied
+        created_at: when the follow request was created
+        unique_together: prevent duplicate follow requests
+    """
+        
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    follower = models.ForeignKey(Author, related_name='following', on_delete=models.CASCADE)
+    following = models.ForeignKey(Author, related_name='followers', on_delete=models.CASCADE)
+
+    approved = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    PENDING, ACCEPTED, DENIED = "pending", "accepted", "denied"
+    STATUS_CHOICES = [(PENDING, "Pending"), (ACCEPTED, "Accepted"), (DENIED, "Denied")]
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=PENDING)
+
+    class Meta:
+        unique_together = ('follower', 'following') #Prevent duplicate follow requests
+
+    def __str__(self):
+        return f"{self.follower} follows {self.following}"
+
+    # Check if the follow request can be approved or denied by the actor_author
+    # Only the followee can approve or deny the request and only if the request is pending
+    def can_be_decided_by(self, actor_author) -> bool:
+        return self.following_id == actor_author.id and self.status == self.PENDING
+
+
+    """
+    Using transaction.atomic to ensure that the approve and deny methods are atomic operations.
+    This means that if any part of the operation fails, the entire operation is rolled back and
+    the database is left in a consistent state.
+    """
+    @transaction.atomic
+    def approve(self, actor_author):
+        if not self.can_be_decided_by(actor_author):
+            raise PermissionError("Not yours to decide or not pending.")
+        self.status = self.ACCEPTED
+        self.decided_at = timezone.now()
+        self.save(update_fields=["status", "decided_at"])
+        return self
+
+    @transaction.atomic
+    def deny(self, actor_author):
+        if not self.can_be_decided_by(actor_author):
+            raise PermissionError("Not yours to decide or not pending.")
+        self.status = self.DENIED
+        self.decided_at = timezone.now()
+        self.save(update_fields=["status", "decided_at"])
+        return self
+
+    @staticmethod
+    def pending_for(followee):
+        return Follow.objects.select_related("follower").filter(
+            following=followee, status=Follow.PENDING
+        )

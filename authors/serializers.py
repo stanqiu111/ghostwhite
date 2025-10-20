@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import Author
+from .models import Follow
 from nodes.models import Node
 from django.conf import settings
 
@@ -95,3 +96,23 @@ class AuthorRegistrationSerializer(serializers.ModelSerializer):
 
         return Author.objects.create_user(**validated_data)
 
+class FollowRequestSerializer(serializers.ModelSerializer):
+    """
+        follower: the author who is following
+        following: the author being followed
+        approved: whether the follow request is approved or not
+    """
+    follower_username = serializers.CharField(source="follower.username", read_only=True)
+    follower_display  = serializers.CharField(source="follower.display_name", read_only=True)
+
+
+    class Meta:
+        model = Follow
+        fields = ['id', 'follower_username', 'follower_display', 'status', 'created_at']
+        read_only_fields = fields
+
+    def create(self, validated_data):
+        # automatically set the current user as the follower
+        request = self.context.get("request")
+        validated_data['follower'] = request.user
+        return super().create(validated_data)

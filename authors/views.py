@@ -21,7 +21,8 @@ from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 import json
 from django.views.decorators.csrf import csrf_exempt
-
+from entries.models import Entry
+from entries.serializers import EntryRetrieveSerializer
  
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
@@ -98,7 +99,9 @@ def logout_view(request):
     return redirect("authors:auth_page")
 
 def author_profile_page(request, username):
-    return render(request, "authors/profile_page.html")
+    top_5_entries = Entry.objects.filter(author=request.user, deleted_at__isnull=True).order_by('-created_at')[:5]
+    print(top_5_entries)
+    return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries})
 
 
 class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
@@ -181,3 +184,10 @@ class AuthorListView(generics.ListAPIView):
         serializer = self.get_serializer(self.get_queryset(), many=True)
         return Response({"type": "authors", 
                          "authors": serializer.data})
+
+class AuthorEntriesView(generics.ListAPIView):
+    erializer_class = EntryRetrieveSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return Entry.objects.filter(author=self.request.user, deleted_at__isnull=True)

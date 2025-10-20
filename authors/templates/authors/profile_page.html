@@ -132,13 +132,19 @@
       <hr>
 
       <section class="entries">
-        <h3>Entries</h3>
+        <div class="entries-header">
+          <h3>Entries</h3>
+          <a href="{% url 'entries:entry-list' %}">View All</a>
+        </div>
         <ul class="gallery" id="entriesGallery">
-              <li><img src="https://i.pravatar.cc/200?img=10" alt="Entry 1"></li>
-              <li><img src="https://i.pravatar.cc/200?img=11" alt="Entry 2"></li>
-              <li><img src="https://i.pravatar.cc/200?img=12" alt="Entry 3"></li>
-              <li><img src="https://i.pravatar.cc/200?img=13" alt="Entry 4"></li>
-              <li><img src="https://i.pravatar.cc/200?img=14" alt="Entry 5"></li>
+          {% for entry in top_5_entries %}
+            {% if entry.image %}
+              <li><img src="{{ entry.image.url }}" alt="{{ entry.title }}"></li>
+            {% else %}
+              <li><img src="{% static 'images/no_image.png' %}" alt="No image"></li>
+            {% endif %}
+
+          {% endfor %}
           <li class="upload-tile no-image">
             <button class="upload-btn" type="button">
                 <svg width="35" height="35" viewBox="0 0 24 24" fill="none"

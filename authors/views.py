@@ -206,7 +206,6 @@ class AuthorListView(generics.ListAPIView):
     def list(self, request, *args, **kwargs):
          # Apply pagination; if a page exists, return paginated data
         page = self.paginate_queryset(self.get_queryset())
-        page = self.paginate_queryset(self.get_queryset())
         
          # If pagination not applied, return all authors in one response
         if page is not None:

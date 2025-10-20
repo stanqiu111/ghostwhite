@@ -26,8 +26,8 @@ class AuthorSerializer(serializers.ModelSerializer):
         if not path:
             return ""
         request = self.context.get("request")
-        if req:
-            return request.build_full_uri(path)
+        if request:
+            return request.build_absolute_uri(path)
         base = getattr(settings, "HOST_URL", "").rstrip("/")
         if base:
             # base = "http://127.0.0.1:8000"

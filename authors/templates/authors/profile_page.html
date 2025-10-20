@@ -303,7 +303,7 @@
         saveBtn.textContent = prevText;
 
         if (r.status === 401) {
-          window.location = '/api/authors/auth/';
+          window.location = '/authors/auth/';
           return;
         }
         if (!r.ok) {

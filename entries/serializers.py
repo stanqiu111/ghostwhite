@@ -14,6 +14,8 @@ class CommentSerializer(serializers.ModelSerializer):
     author = AuthorSerializer()
     likes = CommentLikeSerializer(many=True, read_only=True)
     like_count = serializers.IntegerField(read_only=True)
+    user_has_liked_comment = serializers.SerializerMethodField()
+
     class Meta:
         model = Comment
         fields = [
@@ -23,7 +25,15 @@ class CommentSerializer(serializers.ModelSerializer):
             "likes",
             "like_count",
             "created_at",
+            "user_has_liked_comment"
         ]
+
+    def get_user_has_liked_comment(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            # Use a more efficient approach - check if the user's ID is in the likes
+            return obj.likes.filter(author=request.user).exists()
+        return False
 
 class EntryLikeSerializer(serializers.ModelSerializer):
     author = AuthorSerializer()

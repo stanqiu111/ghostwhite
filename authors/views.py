@@ -202,21 +202,23 @@ class FollowRequestView(generics.CreateAPIView):
         following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
         serializer.save(follower=self.request.user, following=following_author)
 
-class FollowRequestsListView(generics.ListAPIView):
-    """
-    Get /api/follow-requests/
-    List all follow requests for the authenticated user
-    """
-    serializer_class = FollowRequestSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class FollowRequestsListView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        return (
+    def get(self, request):
+        pending = (
             Follow.objects
-            .select_related('follower')
-            .filter(following=self.request.user, status=Follow.PENDING)
-            .order_by('-created_at')
+            .select_related("follower")
+            .filter(following=request.user, approved=False)  # <-- must be False
+            .order_by("-created_at")
         )
+        data = [{
+            "id": str(fr.id),
+            "follower_username": fr.follower.username,
+            "follower_display": fr.follower.display_name,
+            "created_at": fr.created_at.isoformat(),
+        } for fr in pending]
+        return Response(data)
 
 class FollowDecisionView(APIView): 
     """

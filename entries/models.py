@@ -16,7 +16,6 @@ VISIBILITY_CHOICES = [
 ]
 
 
-# Create your models here.
 class Entry(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="entries")

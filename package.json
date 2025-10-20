@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "esbuild": "^0.25.10",
+    "marked": "^16.4.0"
+  }
+}

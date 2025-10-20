@@ -6,10 +6,10 @@ from nodes.models import Node
 from django.conf import settings
 
 class AuthorSerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()
     host = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
     web = serializers.SerializerMethodField()
+    full_url = serializers.SerializerMethodField()
 
     def build_full_url(self, path: str):
         """
@@ -37,7 +37,7 @@ class AuthorSerializer(serializers.ModelSerializer):
     def get_type(self, obj):
         return "author"
 
-    def get_id(self, obj):
+    def get_full_url(self, obj):
         # Return absolute API endpoint for this author (e.g., /api/authors/<id>/)
         return self.build_full_url(f"/api/authors/{obj.id}/")
 
@@ -63,6 +63,7 @@ class AuthorSerializer(serializers.ModelSerializer):
             "image",
             "created_at",
             "updated_at",
+            "full_url",
         ]
         read_only_fields = ["id", "created_at", "updated_at", "username", "host", "type", "web"]
 

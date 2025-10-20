@@ -436,6 +436,7 @@
             {% if entry.author.id != user.id %}
             <button class="follow-btn"
                     data-author-id="{{ entry.author.id }}"
+                    data-author-username="{{ entry.author.username }}"
                     onclick="followFromButton(this)">Follow</button>
             {% endif %}
 
@@ -522,6 +523,7 @@
             </div>
             <button class="follow-btn"
                     data-author-id="{{ suggestion.id }}"
+                    data-author-username="{{ suggestion.username }}"
                     onclick="followFromButton(this)">Follow</button>
 
           </div>
@@ -616,6 +618,7 @@
         row.style.alignItems = 'center';
         row.style.gap = '12px';
         row.dataset.id = item.id;
+        row.dataset.followerUsername = item.follower_username; 
 
         const left = document.createElement('div');
         left.innerHTML = `

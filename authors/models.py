@@ -24,7 +24,10 @@ class AuthorManager(BaseUserManager):
         extra_fields.setdefault("is_superuser", True)
 
         if "node" not in extra_fields or extra_fields["node"] is None:
-            local_node, _ = Node.objects.get_or_create(is_local=True)
+            local_node, _ = Node.objects.get_or_create(
+                is_local=True,
+                defaults={"host_url": "http://127.0.0.1:8000/"},
+            )
             extra_fields["node"] = local_node
             
             

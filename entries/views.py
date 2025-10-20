@@ -62,13 +62,12 @@ class EntryUpdateView(generics.UpdateAPIView):
 
     def get_queryset(self):
         return Entry.objects.filter(deleted_at__isnull=True, author=self.request.user)
-
+    
     def perform_update(self, serializer):
         if self.request.user != serializer.instance.author:
             raise PermissionDenied("Only the author can update their own entry.")
         serializer.save()
-
-
+        
 class EntryDeleteView(generics.DestroyAPIView):
     queryset = Entry.objects.filter(deleted_at__isnull=True)
     permission_classes = [IsAuthenticated]

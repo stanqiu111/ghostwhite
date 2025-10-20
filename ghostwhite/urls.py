@@ -19,6 +19,8 @@ from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
 from .views import home_view
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path("", RedirectView.as_view(url="/api/authors/auth/", permanent=False)),
@@ -28,3 +30,8 @@ urlpatterns = [
     path("api/", include(("entries.urls", "entries"), namespace="entries_api")),
     path("", include(("entries.page_urls", "entries_pages"), namespace="entries_pages")),
 ]
+
+# https://stackoverflow.com/questions/60052020/render-images-from-media-directory-django
+if settings.DEBUG:
+    urlpatterns+=static(settings.MEDIA_URL, 
+document_root=settings.MEDIA_ROOT)                                                    

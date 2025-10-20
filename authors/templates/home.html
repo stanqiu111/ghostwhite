@@ -565,10 +565,18 @@
 
       <!-- Right Column: Follow Requests & Suggestions -->
       <div class="right-column">
-        <div class="card">
-          <div class="card-title">Follow Requests</div>
-          <div class="empty-state">No follow requests</div>
+        <div class="card" id="followRequestsCard">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Follow Requests</span>
+            <span class="badge" style="padding:2px 8px;border-radius:999px;background:#f3f4f6;font-size:12px;color:#374151;">
+              <span id="frCount">0</span>
+            </span>
+          </div>
+          <div id="followRequests" class="list">
+            <div class="empty-state">No follow requests</div>
+          </div>
         </div>
+
 
         <div class="card">
           <div class="card-title">Suggestions</div>
@@ -666,6 +674,102 @@
       function navigateToProfile(username) {
         window.location.href = `/authors/${username}/`;
       }
+
+      // ---- Follow Requests ----
+
+      async function loadFollowRequests() {
+        const wrap = document.getElementById('followRequests');
+        const counter = document.getElementById('frCount');
+        try {
+          wrap.innerHTML = '<div class="empty-state">Loading…</div>';
+          const items = await api(`/follow-requests/`, { method: 'GET' });
+          counter.textContent = items.length;
+
+          if (!items.length) {
+            wrap.innerHTML = '<div class="empty-state">No follow requests</div>';
+            return;
+          }
+
+          wrap.innerHTML = '';
+          items.forEach(item => wrap.appendChild(renderFollowRequest(item)));
+        } catch (e) {
+          console.error(e);
+          wrap.innerHTML = `<div class="empty-state">Failed to load. ${e.message}</div>`;
+        }
+      }
+
+      function renderFollowRequest(item) {
+        // minimal row (reuses your styles)
+        const row = document.createElement('div');
+        row.className = 'card'; // small card within the box for consistency
+        row.style.padding = '12px';
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = '1fr auto';
+        row.style.alignItems = 'center';
+        row.style.gap = '12px';
+        row.dataset.id = item.id;
+
+        const left = document.createElement('div');
+        left.innerHTML = `
+          <div style="font-weight:600">${esc(item.follower_display || item.follower_username)}</div>
+          <div class="meta" style="color:#6b7280;font-size:12px;">
+            @${esc(item.follower_username)} • ${new Date(item.created_at).toLocaleString()}
+          </div>
+        `;
+
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '8px';
+
+        const acceptBtn = document.createElement('button');
+        acceptBtn.className = 'follow-btn';
+        acceptBtn.textContent = 'Accept';
+        acceptBtn.onclick = () => decideFollow(item.id, 'accept', row);
+
+        const denyBtn = document.createElement('button');
+        denyBtn.className = 'follow-btn';
+        denyBtn.style.background = '#ef4444';
+        denyBtn.textContent = 'Deny';
+        denyBtn.onclick = () => decideFollow(item.id, 'deny', row);
+
+        actions.appendChild(acceptBtn);
+        actions.appendChild(denyBtn);
+
+        row.appendChild(left);
+        row.appendChild(actions);
+        return row;
+      }
+
+      async function decideFollow(id, decision, rowEl) {
+        const counter = document.getElementById('frCount');
+        try {
+          // optimistic disable
+          rowEl.style.opacity = .6;
+          const res = await api(`/follows/${id}/decision/`, {
+            method: 'POST',
+            body: JSON.stringify({ decision })
+          });
+          // remove row & update count
+          rowEl.remove();
+          counter.textContent = Math.max(0, (+counter.textContent || 0) - 1);
+          // if none left, show empty state
+          const wrap = document.getElementById('followRequests');
+          if (!wrap.children.length) {
+            wrap.innerHTML = '<div class="empty-state">No follow requests</div>';
+          }
+        } catch (e) {
+          console.error(e);
+          rowEl.style.opacity = 1;
+          alert(e.message || 'Failed to update request');
+        }
+      }
+
+      function esc(s='') {
+        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      }
+
+      // kick off on load
+      document.addEventListener('DOMContentLoaded', loadFollowRequests);
     </script>
   </body>
 </html>

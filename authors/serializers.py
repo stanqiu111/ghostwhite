@@ -48,10 +48,6 @@ class AuthorSerializer(serializers.ModelSerializer):
        # Return absolute frontend URL for author’s profile page (e.g., /authors/<username>/)
         return self.build_full_url(f"/authors/{obj.username}/")
 
-    def get_profileImage(self, obj):
-         # Return full URL to the author’s profile image, or empty string if not uploaded
-        return self.build_full_url(obj.image.url) if obj.image else ""
-    
     class Meta:
         model = Author
         fields = [

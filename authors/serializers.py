@@ -16,19 +16,25 @@ class AuthorSerializer(serializers.ModelSerializer):
 
 
     def build_full_url(self, path: str):
-        """"""
+        """
+        Construct a full absolute URL for the given path.
+
+        - If the serializer context contains a request, use request.build_absolute_uri(path)
+        - If not, fall back to settings.HOST_URL (e.g., "http://127.0.0.1:8000")
+        - Ensures all API fields (id, host, web, profileImage) return consistent absolute URLs
+        """
         if not path:
             return ""
-        req = self.context.get("request")
+        request = self.context.get("request")
         if req:
-            return req.build_absolute_uri(path)
+            return request.build_full_uri(path)
         base = getattr(settings, "HOST_URL", "").rstrip("/")
         if base:
             # base = "http://127.0.0.1:8000"
-            # path = "/api/authors/sjdhjak362827/" --> "http://127.0.0.1:8000/api/authors/sjdhjak362827/"
+            # path = "/api/authors/abcd1234/" --> "http://127.0.0.1:8000/api/authors//api/authors/abcd1234/"
             return f"{base}{path}"
         else:
-            # 
+            # return raw path if no base URL available
             return path
 
     
@@ -36,18 +42,19 @@ class AuthorSerializer(serializers.ModelSerializer):
         return "author"
 
     def get_id(self, obj):
-       
+        # Return absolute API endpoint for this author (e.g., /api/authors/<id>/)
         return self.build_full_url(f"/api/authors/{obj.id}/")
 
     def get_host(self, obj):
+        # Return base API host URL (e.g., /api/)
         return self.build_full_url("/api/")
 
     def get_web(self, obj):
-       
+       # Return absolute frontend URL for author’s profile page (e.g., /authors/<username>/)
         return self.build_full_url(f"/authors/{obj.username}/")
 
     def get_profileImage(self, obj):
-      
+         # Return full URL to the author’s profile image, or empty string if not uploaded
         return self.build_full_url(obj.image.url) if obj.image else ""
     
     class Meta:

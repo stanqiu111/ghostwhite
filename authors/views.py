@@ -97,6 +97,7 @@ def logout_view(request):
 def author_profile_page(request, username):
     return render(request, "authors/profile_page.html")
 
+
 @csrf_exempt
 @require_http_methods(["GET", "PUT"])
 def author_profile_json(request, username):
@@ -125,9 +126,20 @@ def author_profile_json(request, username):
 @csrf_exempt
 @require_http_methods(["POST"])
 def author_avatar_upload(request, username):
+    """
+    Handle avatar upload for a given author.
+
+    - Accepts POST multipart/form-data with a field named "image"
+    - Validates file extension (jpg, jpeg, png, gif, webp)
+    - Saves image to Author model with unique name
+    - Returns a full URL of the uploaded avatar
+
+    Usage:
+    POST /api/authors/<username>/avatar/
+    """
+    
     author = get_object_or_404(Author, username=username)
 
-    # Expect multipart/form-data with a file field named "image"
     f = request.FILES.get("image")
     if not f:
         return JsonResponse({"error": "image file required"}, status=400)
@@ -138,22 +150,19 @@ def author_avatar_upload(request, username):
     if ext not in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
         return JsonResponse({"error": "unsupported file type"}, status=400)
 
-    # Generate a safe unique name and save to the model field
+    # Generate a safe unique name and save to the model field. ex: a3f9b1e2d45c4f7c8a9b0d12f34e56ab.png
     safe_name = f"{uuid.uuid4().hex}{ext}"
-    # Optionally delete old image (commented out by default)
-    # if author.image and getattr(author.image, "name", ""):
-    #     author.image.delete(save=False)
     author.image.save(safe_name, f, save=True)
 
     return JsonResponse(
         {"image": request.build_absolute_uri(author.image.url)},
-        status=200,
+        status = 200,
     )
 
 class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
     """
-    GET: Allowed for Anyone to Get Author's Info
-    PUT/PATCH: Only Allowed for Node Admin/ Author itself
+    GET: Anyone can retrieve an author's public info
+    PUT: Only the author themself or an admin (staff) can modify the data
     """
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
@@ -161,8 +170,8 @@ class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
     parser_classes = [JSONParser, FormParser, MultiPartParser]
     http_method_names = ["get", "put", "head", "options"]
 
-    lookup_field = "id"
-    lookup_url_kwarg = "author_id"
+    lookup_field = "id"                # Author object identified by its UUID or ID
+    lookup_url_kwarg = "author_id"     # URL pattern param name expected (e.g., /api/authors/<author_id>/)
 
     def perform_update(self, serializer):
         author = self.get_object()
@@ -173,6 +182,10 @@ class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
     
 
 class AuthorPagination(PageNumberPagination):
+    # Custom pagination for authors list:
+    # - Uses query params ?page=<num>&size=<num> to control pagination
+    # - Default page size: 5, max allowed: 100
+    
     page_query_param = "page"
     page_size_query_param = "size"
     page_size = 5 
@@ -185,12 +198,17 @@ class AuthorPagination(PageNumberPagination):
         })
 
 class AuthorListView(generics.ListAPIView):
+    #list all authors with pagination
     queryset = Author.objects.all().order_by("username")
     serializer_class = AuthorSerializer
     pagination_class = AuthorPagination
 
     def list(self, request, *args, **kwargs):
+         # Apply pagination; if a page exists, return paginated data
         page = self.paginate_queryset(self.get_queryset())
+        page = self.paginate_queryset(self.get_queryset())
+        
+         # If pagination not applied, return all authors in one response
         if page is not None:
             serializer = self.get_serializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)

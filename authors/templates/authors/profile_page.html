@@ -157,12 +157,13 @@
   <script>
 
   
-    // Read csrftoken from cookie for Django's CSRF protection
+    // Read csrftoken from cookie for Django's CSRF protection; Without it, “403 Forbidden”
     function getCsrfToken() {
       const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
       return m ? decodeURIComponent(m[1]) : null;
     }
 
+    //Builds standard headers for all fetch() API calls
     function buildAuthHeaders(extra = {}) {
       const jwt  = localStorage.getItem('access_token');
       const csrf = getCsrfToken();
@@ -171,20 +172,20 @@
       if (csrf) headers['X-CSRFToken']   = csrf;      // important for PUT/POST with session
       return headers;
     }
-
+    //Extracts the username from the current URL, e.g. /authors/makima/ --> "makiam".Used to know whose profile to fetch.
     function getUsernameFromPath() {
       const m = location.pathname.match(/\/authors\/([^\/]+)\/?$/);
       return m ? decodeURIComponent(m[1]) : null;
     }
 
     const API = {
-      getProfile(username) {
+      getProfile(username) {    //get author info
         return fetch(`/api/authors/${encodeURIComponent(username)}/json/`, {
           headers: buildAuthHeaders(),
           credentials: 'same-origin'
         });
       },
-      updateProfile(username, body) {
+      updateProfile(username, body) {    // update author info
         return fetch(`/api/authors/${encodeURIComponent(username)}/json/`, {
           method: 'PUT',
           headers: buildAuthHeaders(),
@@ -194,12 +195,11 @@
       }
     };
 
-  
-    //Avatar upload
+    //upload avatar
     const uploadBtn   = document.getElementById('uploadBtn');
     const avatarInput = document.getElementById('avatarInput');
     const mainAvatar  = document.getElementById('mainAvatar');
-    let selectedAvatarFile = null;  // keep selected file for later upload (backend not wired yet)
+    let selectedAvatarFile = null;  // keep selected file for later upload
 
     if (uploadBtn && avatarInput && mainAvatar) {
       uploadBtn.addEventListener('click', () => avatarInput.click());
@@ -214,7 +214,7 @@
       });
     }
 
-    // Preload then swap in to support fallback/default avatar cleanly
+    //  preloads an image and only replaces the avatar once the new image is confirmed to load correctly
     function swapAvatar(imgEl, url) {
       if (!imgEl || !url) return;
       const tmp = new Image();
@@ -222,18 +222,19 @@
       tmp.src = url;
     }
 
+    // Fetch and display author profile info from backend API
     async function getProfile() {
       const usernameInUrl = getUsernameFromPath();
       if (!usernameInUrl) {
         console.error('Cannot parse username from URL.');
-        return;
+        return;     //If username cannot be parsed from URL, stop and log error
       }
 
       try {
-        const r = await API.getProfile(usernameInUrl);
+        const r = await API.getProfile(usernameInUrl);    //get author profile
 
         if (r.status === 401){
-          window.location = '/api/authors/auth/';
+          window.location = '/authors/auth/';  //back to auth page if 401
           return;
         }
         if (!r.ok) {
@@ -243,7 +244,7 @@
           return;
         }
 
-        const d = await r.json();
+        const d = await r.json();  //parse author profile to Json
 
         document.getElementById('username').value = d.username || usernameInUrl || '';
         document.getElementById('profile-name').textContent = d.display_name || d.username || usernameInUrl || '';
@@ -258,11 +259,15 @@
         if (d.image) {
           const bust = d.image + '?t=' + Date.now();  // prevent stale cache
           swapAvatar(main, bust);
-          if (small) swapAvatar(small, bust);
+          if (small) {
+            swapAvatar(small, bust)
+          };
         } else {
           // no uploaded avatar -> use static fallback for both
           swapAvatar(main, fallbackSrc);
-          if (small) swapAvatar(small, fallbackSrc);
+          if (small) {
+            swapAvatar(small, fallbackSrc)
+          };
         }
       } catch (err) {
         console.error(err);
@@ -270,9 +275,11 @@
       }
     }
     
+    //handle profile save(update info & avatar uploading)
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      // Extract username from URL to know which author profile to update( /api/authors/<username>/json/)
       const usernameInUrl = getUsernameFromPath();
       if (!usernameInUrl) {
         alert('Invalid profile URL.');
@@ -286,12 +293,13 @@
 
       const saveBtn = document.getElementById('saveBtn');
       const prevText = saveBtn.textContent;
-      saveBtn.disabled = true;
+      saveBtn.disabled = true; //Prevent double submission
       
       try {
-        const r = await API.updateProfile(usernameInUrl, body);
+        //Send PUT request to update profile info
+        const r = await API.updateProfile(usernameInUrl, body);   
 
-        saveBtn.disabled = false;
+        saveBtn.disabled = false; //enable after response
         saveBtn.textContent = prevText;
 
         if (r.status === 401) {
@@ -305,7 +313,7 @@
           return;
         }
 
-        // If a new avatar file was selected, upload it now
+        // If an avatar file was selected, upload it after profile update
         if (selectedAvatarFile) {
           const fd = new FormData();
           fd.append("image", selectedAvatarFile);
@@ -314,6 +322,7 @@
             body: fd,
             credentials: "same-origin"
           });
+          
           if (!up.ok) {
             const t = await up.text();
             console.error("Avatar upload failed", up.status, t);

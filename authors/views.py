@@ -100,66 +100,30 @@ def author_profile_page(request, username):
     return render(request, "authors/profile_page.html")
 
 
-@csrf_exempt
-@require_http_methods(["GET", "PUT"])
-def author_profile_json(request, username):
-    author = get_object_or_404(Author, username=username)
-
-    if request.method == "PUT":
-        # Parse JSON body; allow partial updates for specific fields only
-        try:
-            data = json.loads(request.body or "{}")
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-        for field in ("display_name", "github_url", "bio"):
-            if field in data:
-                setattr(author, field, data.get(field) or "")
-        author.save()
-
-    return JsonResponse({
-        "username": author.username,
-        "display_name": author.display_name or "",
-        "github_url": author.github_url or "",
-        "bio": author.bio or "",
-        "image": (request.build_absolute_uri(author.image.url) if author.image else "")
-    })
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def author_avatar_upload(request, username):
+class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
     """
-    Handle avatar upload for a given author.
-
-    - Accepts POST multipart/form-data with a field named "image"
-    - Validates file extension (jpg, jpeg, png, gif, webp)
-    - Saves image to Author model with unique name
-    - Returns a full URL of the uploaded avatar
-
-    Usage:
-    POST /api/authors/<username>/avatar/
+    GET/PUT author by username
+    - GET: Retrieve author profile
+    - PUT: Update author profile (including avatar upload)
+    - we are using json parser because we are sending json data in the body
+    - we are using multi part parser because we are sending file data ( image) in the body
     """
+    queryset = Author.objects.all()
+    serializer_class = AuthorSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser]
+    lookup_field = "username"
+    lookup_url_kwarg = "username"
     
-    author = get_object_or_404(Author, username=username)
+    def perform_update(self, serializer):
+        """Only allow users to update their own profile"""
+        author = self.get_object()
+        user = self.request.user
+        if not (user == author or user.is_staff):
+            raise PermissionDenied("You can only update your own profile")
+        serializer.save()
 
-    f = request.FILES.get("image")
-    if not f:
-        return JsonResponse({"error": "image file required"}, status=400)
 
-    # Validate extension
-    _, ext = os.path.splitext(f.name or "")
-    ext = (ext or "").lower()
-    if ext not in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
-        return JsonResponse({"error": "unsupported file type"}, status=400)
-
-    # Generate a safe unique name and save to the model field. ex: a3f9b1e2d45c4f7c8a9b0d12f34e56ab.png
-    safe_name = f"{uuid.uuid4().hex}{ext}"
-    author.image.save(safe_name, f, save=True)
-
-    return JsonResponse(
-        {"image": request.build_absolute_uri(author.image.url)},
-        status = 200,
-    )
 
 class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
     """

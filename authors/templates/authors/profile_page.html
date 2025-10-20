@@ -164,13 +164,13 @@
 
     const API = {
       getProfile(username) {    //get author info
-        return fetch(`/api/authors/${encodeURIComponent(username)}/json/`, {
+        return fetch(`/api/authors/${encodeURIComponent(username)}/`, {
           headers: getHeaders(),
           credentials: 'same-origin'
         });
       },
       updateProfile(username, body) {    // update author info
-        return fetch(`/api/authors/${encodeURIComponent(username)}/json/`, {
+        return fetch(`/api/authors/${encodeURIComponent(username)}/`, {
           method: 'PUT',
           headers: getHeaders(),
           body: JSON.stringify(body),
@@ -300,9 +300,16 @@
         // If an avatar file was selected, upload it after profile update
         if (selectedAvatarFile) {
           const fd = new FormData();
+          // For PUT, we need to send ALL fields, not just the image
+          fd.append("username", document.getElementById('username').value);
+          fd.append("display_name", document.getElementById('display_name').value);
+          fd.append("github_url", document.getElementById('github_url').value);
+          fd.append("bio", document.getElementById('bio').value);
           fd.append("image", selectedAvatarFile);
-          const up = await fetch(`/api/authors/${encodeURIComponent(usernameInUrl)}/avatar/`, {
-            method: "POST",
+          
+          const up = await fetch(`/api/authors/${encodeURIComponent(usernameInUrl)}/`, {
+            method: "PUT",
+            headers: getHeadersWithNoContentType(),
             body: fd,
             credentials: "same-origin"
           });

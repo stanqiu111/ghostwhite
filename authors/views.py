@@ -132,18 +132,17 @@ class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
     """
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    parser_classes = [JSONParser, FormParser, MultiPartParser]
-    http_method_names = ["get", "put", "head", "options"]
-
-    lookup_field = "id"                # Author object identified by its UUID or ID
-    lookup_url_kwarg = "author_id"     # URL pattern param name expected (e.g., /api/authors/<author_id>/)
-
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser]
+    lookup_field = "username"
+    lookup_url_kwarg = "username"
+    
     def perform_update(self, serializer):
+        """Only allow users to update their own profile"""
         author = self.get_object()
         user = self.request.user
-        if not (user.is_authenticated and (user == author or user.is_staff)):
-            raise PermissionDenied("Forbidden")
+        if not (user == author or user.is_staff):
+            raise PermissionDenied("You can only update your own profile")
         serializer.save()
     
 

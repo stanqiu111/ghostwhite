@@ -27,6 +27,7 @@ class AuthorManager(BaseUserManager):
             local_node, _ = Node.objects.get_or_create(is_local=True)
             extra_fields["node"] = local_node
             
+            
         return self.create_user(username, password, **extra_fields)
 
 

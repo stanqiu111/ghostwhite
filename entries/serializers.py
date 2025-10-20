@@ -52,7 +52,6 @@ class EntryRetrieveSerializer(serializers.ModelSerializer):
     comments = CommentSerializer(many=True)
     likes = EntryLikeSerializer(many=True, read_only=True)
     like_count = serializers.IntegerField(read_only=True)
-    image = serializers.SerializerMethodField()
     
     class Meta:
         model = Entry
@@ -71,8 +70,6 @@ class EntryRetrieveSerializer(serializers.ModelSerializer):
             "likes",
             "comments",    
         ]
-    def get_image(self, obj):
-        return obj.image.url if obj.image else None
 
 
 class EntryCreateSerializer(serializers.ModelSerializer):

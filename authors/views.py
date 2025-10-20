@@ -99,8 +99,8 @@ def logout_view(request):
     return redirect("authors:auth_page")
 
 def author_profile_page(request, username):
-    top_5_entries = Entry.objects.filter(author=request.user, deleted_at__isnull=True).order_by('-created_at')[:5]
-    print(top_5_entries)
+    author = Author.objects.get(username=username)
+    top_5_entries = Entry.objects.filter(author=author.id, deleted_at__isnull=True).order_by('-created_at')[:5]
     return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries})
 
 

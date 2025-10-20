@@ -232,6 +232,7 @@
       }
 
       .entry-author {
+        cursor: pointer;
         display: flex;
         align-items: center;
         gap: 12px;
@@ -485,7 +486,7 @@
         {% for entry in entries %}
         <div class="entry-card">
           <div class="entry-header">
-            <div class="entry-author">
+            <div class="entry-author" onclick="navigateToProfile('{{ entry.author.username }}')">
               <div class="entry-avatar">
                 {% if entry.author.image %}
                 <img
@@ -511,7 +512,7 @@
                 />
                 {% endif %}
               </div>
-              <div class="entry-meta">
+              <div class="entry-meta" >
                 <div class="entry-username">{{ entry.author.display_name }}</div>
                 <div class="entry-time">{{ entry.created_at|timesince }} ago</div>
               </div>

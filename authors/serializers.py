@@ -9,11 +9,6 @@ class AuthorSerializer(serializers.ModelSerializer):
     host = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
     web = serializers.SerializerMethodField()
-    display_name = serializers.CharField()
-    github_url = serializers.URLField(allow_blank=True, required=False)
-    bio = serializers.CharField(required=False, allow_blank=True)
-    image = serializers.ImageField(required=False, allow_null=True)
-
 
     def build_full_url(self, path: str):
         """

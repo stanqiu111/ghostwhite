@@ -63,12 +63,17 @@ class EntryUpdateView(generics.UpdateAPIView):
     def get_queryset(self):
         return Entry.objects.filter(deleted_at__isnull=True, author=self.request.user)
 
+    # allow partial updates for PUT/PATCH so you can send only `image`
+    def get_serializer(self, *args, **kwargs):
+        if self.request and self.request.method in ("PUT", "PATCH"):
+            kwargs.setdefault("partial", True)
+        return super().get_serializer(*args, **kwargs)
+    
     def perform_update(self, serializer):
         if self.request.user != serializer.instance.author:
             raise PermissionDenied("Only the author can update their own entry.")
         serializer.save()
-
-
+        
 class EntryDeleteView(generics.DestroyAPIView):
     queryset = Entry.objects.filter(deleted_at__isnull=True)
     permission_classes = [IsAuthenticated]

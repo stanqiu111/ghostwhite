@@ -181,7 +181,7 @@
       <section class="entries">
         <div class="entries-header">
           <h3>Entries</h3>
-          <a href="{% url 'entries:entry-list' %}">View All</a>
+          <a href="#" onclick="return false;" title="Will be implemented in part 2">View All</a>
         </div>
         <ul class="gallery" id="entriesGallery">
           {% for entry in top_5_entries %}
@@ -393,6 +393,14 @@
 
    getProfile();
 
+   // when loading the page, disabled the fields if it is not the current user's profile and hide the save button
+   if (getUsernameFromPath() !== localStorage.getItem("username")) {
+    document.getElementById('username').disabled = true;
+    document.getElementById('display_name').disabled = true;
+    document.getElementById('github_url').disabled = true;
+    document.getElementById('bio').disabled = true;
+    document.getElementById('saveBtn').style.display = 'none';
+   }
   </script>
   
 </body>

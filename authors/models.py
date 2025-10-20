@@ -60,3 +60,26 @@ class Author(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+
+class FollowRequestSerializer(serializers.ModelSerializer):
+    """
+        follower: the author who is following
+        following: the author being followed
+        approved: whether the follow request is approved or not
+    """
+    follower_username = serializers.CharField(source="follower.username", read_only=True)
+    follower_display  = serializers.CharField(source="follower.display_name", read_only=True)
+
+
+    class Meta:
+        model = Follow
+        fields = ['id', 'follower_username', 'follower_display', 'status', 'created_at']
+        read_only_fields = fields
+
+    def create(self, validated_data):
+        # automatically set the current user as the follower
+        request = self.context.get("request")
+        validated_data['follower'] = request.user
+        return super().create(validated_data)
+

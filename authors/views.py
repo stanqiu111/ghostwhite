@@ -180,3 +180,66 @@ class AuthorListView(generics.ListAPIView):
         serializer = self.get_serializer(self.get_queryset(), many=True)
         return Response({"type": "authors", 
                          "authors": serializer.data})
+
+
+
+class FollowRequestView(generics.CreateAPIView):
+    queryset = Follow.objects.all()
+    serializer_class = FollowRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
+        serializer.save(follower=self.request.user, following=following_author)
+
+class FollowRequestsListView(generics.ListAPIView):
+    """
+    Get /api/follow-requests/
+    List all follow requests for the authenticated user
+    """
+    serializer_class = FollowRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Follow.objects
+            .select_related('follower')
+            .filter(following=self.request.user, status=Follow.PENDING)
+            .order_by('-created_at')
+        )
+
+class FollowDecisionView(APIView): 
+    """
+    I used APIView for FollowDecisionView because 
+    this endpoint a model—it's a custom action (“approve” or “deny” a pending follow). 
+    
+    POST /api/follows/<uuid:pk>/decision/   { "decision": "accept" | "deny" }
+    Only the followee can decide; only when pending.
+    Uses a single constrained UPDATE for concurrency safety.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        decision = (request.data.get("decision") or "").lower()
+        if decision not in ("accept", "deny"):
+            return Response(
+                {"detail": "decision must be 'accept' or 'deny'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        new_status = Follow.ACCEPTED if decision == "accept" else Follow.DENIED
+
+        # One-shot update: authorize + ensure pending in the WHERE clause
+        updated = (
+            Follow.objects
+            .filter(id=pk, following=request.user, status=Follow.PENDING)
+            .update(status=new_status, decided_at=timezone.now())
+        )
+
+        if updated != 1:
+            return Response(
+                {"detail": "Not allowed or request is not pending."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return Response({"id": str(pk), "status": new_status}, status=status.HTTP_200_OK)

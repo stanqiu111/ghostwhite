@@ -15,13 +15,19 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.views import APIView
+from django.utils import timezone
+from .models import Follow
+from .serializers import FollowRequestSerializer
+from rest_framework import permissions
 from .models import Author
 from .serializers import AuthorSerializer, AuthorRegistrationSerializer
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 import json
 from django.views.decorators.csrf import csrf_exempt
-
+from entries.models import Entry
+from entries.serializers import EntryRetrieveSerializer
  
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
@@ -74,6 +80,7 @@ def handle_login(request):
                 {
                     "access": str(refresh.access_token),
                     "refresh": str(refresh),
+                    "user_id": user.id,
                 }
             )
         else:
@@ -97,7 +104,10 @@ def logout_view(request):
     return redirect("authors_pages:auth_page")
 
 def author_profile_page(request, username):
-    return render(request, "authors/profile_page.html")
+    author = Author.objects.get(username=username)
+    top_5_entries = Entry.objects.filter(author=author.id, deleted_at__isnull=True).order_by('-created_at')[:5]
+    entry_count = Entry.objects.filter(author=author.id, deleted_at__isnull=True).count()
+    return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count})
 
 
 class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
@@ -179,3 +189,66 @@ class AuthorListView(generics.ListAPIView):
         serializer = self.get_serializer(self.get_queryset(), many=True)
         return Response({"type": "authors", 
                          "authors": serializer.data})
+
+
+
+class FollowRequestView(generics.CreateAPIView):
+    queryset = Follow.objects.all()
+    serializer_class = FollowRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
+        serializer.save(follower=self.request.user, following=following_author)
+
+class FollowRequestsListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        pending = (
+            Follow.objects
+            .select_related("follower")
+            .filter(following=request.user, approved=False)  # <-- must be False
+            .order_by("-created_at")
+        )
+        data = [{
+            "id": str(fr.id),
+            "follower_username": fr.follower.username,
+            "follower_display": fr.follower.display_name,
+            "created_at": fr.created_at.isoformat(),
+        } for fr in pending]
+        return Response(data)
+
+class FollowDecisionView(APIView): 
+    """
+    I used APIView for FollowDecisionView because 
+    this endpoint a model—it's a custom action (“approve” or “deny” a pending follow). 
+
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        """
+        Accept or deny a follow request.
+        decision: "accept" | "deny"
+        Only the followee (request.user) can decide.
+        """
+        decision = (request.data or {}).get("decision", "").lower()
+        try:
+            fr = Follow.objects.select_related("follower", "following").get(
+                id=pk, following=request.user, approved=False  # must still be pending
+            )
+        except Follow.DoesNotExist:
+            return Response({"detail": "Request not found or already handled."},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        if decision == "accept":
+            fr.approved = True
+            fr.save(update_fields=["approved"])
+            return Response({"detail": "Follow request accepted."}, status=status.HTTP_200_OK)
+
+        if decision == "deny":
+            fr.delete()  # simply drop the pending request
+            return Response({"detail": "Follow request denied."}, status=status.HTTP_200_OK)
+
+        return Response({"detail": "Invalid decision."}, status=status.HTTP_400_BAD_REQUEST)

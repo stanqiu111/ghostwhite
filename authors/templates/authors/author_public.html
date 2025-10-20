@@ -1,0 +1,240 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Author Profile</title>
+  <link rel="stylesheet" href="{% static 'authors/profile.css' %}">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    .followBtn {
+      margin-top: 10px; width: 100%;
+      background:#111827; color:#fff; border:0; border-radius:12px;
+      padding:10px 14px; font-weight:600; cursor:pointer;
+    }
+    .followBtn[disabled] { opacity:.6; cursor:not-allowed; }
+    .badge { padding:2px 8px; border-radius:999px; background:#f3f4f6; font-size:12px; color:#374151; }
+    .meta { color:#6b7280; font-size:12px; }
+    .readonly input, .readonly textarea { background:#f9fafb; border-color:#e5e7eb; pointer-events:none; }
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- top bar (unchanged) -->
+  <nav class="topbar">
+    <div class="brand">
+      <span class="brand-avatar"></span>
+      <span class="brand-name">Éthéré</span>
+    </div>
+    <form class="search" role="search">
+      <input id="search" type="search" placeholder="Search...">
+      <button class="search-btn" type="button">🔍</button>
+      <button class="clear-search" type="button">✖</button>
+    </form>
+    <ul class="nav-toolbar">
+      <li><button class="create-button"><span class="plus">+</span><span class="text">Create</span></button></li>
+      <li><button class="bell icon">🔔</button></li>
+      <li><img class="avatar sm" id="smallAvatar" src="" data-fallback="{% static 'authors/avatar1.png' %}" alt="User Avatar"></li>
+    </ul>
+  </nav>
+
+  <main class="layout">
+    <!-- Left column: avatar + stats + FOLLOW -->
+    <section class="profile-card">
+      <figure class="mainAvatar">
+        <img class="avatar lg" id="mainAvatar"
+             src="" data-fallback="{% static 'authors/avatar1.jpg' %}" alt="User Avatar">
+      </figure>
+
+      <!-- Follow button goes right under the avatar -->
+      <button id="followBtn" class="followBtn hidden">Follow</button>
+
+      <section class="profile-stats">
+        <h2 class="profile-name" id="profile-name"></h2>
+        <ul class="stats">
+          <li id="statEntries"><span class="num">0</span><br><span class="label">Entries</span></li>
+          <li id="statFollowers"><span class="num">0</span><br><span class="label">Followers</span></li>
+          <li id="statFollowing"><span class="num">0</span><br><span class="label">Following</span></li>
+        </ul>
+      </section>
+
+      <section class="friends">
+        <h3>Friends</h3>
+        <ul class="friend-grid" id="friendsGrid"></ul>
+      </section>
+    </section>
+
+    <!-- Right column: read-only details + entries -->
+    <section class="profile-detail">
+      <h2>Profile Details</h2>
+
+      <form id="profileForm" class="readonly">
+        <section class="profile-fields">
+          <label>Username
+            <input id="username" name="username" disabled autocomplete="username">
+          </label>
+          <label>Display name
+            <input id="display_name" name="display_name" disabled>
+          </label>
+          <label>Github URL
+            <input id="github_url" name="github_url" disabled>
+          </label>
+          <label>Bio
+            <textarea id="bio" name="bio" disabled></textarea>
+          </label>
+        </section>
+      </form>
+
+      <hr>
+
+      <section class="entries">
+        <div class="entries-header">
+          <h3>Entries</h3>
+          <span class="badge meta" id="entriesCount">0</span>
+        </div>
+        <ul class="gallery" id="entriesGallery"></ul>
+      </section>
+    </section>
+  </main>
+
+  <script src="{% static 'js/api.js' %}"></script>
+  <script>
+    // -------- utils --------
+    function getUsernameFromPath() {
+      const m = location.pathname.match(/\/authors\/([^\/]+)\/?$/);
+      return m ? decodeURIComponent(m[1]) : null;
+    }
+    function swapAvatar(imgEl, url) {
+      if (!imgEl || !url) return;
+      const tmp = new Image();
+      tmp.onload = () => { imgEl.src = url; };
+      tmp.src = url;
+    }
+    const esc = (s='') => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    // -------- API wrappers (reuse getHeaders() from static/js/api.js) --------
+    const API = {
+      // Public profile by username; make sure this serializer returns at least: id, username, display_name, bio, github_url, image
+      getAuthorByUsername(username) {
+        return fetch(`/api/authors/${encodeURIComponent(username)}/`, {
+          headers: getHeaders(), credentials: 'same-origin'
+        });
+      },
+      // Current logged-in user (to hide follow on own profile)
+      getMe() {
+        return fetch(`/api/authors/author_profile/`, {
+          headers: getHeaders(), credentials: 'same-origin'
+        });
+      },
+      // Send follow request by author UUID (US 6.3.1)
+      follow(authorId) {
+        return fetch(`/api/authors/${authorId}/follow/`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: '{}',
+          credentials: 'same-origin'
+        });
+      }
+    };
+
+    // -------- page init --------
+    let meUsername = null;
+
+    async function init() {
+      const username = getUsernameFromPath();
+      if (!username) return alert('Bad profile URL');
+
+      // who am I?
+      try {
+        const meRes = await API.getMe();
+        if (meRes.ok) {
+          const me = await meRes.json();
+          meUsername = me.username;
+          // small avatar
+          const small = document.getElementById('smallAvatar');
+          const fallback = small?.dataset?.fallback;
+          if (me.image) swapAvatar(small, me.image + '?t=' + Date.now()); else if (fallback) swapAvatar(small, fallback);
+        }
+      } catch {}
+
+      // load target profile
+      await loadProfile(username);
+    }
+
+    async function loadProfile(username) {
+      try {
+        const r = await API.getAuthorByUsername(username);
+        if (r.status === 401) { window.location = '/authors/auth/'; return; }
+        if (!r.ok) { alert('Failed to load profile'); return; }
+        const d = await r.json();
+
+        // basic fields
+        document.getElementById('username').value = d.username || username;
+        document.getElementById('display_name').value = d.display_name || d.username || username;
+        document.getElementById('github_url').value = d.github_url || '';
+        document.getElementById('bio').value = d.bio || '';
+        document.getElementById('profile-name').textContent = d.display_name || d.username || username;
+
+        // avatar
+        const main = document.getElementById('mainAvatar');
+        const fallback = main?.dataset?.fallback || "{% static 'authors/avatar1.jpg' %}";
+        if (d.image) swapAvatar(main, d.image + '?t=' + Date.now()); else swapAvatar(main, fallback);
+
+        // entries count if your API includes it (optional)
+        if (typeof d.entry_count !== 'undefined') {
+          document.getElementById('entriesCount').textContent = d.entry_count;
+          document.querySelector('#statEntries .num').textContent = d.entry_count;
+        }
+
+        // show/hide Follow button
+        setupFollowButton(d);
+      } catch (e) {
+        console.error(e);
+        alert('Network error.');
+      }
+    }
+
+    function setupFollowButton(profile) {
+      const btn = document.getElementById('followBtn');
+      if (!btn) return;
+
+      // Hide when it's your own profile
+      if (meUsername && profile.username && meUsername === profile.username) {
+        btn.classList.add('hidden');
+        return;
+      }
+      btn.classList.remove('hidden');
+      btn.textContent = 'Follow';
+      btn.disabled = false;
+
+      btn.onclick = async () => {
+        btn.disabled = true;
+        try {
+          const res = await API.follow(profile.id);  // IMPORTANT: needs profile.id (UUID) from serializer
+          if (res.status === 201) {
+            btn.textContent = 'Requested';
+          } else if (res.status === 400) {
+            // duplicate/self-follow -> treat as already requested
+            btn.textContent = 'Requested';
+          } else if (res.status === 401) {
+            window.location = '/authors/auth/';
+            return;
+          } else {
+            const t = await res.text();
+            console.error('Follow failed', res.status, t);
+            alert('Follow failed');
+            btn.disabled = false;
+            return;
+          }
+        } catch (e) {
+          console.error(e); alert('Network error'); btn.disabled = false;
+        }
+      };
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

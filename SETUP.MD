@@ -30,23 +30,13 @@ python manage.py runserver
 ```
 
 Run the following commands if asked only
-
 ```
 python manage.py makemigrations
+```
+
+4. Run migrate:
+```
 python manage.py migrate
-```
-
-4. Create a local node - for local development:
-
-```
-python manage.py shell
-
-from nodes.models import Node
-Node.objects.create(
-    host_url="http://localhost:8000",
-    is_local=True
-)
-exit()
 ```
 
 5. How to register/ login
@@ -76,7 +66,7 @@ exit()
 					"raw": "{\n    \"username\": \"testuser\",\n    \"display_name\": \"Test User\",\n    \"password\": \"Test123!\",\n    \"password2\": \"Test123!\",\n    \"bio\": \"Hello!\",\n    \"github_url\": \"https://github.com/test\"\n}"
 				},
 				"url": {
-					"raw": "http://localhost:8000/api/authors/register/",
+					"raw": "http://http://127.0.0.1:8000/api/authors/register/",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -107,7 +97,7 @@ exit()
 					"raw": "{\n    \"username\": \"testuser\",\n    \"password\": \"Test123!\"\n}"
 				},
 				"url": {
-					"raw": "http://localhost:8000/api/authors/login/",
+					"raw": "http://http://127.0.0.1:8000/api/authors/login/",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -134,7 +124,7 @@ exit()
 					}
 				],
 				"url": {
-					"raw": "http://localhost:8000/api/authors/profile/",
+					"raw": "http://http://127.0.0.1:8000/api/authors/profile/",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -169,7 +159,7 @@ exit()
 					"raw": "{\n    \"display_name\": \"Updated Name\",\n    \"bio\": \"New bio!\"\n}"
 				},
 				"url": {
-					"raw": "http://localhost:8000/api/authors/profile/",
+					"raw": "http://http://127.0.0.1:8000/api/authors/profile/",
 					"protocol": "http",
 					"host": [
 						"localhost"

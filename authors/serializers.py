@@ -1,14 +1,15 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import Author
+from .models import Follow
 from nodes.models import Node
 from django.conf import settings
 
 class AuthorSerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()
     host = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
     web = serializers.SerializerMethodField()
+    full_url = serializers.SerializerMethodField()
 
     def build_full_url(self, path: str):
         """
@@ -36,7 +37,7 @@ class AuthorSerializer(serializers.ModelSerializer):
     def get_type(self, obj):
         return "author"
 
-    def get_id(self, obj):
+    def get_full_url(self, obj):
         # Return absolute API endpoint for this author (e.g., /api/authors/<id>/)
         return self.build_full_url(f"/api/authors/{obj.id}/")
 
@@ -62,6 +63,7 @@ class AuthorSerializer(serializers.ModelSerializer):
             "image",
             "created_at",
             "updated_at",
+            "full_url",
         ]
         read_only_fields = ["id", "created_at", "updated_at", "username", "host", "type", "web"]
 
@@ -94,3 +96,23 @@ class AuthorRegistrationSerializer(serializers.ModelSerializer):
 
         return Author.objects.create_user(**validated_data)
 
+class FollowRequestSerializer(serializers.ModelSerializer):
+    """
+        follower: the author who is following
+        following: the author being followed
+        approved: whether the follow request is approved or not
+    """
+    follower_username = serializers.CharField(source="follower.username", read_only=True)
+    follower_display  = serializers.CharField(source="follower.display_name", read_only=True)
+
+
+    class Meta:
+        model = Follow
+        fields = ['id', 'follower_username', 'follower_display', 'status', 'created_at']
+        read_only_fields = fields
+
+    def create(self, validated_data):
+        # automatically set the current user as the follower
+        request = self.context.get("request")
+        validated_data['follower'] = request.user
+        return super().create(validated_data)

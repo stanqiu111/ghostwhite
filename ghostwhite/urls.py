@@ -23,19 +23,23 @@ from django.conf import settings
 from django.conf.urls.static import static 
 from django.views.generic import RedirectView
 from .views import home_view
+from django.conf import settings
+from django.conf.urls.static import static
 
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
-    path("", RedirectView.as_view(url="/api/authors/auth/", permanent=False)),
+    path("", RedirectView.as_view(url="/home/", permanent=False)),
     path("home/", home_view, name="home"),
     path("admin/", admin.site.urls),
-    path( "", RedirectView.as_view(url="/authors/auth/", permanent=False), name="home"),
-    path("api/authors/", include(("authors.urls", "authors_api"), namespace="authors_api")),
-    path("home/", home_view, name="home"),
+    path("api/authors/", include("authors.urls")),
+    path("api/", include(("entries.urls", "entries"), namespace="entries_api")),
+    path("", include(("entries.page_urls", "entries_pages"), namespace="entries_pages")),
     path("authors/", include(("authors.page_urls", "authors"), namespace="authors_pages")),
-
 ]
 
-#for uploding media files
+# https://stackoverflow.com/questions/60052020/render-images-from-media-directory-django
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns+=static(settings.MEDIA_URL, 
+document_root=settings.MEDIA_ROOT)                                                    

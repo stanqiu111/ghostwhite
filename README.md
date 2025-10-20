@@ -45,3 +45,4 @@ You can view the automatically generated API documentation using **drf-spectacul
    python manage.py runserver
 
 5. Once the server is running, open the following URL in your browser:  http://127.0.0.1:8000/api/docs/
+6. For more details with User Stories, check: https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/08726d1c9b2116d46836f2dc93f358dd36146afb/api_doc.md

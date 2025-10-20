@@ -467,7 +467,7 @@
                 <div class="entry-time">{{ entry.created_at|timesince }} ago</div>
               </div>
             </div>
-            {% if entry.author.id != user.id %}
+            {% if entry.author.id != user.id and entry.follow_status != 'pending' and entry.follow_status != 'accepted' %}
             <button class="follow-btn"
                     data-author-id="{{ entry.author.id }}"
                     data-author-username="{{ entry.author.username }}"

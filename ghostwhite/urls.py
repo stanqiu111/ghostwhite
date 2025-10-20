@@ -22,6 +22,9 @@ from .views import home_view
 from django.conf import settings
 from django.conf.urls.static import static
 
+from django.conf import settings
+from django.conf.urls.static import static
+
 urlpatterns = [
     path("", RedirectView.as_view(url="/api/authors/auth/", permanent=False)),
     path("home/", home_view, name="home"),

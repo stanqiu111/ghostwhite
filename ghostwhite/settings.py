@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     # authentication
     "rest_framework",
     "rest_framework_simplejwt",
+    # OpenAPI / Swagger
+    "drf_spectacular",
 ]
 
 AUTH_USER_MODEL = "authors.Author"

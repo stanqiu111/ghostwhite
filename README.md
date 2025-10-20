@@ -24,3 +24,24 @@ The authors claiming copyright, if they wish to be known, can list their names h
 | Ximeng Duan   | XimengDuan      |
 | Michael Yang  | MichaelY223     |
 | Shuran Kong   | arinnaaa        |
+
+## API Documentation
+
+You can view the automatically generated API documentation using **drf-spectacular (Swagger UI)**.
+
+1. Make sure you're in the virtual environment
+
+   ```bash
+   source venv/bin/activate
+   
+2. Install dependencies
+
+   ```bash
+   pip install drf-spectacular
+   
+4. Run the Django development server
+   
+   ```bash
+   python manage.py runserver
+
+5. Once the server is running, open the following URL in your browser:  http://127.0.0.1:8000/api/docs/

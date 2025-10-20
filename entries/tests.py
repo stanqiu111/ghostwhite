@@ -22,11 +22,8 @@ def make_test_image_bytes(fmt="JPEG", size=(8, 8), color=(255, 0, 0)):
 @override_settings(MEDIA_ROOT="/tmp/test-media")  # isolate test media
 class EntryAPITests(TestCase):
     def setUp(self):
-        # Use or create a local node (unique constraint)
-        self.node, _ = Node.objects.get_or_create(
-            is_local=True,
-            defaults={"host_url": "http://testserver"}
-        )
+        # One local node (unique is_local)
+        self.node, _ = Node.objects.get_or_create(is_local=True, defaults={'host_url': 'http://testserver'})
 
         # Create users and ensure node is provided at creation (required FK)
         self.author = User.objects.create_user(

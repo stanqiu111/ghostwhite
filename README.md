@@ -51,4 +51,6 @@ You can view the automatically generated API documentation using **drf-spectacul
 
 User Stories: https://docs.google.com/spreadsheets/d/1pNFONRS94QShi56lbZggabKdFVjzGXbFjxKpgwdsrWY/edit?gid=0#gid=0
 
+Figma: https://www.figma.com/design/eOnTTGBQ0kVjNBlamF3RqB/CMPUT404_Project?node-id=0-1&t=z3hQl4rjija8zXbG-1
+
 DataBase Design: https://docs.google.com/document/d/1N5pYmGQqjjYz-mZyWd0076LR-xhAuy6zakLM-ltd8Ug/edit?tab=t.0

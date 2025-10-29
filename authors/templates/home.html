@@ -467,11 +467,19 @@
                 <div class="entry-time">{{ entry.created_at|timesince }} ago</div>
               </div>
             </div>
-            {% if entry.author.id != user.id and entry.follow_status != 'pending' and entry.follow_status != 'accepted' %}
-            <button class="follow-btn"
-                    data-author-id="{{ entry.author.id }}"
-                    data-author-username="{{ entry.author.username }}"
-                    onclick="followFromButton(this)">Follow</button>
+            {% if entry.author.id != user.id %}
+              {% if entry.follow_status == 'pending' %}
+                <button class="unfollow-btn"
+                        data-author-id="{{ entry.author.id }}"
+                        onclick="unfollowFromButton(this)">Unfollow</button>
+              {% elif entry.follow_status == 'pending' %}
+                <button class="follow-btn" disabled>Requested</button>
+              {% else %}
+                <button class="follow-btn"
+                        data-author-id="{{ entry.author.id }}"
+                        data-author-username="{{ entry.author.username }}"
+                        onclick="followFromButton(this)">Follow</button>
+              {% endif %}
             {% endif %}
 
           </div>
@@ -566,12 +574,16 @@
               </div>
               <div class="suggestion-name">{{ suggestion.display_name }}</div>
             </div>
-            {% if suggestion.follow_status == 'pending' %}
+            {% if suggestion.follow_status == 'accepted' %}
+              <button class="unfollow-btn"
+                      data-author-id="{{ suggestion.id }}"
+                      onclick="unfollowFromButton(this)">Unfollow</button>
+            {% elif suggestion.follow_status == 'pending' %}
               <button class="follow-btn" disabled>Requested</button>
             {% else %}
               <button class="follow-btn"
                       data-author-id="{{ suggestion.id }}"
-                    data-author-username="{{ suggestion.username }}"
+                      data-author-username="{{ suggestion.username }}"
                       onclick="followFromButton(this)">Follow</button>
             {% endif %}
 
@@ -753,6 +765,47 @@
           btn.disabled = false;
           btn.textContent = 'Follow';
           alert(e.message || 'Failed to send follow request');
+        }
+      }
+
+      async function unfollowFromButton(btn) {
+        const id = btn.dataset.authorId;
+        if (!id) return;
+
+        const toFollowState = () => {
+          btn.className = 'follow-btn';
+          btn.textContent = 'Follow';
+          btn.disabled = false;
+          btn.onclick = () => followFromButton(btn);
+        };
+
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Unfollowing…';
+
+        try {
+          // Preferred: RESTful DELETE to the same resource
+          try {
+            await api(`/authors/${id}/follow/`, { method: 'DELETE' });
+          } catch (e) {
+            // Fallback for backends that use a separate endpoint
+            const msg = String(e?.message || '');
+            if (msg.startsWith('405') || msg.startsWith('404')) {
+              await api(`/authors/${id}/unfollow/`, { method: 'POST', body: '{}' });
+            } else {
+              throw e;
+            }
+          }
+
+          // Swap button to "Follow"
+          toFollowState();
+
+          // (Optional) if you render counts client-side, you could also decrement following_count here.
+          // document.querySelector('.stat-number-for-following')…
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = original;
+          alert(e.message || 'Failed to unfollow');
         }
       }
       

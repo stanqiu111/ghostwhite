@@ -230,6 +230,21 @@ class FollowRequestView(APIView):
         # serialize minimal response (id is enough for tests)
         data = {"id": str(f.id), "follower": str(f.follower_id), "following": str(f.following_id), "approved": f.approved}
         return Response(data, status=status.HTTP_201_CREATED)
+     
+     def delete(self, request, author_id): 
+        """ UNFOLLOW (or cancel a pending request): 
+        DELETE /api/authors/<author_id>/follow/ Deletes 
+        both pending and approved relationships where current user is the follower. 
+        """ 
+        followee = get_object_or_404(Author, id=author_id) 
+        follower = request.user 
+        if follower.id == followee.id: 
+            return Response({"detail": "Cannot unfollow yourself."}, status=status.HTTP_400_BAD_REQUEST) 
+        qs = Follow.objects.filter(follower=follower, following=followee) 
+        deleted, _ = qs.delete() 
+        if deleted == 0: 
+            return Response({"detail": "No follow relationship found."}, status=status.HTTP_404_NOT_FOUND) 
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class FollowRequestsListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]

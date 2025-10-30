@@ -96,6 +96,8 @@
           </button>
           {% if request.user.is_authenticated %}
           <button class="logout-btn" onclick="logout()">Log out</button>
+          {% else %}
+          <button class="login-btn" onclick="navigateToLogin()">Login</button>
           {% endif %}
 
         </div>
@@ -344,6 +346,10 @@
 
       function shareEntry(entryId) {
         // TODO: Implement share functionality
+      }
+
+      function navigateToLogin() {
+        window.location.href = `/authors/auth/`;
       }
       
     </script>

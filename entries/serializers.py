@@ -2,19 +2,27 @@ from rest_framework import serializers
 from .models import Entry, Comment, CommentLike, EntryLike
 from authors.serializers import AuthorSerializer
 from nodes.serializers import NodeSerializer
+from utils.serializers import UrlBuildingMixin
+class CommentLikeSerializer(UrlBuildingMixin, serializers.ModelSerializer):
+    id = serializers.SerializerMethodField()
 
-class CommentLikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = CommentLike
         fields = [
             "id",
             "created_at",
         ]
-class CommentSerializer(serializers.ModelSerializer):
+
+    def get_id(self, obj):
+        # FQID for like on a comment
+        return self.build_full_url(f"/api/authors/{obj.author.id}/liked/{obj.id}")
+
+class CommentSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     author = AuthorSerializer()
     likes = CommentLikeSerializer(many=True, read_only=True)
     like_count = serializers.IntegerField(read_only=True)
     user_has_liked_comment = serializers.SerializerMethodField()
+    id = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
@@ -28,6 +36,10 @@ class CommentSerializer(serializers.ModelSerializer):
             "user_has_liked_comment"
         ]
 
+    def get_id(self, obj):
+        # FQID for comment
+        return self.build_full_url(f"/api/authors/{obj.author.id}/commented/{obj.id}")
+
     def get_user_has_liked_comment(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -35,8 +47,9 @@ class CommentSerializer(serializers.ModelSerializer):
             return obj.likes.filter(author=request.user).exists()
         return False
 
-class EntryLikeSerializer(serializers.ModelSerializer):
+class EntryLikeSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     author = AuthorSerializer()
+    id = serializers.SerializerMethodField()
     class Meta:
         model = EntryLike
         fields = [
@@ -45,18 +58,24 @@ class EntryLikeSerializer(serializers.ModelSerializer):
             "author"
         ]
 
+    def get_id(self, obj):
+        # FQID for like on an entry
+        return self.build_full_url(f"/api/authors/{obj.author.id}/liked/{obj.id}")
 
-class EntryRetrieveSerializer(serializers.ModelSerializer):
+class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     author = AuthorSerializer()
     node = NodeSerializer()
     comments = CommentSerializer(many=True)
     likes = EntryLikeSerializer(many=True, read_only=True)
     like_count = serializers.IntegerField(read_only=True)
-    
+    id = serializers.SerializerMethodField()
+    serial = serializers.SerializerMethodField()
+
     class Meta:
         model = Entry
         fields = [
             "id",
+            "serial",
             "author",
             "content",
             "content_type",
@@ -70,6 +89,13 @@ class EntryRetrieveSerializer(serializers.ModelSerializer):
             "likes",
             "comments",    
         ]
+
+    def get_id(self, obj):
+        # Spec FQID: original URL on the source node
+        return self.build_full_url(f"/api/authors/{obj.author.id}/entries/{obj.id}")
+
+    def get_serial(self, obj):
+        return str(obj.id)
 
 
 class EntryCreateSerializer(serializers.ModelSerializer):

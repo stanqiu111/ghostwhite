@@ -150,7 +150,9 @@
             </div>
           </div>
           {% if request.user.is_authenticated %}
+          {% if request.user.id != author.id %}
           <button class="profile-btn" onclick="navigateToProfile('{{ author.username }}')">Follow</button>
+          {% endif %}
           {% else %}
           <button class="profile-btn" onclick="navigateToLogin()">Follow</button>
           {% endif %}

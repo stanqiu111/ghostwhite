@@ -231,7 +231,7 @@ class FollowRequestView(APIView):
         data = {"id": str(f.id), "follower": str(f.follower_id), "following": str(f.following_id), "approved": f.approved}
         return Response(data, status=status.HTTP_201_CREATED)
      
-     def delete(self, request, author_id): 
+    def delete(self, request, author_id): 
         """ UNFOLLOW (or cancel a pending request): 
         DELETE /api/authors/<author_id>/follow/ Deletes 
         both pending and approved relationships where current user is the follower. 

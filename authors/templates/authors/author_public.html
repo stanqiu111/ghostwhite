@@ -12,6 +12,8 @@
     <div class="header">
       <div class="header-content">
         <div class="logo" onclick="navigateToHome()">ÉTHÉRÉ</div>
+        {% if request.user.is_authenticated %}
+
         <div class="search-bar">
           <input type="text" class="search-input" placeholder="Search..." />
           <button class="search-clear">
@@ -93,6 +95,8 @@
                 fill="#C01A1A"
               />
             </svg>
+          {% endif %}
+
           </button>
           {% if request.user.is_authenticated %}
           <button class="logout-btn" onclick="logout()">Log out</button>
@@ -204,7 +208,7 @@
               </div>
             </div>
           </div>
-
+          
           <div class="entry_body"  onclick="navigateToEntry('{{ entry.id }}')">
             <div class="entry-content" >{{ entry.content }}</div>
             
@@ -355,6 +359,10 @@
       }
 
       function navigateToEntry(entryId) {
+        if (!isAuthenticated) {
+          navigateToLogin()
+          return
+        }
         window.location.href = `/entries/${entryId}/`;
       }
 

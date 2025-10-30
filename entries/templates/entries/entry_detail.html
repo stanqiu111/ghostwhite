@@ -384,7 +384,7 @@ function renderRight(e){
 
 async function deleteEntry() {
   try{
-    const res = await fetch(`/api/entries/${ENTRY_ID}/delete/`, {
+    const res = await fetch(`/api/entries/${ENTRY_SERIAL}/delete/`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
@@ -396,7 +396,7 @@ async function deleteEntry() {
 }
 
 function editEntry() {
-  window.location.href = `/entries/${ENTRY_ID}/edit/`;
+  window.location.href = `/entries/${ENTRY_SERIAL}/edit/`;
 }
 
 function navigateToHome(){

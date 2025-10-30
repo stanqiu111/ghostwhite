@@ -30,11 +30,9 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         return self.build_full_url(f"/authors/{obj.username}/")
 
     def get_id(self, obj):
-        # FQID required by spec
         return self.get_full_url(obj)
 
     def get_serial(self, obj):
-        # Local UUID convenience
         return str(obj.id)
 
     class Meta:

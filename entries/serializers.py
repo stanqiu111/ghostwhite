@@ -14,7 +14,6 @@ class CommentLikeSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         ]
 
     def get_id(self, obj):
-        # FQID for like on a comment
         return self.build_full_url(f"/api/authors/{obj.author.id}/liked/{obj.id}")
 
 class CommentSerializer(UrlBuildingMixin, serializers.ModelSerializer):
@@ -39,7 +38,6 @@ class CommentSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         ]
 
     def get_id(self, obj):
-        # FQID for comment
         return self.build_full_url(f"/api/authors/{obj.author.id}/commented/{obj.id}")
 
     def get_serial(self, obj):
@@ -48,7 +46,6 @@ class CommentSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     def get_user_has_liked_comment(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            # Use a more efficient approach - check if the user's ID is in the likes
             return obj.likes.filter(author=request.user).exists()
         return False
 
@@ -64,7 +61,6 @@ class EntryLikeSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         ]
 
     def get_id(self, obj):
-        # FQID for like on an entry
         return self.build_full_url(f"/api/authors/{obj.author.id}/liked/{obj.id}")
 
 class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
@@ -96,7 +92,6 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         ]
 
     def get_id(self, obj):
-        # Spec FQID: original URL on the source node
         return self.build_full_url(f"/api/authors/{obj.author.id}/entries/{obj.id}")
 
     def get_serial(self, obj):

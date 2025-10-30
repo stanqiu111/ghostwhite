@@ -352,6 +352,14 @@
         window.location.href = `/authors/auth/`;
       }
       
+      window.onload = function() {
+        if ({{ request.user.is_authenticated }}) {
+          const mainContainer = document.querySelector('.main-container');
+          if (mainContainer) {
+            mainContainer.classList.add('has-right');
+          }
+        }
+      }
     </script>
   </body>
 </html>

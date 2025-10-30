@@ -110,7 +110,13 @@ def author_profile_page(request, username):
     entry_count = Entry.objects.filter(author=author.id, deleted_at__isnull=True).count()
     follower_count = Follow.objects.filter(following=author.id, approved=True).count()
     following_count = Follow.objects.filter(follower=author.id, approved=True).count()
-    return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count, 'follower_count': follower_count, 'following_count': following_count})
+    
+    # Check if this is the settings page based on URL
+    if request.path.endswith('/settings/'):
+        return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count, 'follower_count': follower_count, 'following_count': following_count})
+    else:
+        # Public profile page - use author_public.html
+        return render(request, "authors/author_public.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count, 'follower_count': follower_count, 'following_count': following_count})
 
 
 class AuthorByUsernameView(generics.RetrieveUpdateAPIView):

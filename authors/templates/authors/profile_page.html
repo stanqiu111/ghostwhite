@@ -210,9 +210,9 @@
   <script src="{% static 'js/api.js' %}"></script>
   <script src="{% static 'js/common.js' %}"></script>
   <script>
-    //Extracts the username from the current URL, e.g. /authors/makima/ --> "makiam".Used to know whose profile to fetch.
+    //Extracts the username from the current URL, e.g. /authors/makima/settings/ --> "makiam".Used to know whose profile to fetch.
     function getUsernameFromPath() {
-      const m = location.pathname.match(/\/authors\/([^\/]+)\/?$/);
+      const m = location.pathname.match(/\/authors\/([^\/]+)\/settings\/?$/);
       return m ? decodeURIComponent(m[1]) : null;
     }
 

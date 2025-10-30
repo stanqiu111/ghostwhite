@@ -212,7 +212,7 @@
       btn.onclick = async () => {
         btn.disabled = true;
         try {
-          const res = await API.follow(profile.id);  // IMPORTANT: needs profile.id (UUID) from serializer
+          const res = await API.follow(profile.serial);
           if (res.status === 201) {
             btn.textContent = 'Requested';
           } else if (res.status === 400) {

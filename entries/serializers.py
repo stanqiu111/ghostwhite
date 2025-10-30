@@ -23,11 +23,13 @@ class CommentSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     like_count = serializers.IntegerField(read_only=True)
     user_has_liked_comment = serializers.SerializerMethodField()
     id = serializers.SerializerMethodField()
+    serial = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
         fields = [
             "id",
+            "serial",
             "author",
             "content",
             "likes",
@@ -39,6 +41,9 @@ class CommentSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     def get_id(self, obj):
         # FQID for comment
         return self.build_full_url(f"/api/authors/{obj.author.id}/commented/{obj.id}")
+
+    def get_serial(self, obj):
+        return str(obj.id)
 
     def get_user_has_liked_comment(self, obj):
         request = self.context.get('request')

@@ -225,16 +225,16 @@ async function api(path, opts={}) {
   if (!res.ok) throw new Error(data?.detail || `${res.status} ${res.statusText}`);
   return data;
 }
-const getEntry = id => api(`/entries/${id}/`);
-const toggleEntryLike = id => api(`/entries/${id}/like/`, { method:'POST' });
-const addComment = (id, content) => api(`/entries/${id}/addcomments/`, {
+const getEntry = serial => api(`/entries/${serial}/`);
+const toggleEntryLike = serial => api(`/entries/${serial}/like/`, { method:'POST' });
+const addComment = (serial, content) => api(`/entries/${serial}/addcomments/`, {
   method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content})
 });
-const likeComment = (entryId, commentId) => api(`/entries/${entryId}/comments/${commentId}/like/`, { method:'POST' });
+const toggleCommentLike = (entrySerial, commentSerial) => api(`/entries/${entrySerial}/comments/${commentSerial}/like/`, { method:'POST' });
 
-async function likeEntry(entryId, buttonElement) {
+async function likeEntry(entrySerial, buttonElement) {
   try {
-    const response = await api(`/entries/${entryId}/like/`, { method: 'POST' });
+    const response = await toggleEntryLike(entrySerial);
     
     if (response && response.detail) {
       // Get current like count
@@ -267,7 +267,7 @@ let ENTRY_ID = null;
 let ENTRY = null;
 
 /* ======= BOOT / ROUTING ========= */
-function getIdFromURL(){
+function getSerialFromURL(){
   // Expect …/entries/<uuid>/view/
   const parts = location.pathname.split('/').filter(Boolean);
   // ["entries","<uuid>","view"]
@@ -276,13 +276,14 @@ function getIdFromURL(){
 }
 
 async function boot(){
-  ENTRY_ID = getIdFromURL();
-  if (!ENTRY_ID) { alert('No entry id in URL'); return; }
+  ENTRY_SERIAL = getSerialFromURL();
+
+  if (!ENTRY_SERIAL) { alert('No entry serial in URL'); return; }
   await load();
 }
 async function load(){
   try{
-    ENTRY = await getEntry(ENTRY_ID);
+    ENTRY = await getEntry(ENTRY_SERIAL);
     renderEntry(ENTRY);
     renderRight(ENTRY);
   }catch(e){ alert(e.message || 'Failed to load entry'); }
@@ -312,7 +313,7 @@ function renderEntry(e){
   $('#likeCount').textContent = (e.like_count ?? e.likes?.length ?? 0);
   $('#commentCount').textContent = (e.comments?.length ?? 0);
 
-  $('#likeChip').onclick = async ()=>{ try{ await likeEntry(e.id, $('#likeChip')); }catch(err){ alert(err.message); } };
+  $('#likeChip').onclick = async ()=>{ try{ await likeEntry(e.serial, $('#likeChip')); }catch(err){ alert(err.message); } };
   $('#commentChip').onclick = ()=> setTab('comments');
 }
 
@@ -353,7 +354,7 @@ function renderRight(e){
         </button>
       </div>
     `);
-    node.querySelector('button').onclick = async ()=>{ try{ await likeComment(e.id, c.id); await load(); }catch(err){ alert(err.message); } };
+    node.querySelector('button').onclick = async ()=>{ try{ await toggleCommentLike(e.serial, c.serial); await load(); }catch(err){ alert(err.message); } };
     clist.append(node);
   });
 
@@ -376,7 +377,7 @@ function renderRight(e){
   $('#postComment').onclick = async ()=>{
     const val = $('#commentInput').value.trim();
     if (!val) return;
-    try{ await addComment(e.id, val); $('#commentInput').value=''; await load(); setTab('comments'); }
+    try{ await addComment(e.serial, val); $('#commentInput').value=''; await load(); setTab('comments'); }
     catch(err){ alert(err.message || 'Failed to add comment'); }
   };
 }

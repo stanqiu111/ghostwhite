@@ -318,6 +318,8 @@
     <script src="{% static 'js/common.js' %}"></script>
     <script>
       const isAuthenticated = {{ request.user.is_authenticated|yesno:"true,false" }};
+      const userId = {% if request.user.id %}"{{ request.user.id }}"{% else %}null{% endif %};
+      const authorId = {% if author.id %}"{{ author.id }}"{% else %}null{% endif %};
       async function api(path, opts={}) {
         const res = await fetch(`/api${path}`, {
           ...opts,
@@ -398,7 +400,7 @@
 
       
       window.onload = function() {
-        if (isAuthenticated) {
+        if (isAuthenticated && userId !== authorId) {
           const mainContainer = document.querySelector('.main-container');
           if (mainContainer) {
             mainContainer.classList.add('has-right');

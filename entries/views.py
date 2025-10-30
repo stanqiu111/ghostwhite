@@ -4,6 +4,8 @@ from django.urls import reverse
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
+
+from authors.models import Follow
 from .models import Entry, Comment, EntryLike, CommentLike
 from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
 from django.shortcuts import render, get_object_or_404
@@ -12,36 +14,67 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-from django.db.models import Exists, OuterRef
+from django.db.models import Q, Exists, OuterRef
 
+def with_follow_flags(qs, user):
+    i_follow_author = Follow.objects.filter(
+        follower=user, following=OuterRef("author_id")
+    ).filter(Q(status=Follow.ACCEPTED) | Q(approved=True))
+
+    author_follows_me = Follow.objects.filter(
+        follower=OuterRef("author_id"), following=user
+    ).filter(Q(status=Follow.ACCEPTED) | Q(approved=True))
+
+    return qs.annotate(
+        is_from_following=Exists(i_follow_author),
+        is_following_me=Exists(author_follows_me),
+    )
 
 class EntryListView(generics.ListAPIView):
     serializer_class = EntryRetrieveSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        if self.request.user.is_authenticated and self.request.user.is_staff:
-            # admin can see all entries, including the deleted ones
-            return Entry.objects.all()
+        user = self.request.user
+        base_qs = Entry.objects.all() if user.is_staff else Entry.objects.filter(deleted_at__isnull=True)
 
-        queryset = Entry.objects.filter(deleted_at__isnull=True)
+        qs = with_follow_flags(base_qs.select_related('author', 'node'), user)
 
-        return queryset
+        visibility_filter = (
+            Q(author=user) |  # authors can see their own entries
+            (Q(visibility='public')) | # anyone can see public entries
+            (Q(visibility='unlisted') & Q(is_from_following=True)) | # unlisted entries can be seen by followers
+            (Q(visibility='friends_only') & Q(is_from_following=True) & Q(is_following_me=True)) # following-following
+        )
+        return qs.filter(visibility_filter)
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
 
 
 class EntryRetrieveView(generics.RetrieveAPIView):
     """Retrieve a single entry by ID"""
 
     serializer_class = EntryRetrieveSerializer
-    permission_classes = [AllowAny]  # this allows anyone with link can view the entry
+    permission_classes = [IsAuthenticated]  # this allows only authenticated users to view the entry
 
     def get_queryset(self):
-        if self.request.user.is_authenticated and self.request.user.is_staff:
-            #  if entry is deleted, admin can still see it
+        user = self.request.user
+        if user.is_staff:
             return Entry.objects.all()
 
-        return Entry.objects.filter(deleted_at__isnull=True)
-    
+        qs = with_follow_flags(Entry.objects.filter(deleted_at__isnull=True), user)
+        visibility_filter = (
+            Q(author=user) |  # authors can see their own entries
+            (Q(visibility='public')) | 
+            (Q(visibility='unlisted')) |
+            (Q(visibility='friends_only') & Q(is_from_following=True) & Q(is_following_me=True)) # following-following
+        )
+        return qs.filter(visibility_filter)
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context['request'] = self.request

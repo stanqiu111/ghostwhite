@@ -303,6 +303,7 @@
     <script src="{% static 'js/api.js' %}"></script>
     <script src="{% static 'js/common.js' %}"></script>
     <script>
+      const isAuthenticated = {{ request.user.is_authenticated|yesno:"true,false" }};
       async function api(path, opts={}) {
         const res = await fetch(`/api${path}`, {
           ...opts,
@@ -356,7 +357,7 @@
       }
       
       window.onload = function() {
-        if ({{ request.user.is_authenticated }}) {
+        if (isAuthenticated) {
           const mainContainer = document.querySelector('.main-container');
           if (mainContainer) {
             mainContainer.classList.add('has-right');

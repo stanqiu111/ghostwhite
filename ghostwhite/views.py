@@ -17,7 +17,8 @@ def home_view(request):
 
     for entry in entries:
         entry.user_has_liked = EntryLike.objects.filter(entry=entry, author=user).exists()
-        
+        entry.serial = entry.id
+
         follow_relation = Follow.objects.filter(follower=user, following=entry.author).first()
         if follow_relation:
             entry.follow_status = follow_relation.status

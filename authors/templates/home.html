@@ -596,7 +596,7 @@
         return data;
       }
       
-      async function likeEntry(entryId, buttonElement) {
+      async function likeEntry(entrySerial, buttonElement) {
         try {
           const response = await api(`/entries/${entrySerial}/like/`, { method: 'POST' });
           

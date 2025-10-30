@@ -176,7 +176,14 @@
               <path d="M6.7998 14.1899C6.2398 14.1899 5.7998 13.7399 5.7998 13.1899C5.7998 12.6399 6.2498 12.1899 6.7998 12.1899C7.3498 12.1899 7.7998 12.6399 7.7998 13.1899C7.7998 13.7399 7.3498 14.1899 6.7998 14.1899Z" fill="#292D32"/>
               <path d="M17.9396 16.29C17.7396 16.29 17.5396 16.21 17.3996 16.06C17.2396 15.9 17.1697 15.67 17.1997 15.45C17.2297 15.24 17.2396 15.02 17.2396 14.79V10.79C17.2396 8.00001 15.9897 6.75 13.1997 6.75H6.79963C6.56963 6.75 6.34966 6.76 6.13966 6.78C5.91966 6.81 5.68964 6.72999 5.52964 6.57999C5.36964 6.41999 5.27963 6.20001 5.29963 5.98001C5.47963 3.82001 6.58963 1.25 10.7996 1.25H17.1997C20.8197 1.25 22.7396 3.17001 22.7396 6.79001V10.79C22.7396 15 20.1697 16.1 18.0097 16.29C17.9797 16.29 17.9596 16.29 17.9396 16.29ZM6.91966 5.25H13.1896C16.8096 5.25 18.7297 7.17001 18.7297 10.79V14.66C20.4297 14.24 21.2297 12.99 21.2297 10.79V6.79001C21.2297 4.00001 19.9796 2.75 17.1896 2.75H10.7897C8.58965 2.75 7.34966 3.55 6.91966 5.25Z" fill="#292D32"/>
               </svg>
-               <span id="commentCount">0</span></span>
+                <span id="commentCount">0</span></span>
+          <span class="chip" id="copyChip" style="display:none; cursor:pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M8.99005 21.5C7.33005 21.5 5.66005 20.87 4.39005 19.6C1.86005 17.06 1.86005 12.94 4.39005 10.41C4.68005 10.12 5.16005 10.12 5.45005 10.41C5.74005 10.7 5.74005 11.18 5.45005 11.47C3.50005 13.42 3.50005 16.59 5.45005 18.54C7.40005 20.49 10.5701 20.49 12.5201 18.54C13.4601 17.6 13.9801 16.34 13.9801 15C13.9801 13.67 13.4601 12.41 12.5201 11.46C12.2301 11.17 12.2301 10.69 12.5201 10.4C12.8101 10.11 13.2901 10.11 13.5801 10.4C14.8101 11.63 15.4801 13.26 15.4801 15C15.4801 16.74 14.8001 18.37 13.5801 19.6C12.3201 20.87 10.6601 21.5 8.99005 21.5Z" fill="#292D32"/>
+              <path d="M19.07 14.16C18.88 14.16 18.69 14.09 18.54 13.94C18.25 13.65 18.25 13.17 18.54 12.88C20.59 10.83 20.59 7.49999 18.54 5.45999C16.49 3.40999 13.16 3.40999 11.12 5.45999C10.13 6.44999 9.57996 7.76999 9.57996 9.16999C9.57996 10.57 10.13 11.89 11.12 12.88C11.41 13.17 11.41 13.65 11.12 13.94C10.83 14.23 10.35 14.23 10.06 13.94C8.78996 12.67 8.07996 10.97 8.07996 9.16999C8.07996 7.36999 8.77996 5.66999 10.06 4.39999C12.69 1.76999 16.97 1.76999 19.61 4.39999C22.24 7.02999 22.24 11.32 19.61 13.95C19.46 14.09 19.26 14.16 19.07 14.16Z" fill="#292D32"/>
+              </svg>
+          </span>
+          <span id="copyNote" class="muted" style="display:none; margin-left:8px;">Copied!</span>
         </div>
       </div>
     </main>
@@ -314,6 +321,27 @@ function renderEntry(e){
 
   $('#likeChip').onclick = async ()=>{ try{ await likeEntry(e.id, $('#likeChip')); }catch(err){ alert(err.message); } };
   $('#commentChip').onclick = ()=> setTab('comments');
+  const canShare = e.visibility === 'public' || e.visibility === 'unlisted';
+  const copyChip = document.getElementById('copyChip');
+  const copyNote = document.getElementById('copyNote');
+  if (copyChip) copyChip.style.display = canShare ? '' : 'none';
+
+  const entryUrl = window.location.href;
+
+  if (copyChip) {
+    copyChip.onclick = async () => {
+      try {
+        await copyToClipboard(entryUrl);
+        copyNote.style.display = 'inline';
+        copyNote.textContent = '✅ Link copied!';
+        setTimeout(() => (copyNote.style.display = 'none'), 1200);
+      } catch (err) {
+        copyNote.style.display = 'inline';
+        copyNote.textContent = '⚠️ Failed to copy';
+        setTimeout(() => (copyNote.style.display = 'none'), 1600);
+      }
+    };
+  }
 }
 
 function setTab(which){
@@ -400,6 +428,19 @@ function editEntry() {
 
 function navigateToHome(){
   window.location.href = '/home/';
+}
+
+async function copyToClipboard(text){
+  if (navigator.clipboard && window.isSecureContext !== false) {
+    await navigator.clipboard.writeText(text);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
 }
 /* ============ START ============ */
 boot();

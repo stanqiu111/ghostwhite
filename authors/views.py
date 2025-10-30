@@ -121,13 +121,22 @@ def author_profile_page(request, username):
     author_follower_count = Follow.objects.filter(following=author.id, approved=True).count()
     author_following_count = Follow.objects.filter(follower=author.id, approved=True).count()
     
+    # Check follow status if user is authenticated
+    follow_status = None
+    if request.user.is_authenticated and request.user.id != author.id:
+        try:
+            follow = Follow.objects.get(follower=request.user, following=author)
+            follow_status = follow.status
+        except Follow.DoesNotExist:
+            follow_status = None
+    
     if request.path.endswith('/settings/'):
         # this we dont have to show the full list of entries, only return top 5
         # we only have to show the follower and following count for the request user
         return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count, 'follower_count': request_user_follower_count, 'following_count': request_user_following_count})
     else:
         # Public profile page - use author_public.html, here we yave to show the full list of entries
-        return render(request, "authors/author_public.html", {'author': author, "entries": entries, "entry_count": entry_count, "request_user_entry_count": request_user_entry_count, "request_user_follower_count": request_user_follower_count, "request_user_following_count": request_user_following_count, "author_follower_count": author_follower_count, "author_following_count": author_following_count})
+        return render(request, "authors/author_public.html", {'author': author, "entries": entries, "entry_count": entry_count, "request_user_entry_count": request_user_entry_count, "request_user_follower_count": request_user_follower_count, "request_user_following_count": request_user_following_count, "author_follower_count": author_follower_count, "author_following_count": author_following_count, "follow_status": follow_status})
 
 
 class AuthorByUsernameView(generics.RetrieveUpdateAPIView):

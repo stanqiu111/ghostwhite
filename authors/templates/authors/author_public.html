@@ -151,7 +151,15 @@
           </div>
           {% if request.user.is_authenticated %}
           {% if request.user.id != author.id %}
-          <button class="profile-btn" onclick="navigateToProfile('{{ author.username }}')">Follow</button>
+            {% if follow_status == "pending" %}
+            <button class="profile-btn" disabled>Requested</button>
+            {% elif follow_status == "accepted" %}
+            <button class="profile-btn" disabled>Following</button>
+            {% else %}
+            <button class="profile-btn" onclick="followAuthor('{{ author.id }}')">Follow</button>
+            {% endif %}
+          {% else %}
+          <button class="profile-btn" onclick="navigateToProfile('{{ author.username }}')">My Profile</button>
           {% endif %}
           {% else %}
           <button class="profile-btn" onclick="navigateToLogin()">Follow</button>
@@ -247,7 +255,7 @@
       </div>
 
       <!-- Right Column: Personal Information -->
-        {% if request.user.is_authenticated %}
+        {% if request.user.is_authenticated and request.user.id != author.id%}
       <div class="right-column">
 
           <div class="card profile-card">
@@ -357,6 +365,29 @@
       function navigateToLogin() {
         window.location.href = `/authors/auth/`;
       }
+
+      async function followAuthor(authorId) {
+        const btn = event.target;
+        if (!btn) return;
+        
+        btn.disabled = true;
+        btn.textContent = 'Requesting…';
+        
+        try {
+          await api(`/authors/${authorId}/follow/`, {
+            method: 'POST',
+            body: '{}'
+          });
+          
+          btn.textContent = 'Requested';
+        } catch (e) {
+          console.error(e);
+          btn.disabled = false;
+          btn.textContent = 'Follow';
+          alert(e.message || 'Failed to send follow request');
+        }
+      }
+
       
       window.onload = function() {
         if (isAuthenticated) {

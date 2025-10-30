@@ -72,7 +72,19 @@ class EntryAPITests(APITestCase):
         # No auth required
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data["id"], str(self.entry.id))
+        # id should be FQID, and serial should be local UUID
+        self.assertTrue(str(self.entry.id) in res.data["id"])  
+        self.assertTrue(res.data["id"].startswith("http"))
+        self.assertEqual(res.data.get("serial"), str(self.entry.id))
+
+    def test_entry_retrieve_with_fqid_in_path_is_invalid(self):
+        """ If id was inserted instead of serial, it should be invalid """
+        fqid = f"http://testserver/api/authors/{self.author.id}/entries/{self.entry.id}"
+        url = reverse("entries:entry-detail", args=[self.entry.id])  # valid
+        bad_url = url.replace(str(self.entry.id), fqid)
+        res = self.client.get(bad_url)
+        # Django URL won't match; expect 404
+        self.assertIn(res.status_code, (status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST))
 
     # ---------------- CREATE ----------------
 

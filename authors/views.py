@@ -1,33 +1,21 @@
-import os, uuid
 import json
 from django.shortcuts import render, redirect, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from django.views.decorators.http import require_http_methods
-from rest_framework import generics
+from rest_framework import generics, status, permissions
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
-from django.utils import timezone
-from .models import Follow
-from .serializers import FollowRequestSerializer
-from rest_framework import permissions
-from .models import Author
-from .serializers import AuthorSerializer, AuthorRegistrationSerializer
+from .models import Author, Follow
+from .serializers import AuthorSerializer, AuthorRegistrationSerializer, FollowRequestSerializer
 from django.contrib.auth import authenticate, login, logout
-from django.http import JsonResponse
-import json
 from django.views.decorators.csrf import csrf_exempt
 from entries.models import Entry
-from entries.serializers import EntryRetrieveSerializer
 from django.db import IntegrityError
  
 class AuthorRegistrationView(generics.CreateAPIView):

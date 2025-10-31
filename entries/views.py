@@ -1,22 +1,20 @@
 from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponseRedirect
-from django.urls import reverse
+from django.http import HttpResponse, Http404
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
 from .models import Entry, Comment, EntryLike, CommentLike
 from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
-from django.shortcuts import render, get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
+from django.utils.http import http_date
+from django.utils.timezone import now
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
-from django.db.models import Exists, OuterRef
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 
 
 class EntryListView(generics.ListAPIView):
     serializer_class = EntryRetrieveSerializer
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -50,6 +48,7 @@ class EntryRetrieveView(generics.RetrieveAPIView):
 
 class EntryCreateView(generics.CreateAPIView):
     serializer_class = EntryCreateSerializer
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
@@ -58,6 +57,7 @@ class EntryCreateView(generics.CreateAPIView):
 
 class EntryUpdateView(generics.UpdateAPIView):
     serializer_class = EntryCreateSerializer
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -70,6 +70,7 @@ class EntryUpdateView(generics.UpdateAPIView):
         
 class EntryDeleteView(generics.DestroyAPIView):
     queryset = Entry.objects.filter(deleted_at__isnull=True)
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -81,6 +82,77 @@ class EntryDeleteView(generics.DestroyAPIView):
             raise PermissionDenied("Only the author can delete their own entry.")
 
         instance.soft_delete()
+
+
+def get_mime_type(name: str) -> str | None:
+    name = name.lower()
+    if name.endswith(".png"):
+        return "image/png"
+    if name.endswith(".jpg") or name.endswith(".jpeg"):
+        return "image/jpeg"
+    if name.endswith(".gif"):
+        return "image/gif"
+    if name.endswith(".webp"):
+        return "image/webp"
+    return None
+
+
+class EntryImageView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    queryset = Entry.objects.all()
+
+    def get(self, request, pk, *args, **kwargs):
+        entry = get_object_or_404(Entry, pk=pk)
+
+        # hide deleted images from non-staff
+        if getattr(entry, "deleted_at", None) and not (
+            request.user.is_authenticated and request.user.is_staff
+        ):
+            raise Http404()
+
+        # visibility check
+        if not self.verify_entry_access(request.user, entry):
+            raise Http404()
+
+        if not entry.image or not entry.image.name:
+            raise Http404()
+
+        mime = getattr(entry, "content_type", None) or get_mime_type(entry.image.name) or "application/octet-stream"
+
+        with entry.image.open("rb") as f:
+            data = f.read()
+
+        resp = HttpResponse(data, content_type=mime)
+        resp["Cache-Control"] = "private, max-age=3600"
+        resp["Last-Modified"] = http_date(now().timestamp())
+        return resp
+
+    def verify_entry_access(self, user, entry):
+        # Normalize to model choices: public / unlisted / friends_only
+        vis = entry.visibility or ""
+
+        # Public and unlisted are viewable by anyone with the link
+        if vis in ("public", "unlisted"):
+            return True
+
+        # From here we require authentication
+        if not getattr(user, "is_authenticated", False):
+            return False
+
+        # Staff can always view
+        if getattr(user, "is_staff", False):
+            return True
+
+        # Owners can always view their own content
+        if getattr(entry, "author_id", None) == getattr(user, "id", None):
+            return True
+
+        # Friends-only needs a friendship check; accept both snake/hyphen for tolerance
+        if vis == "friends_only":
+            return hasattr(user, "is_friend_with") and user.is_friend_with(entry.author)
+
+        # Unknown/unsupported visibility -> hide
+        return False
 
 
 def entry_detail_page(request, pk):
@@ -113,7 +185,7 @@ class CommentCreateView(generics.CreateAPIView):
     POST /entries/<uuid:pk>/comments/
     Create a new comment for a specific entry.
     """
-
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, *args, **kwargs):
@@ -135,7 +207,7 @@ class EntryLikeToggleView(generics.DestroyAPIView):
     POST /entries/<uuid:pk>/like/
     Toggle a like on an entry for the current user/session.
     """
-
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, *args, **kwargs):
@@ -154,7 +226,7 @@ class CommentLikeToggleView(generics.DestroyAPIView):
     POST /entries/<uuid:pk>/comments/<int:comment_id>/like/
     Toggle a like on a comment for the current user/session.
     """
-
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, comment_id, *args, **kwargs):

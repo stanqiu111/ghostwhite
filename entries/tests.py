@@ -28,7 +28,7 @@ def make_test_image_bytes(fmt="JPEG", size=(8, 8), color=(255, 0, 0)):
 class EntryAPITests(APITestCase):
     def setUp(self):
         # One local node (unique is_local)
-        self.node = Node.objects.create(host_url="http://testserver", is_local=True)
+        self.node, _ = Node.objects.get_or_create(is_local=True, defaults={'host_url': 'http://testserver'})
 
         # Users
         self.author = Author.objects.create_user(

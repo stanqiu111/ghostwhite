@@ -3,6 +3,7 @@ from django.test import override_settings
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
+import json
 
 from nodes.models import Node
 from authors.models import Follow
@@ -31,6 +32,11 @@ class FollowAPITests(APITestCase):
         self.bob = User.objects.create_user(
             username="bob", password="bobpass", display_name="Bob", node=self.node
         )
+
+        # mark test users as approved so IsApproved permission doesn't block follow APIs
+        for u in (self.alice, self.bob):
+            u.approved = True
+            u.save(update_fields=["approved"])
 
         self.client = APIClient()
 
@@ -144,3 +150,85 @@ class FollowAPITests(APITestCase):
         r = self.client.post(url, data={"decision": "deny"}, format="json")
         self.assertIn(r.status_code, (status.HTTP_200_OK, status.HTTP_204_NO_CONTENT))
         self.assertFalse(Follow.objects.filter(id=f.id).exists())
+
+class SignupApprovalTests(APITestCase):
+    """
+    US 8.3.1
+    - Anyone can sign up, but account remains pending until admin approval.
+    - Unapproved accounts cannot log in or use node functionality.
+    - After approval, login succeeds and tokens are returned.
+    """
+    def setUp(self):
+        # Local node (if Author requires node FK)
+        self.node, _ = Node.objects.get_or_create(
+            is_local=True, defaults={"host_url": "http://testserver"}
+        )
+
+    def test_signup_returns_pending_without_tokens(self):
+        payload = {
+            "username": "pending_user",
+            "display_name": "Pending User",
+            # include all common password field names to satisfy different serializers
+            "password": "Aa123456!",
+            "password2": "Aa123456!",
+            # if your Author requires node via serializer, include it as id
+            "node": self.node.id,
+        }
+        url = "/api/authors/register/"
+        res = self.client.post(url, data=payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data.get("status"), "pending")
+        # no tokens should be issued on signup
+        self.assertNotIn("access", res.data)
+        self.assertNotIn("refresh", res.data)
+
+    def test_login_before_approval_is_403(self):
+        # create user programmatically; approved defaults to False
+        u = User.objects.create_user(
+            username="u1", password="Aa123456!", node=self.node
+        )
+        self.assertFalse(getattr(u, "approved", False))
+        res = self.client.post(
+            "/api/authors/login/",
+            data={"username": "u1", "password": "Aa123456!"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        body = res.json() if hasattr(res, "json") else {}
+        self.assertIn("pending", str(body.get("error", "")).lower())
+
+    def test_login_after_approval_returns_tokens(self):
+        u = User.objects.create_user(username="u2", password="temp12345", node=self.node)
+
+        u.set_password("Aa123456!")
+        u.is_active = True
+        u.approved = True
+        u.save(update_fields=["password", "is_active", "approved"])
+
+        res = self.client.post(
+            "/api/authors/login/",
+            data=json.dumps({"username": "u2", "password": "Aa123456!"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        body = res.json() if hasattr(res, "json") else {}
+        self.assertIn("access", body)
+        self.assertIn("refresh", body)
+
+    def test_unapproved_user_blocked_on_follow_api(self):
+        # follower is unapproved; followee is approved
+        follower = User.objects.create_user(
+            username="follower_x", password="Aa123456!", node=self.node
+        )
+        followee = User.objects.create_user(
+            username="followee_x", password="Aa123456!", node=self.node
+        )
+        followee.approved = True
+        followee.save(update_fields=["approved"])
+
+        # force_authenticate bypasses login but preserves request.user
+        # IsApproved should still block because follower.approved == False
+        self.client.force_authenticate(follower)
+        url = reverse("authors:follow-request", args=[followee.id])
+        res = self.client.post(url, data={}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)

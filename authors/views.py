@@ -1,6 +1,5 @@
 import json
-from django.shortcuts import render, redirect, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login, logout
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, status, permissions
@@ -17,6 +16,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_exempt
 from entries.models import Entry
 from django.db import IntegrityError
+from .permissions import IsApproved
  
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
@@ -34,13 +34,12 @@ class AuthorRegistrationView(generics.CreateAPIView):
         refresh = RefreshToken.for_user(user)  # create refresh token for the user
 
         return Response(
-            {
-                "user": AuthorSerializer(user).data,
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        {
+            "status": "pending",
+            "user": AuthorSerializer(user).data
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 class AuthorRetrieveUpdateView(generics.RetrieveUpdateAPIView):
@@ -56,7 +55,13 @@ def handle_login(request):
     if request.method == "POST":
         data = json.loads(request.body)
         username = data.get("username")
-        password = data.get("password")
+        password = data.get("password")  
+        try:
+            author_obj = Author.objects.get(username=username)
+        except Author.DoesNotExist:
+            author_obj = None
+        if author_obj is not None and not getattr(author_obj, "approved", False):
+            return JsonResponse({"error": "Account pending admin approval."}, status=403)
 
         user = authenticate(request, username=username, password=password)
 
@@ -186,14 +191,14 @@ class AuthorListView(generics.ListAPIView):
 class FollowRequestViewww(generics.CreateAPIView):
     queryset = Follow.objects.all()
     serializer_class = FollowRequestSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsApproved]
 
     def perform_create(self, serializer):
         following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
         serializer.save(follower=self.request.user, following=following_author)
 
 class FollowRequestView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsApproved]
 
     def post(self, request, author_id):
         followee = get_object_or_404(Author, id=author_id)
@@ -219,7 +224,7 @@ class FollowRequestView(APIView):
         return Response(data, status=status.HTTP_201_CREATED)
 
 class FollowRequestsListView(generics.ListAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsApproved]
     serializer_class = FollowRequestSerializer
 
     def get_queryset(self):
@@ -229,7 +234,7 @@ class FollowRequestsListView(generics.ListAPIView):
         )
 
 class FollowRequestsListViewwww(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsApproved]
 
     def create(self, request, *args, **kwargs):
         following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
@@ -275,7 +280,7 @@ class FollowDecisionView(APIView):
     this endpoint a model—it's a custom action (“approve” or “deny” a pending follow). 
 
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsApproved]
 
     def post(self, request, pk):
         """

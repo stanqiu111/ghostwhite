@@ -5,6 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, status, permissions
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.parsers import MultiPartParser, JSONParser
@@ -14,7 +15,6 @@ from rest_framework.views import APIView
 from .models import Author, Follow
 from .serializers import AuthorSerializer, AuthorRegistrationSerializer, FollowRequestSerializer
 from django.contrib.auth import authenticate, login, logout
-from django.views.decorators.csrf import csrf_exempt
 from entries.models import Entry
 from django.db import IntegrityError
 from .permissions import IsApproved
@@ -118,7 +118,6 @@ class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [SessionAuthentication, BasicAuthentication]
     parser_classes = [JSONParser, MultiPartParser]
     lookup_field = "username"
     lookup_url_kwarg = "username"

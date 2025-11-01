@@ -53,7 +53,6 @@ class EntryRetrieveView(generics.RetrieveAPIView):
 
 class EntryCreateView(generics.CreateAPIView):
     serializer_class = EntryCreateSerializer
-    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
@@ -62,7 +61,6 @@ class EntryCreateView(generics.CreateAPIView):
 
 class EntryUpdateView(generics.UpdateAPIView):
     serializer_class = EntryCreateSerializer
-    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -75,7 +73,6 @@ class EntryUpdateView(generics.UpdateAPIView):
         
 class EntryDeleteView(generics.DestroyAPIView):
     queryset = Entry.objects.filter(deleted_at__isnull=True)
-    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -195,7 +192,6 @@ class CommentCreateView(generics.CreateAPIView):
     POST /entries/<uuid:pk>/comments/
     Create a new comment for a specific entry.
     """
-    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, *args, **kwargs):
@@ -217,7 +213,6 @@ class EntryLikeToggleView(generics.DestroyAPIView):
     POST /entries/<uuid:pk>/like/
     Toggle a like on an entry for the current user/session.
     """
-    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, *args, **kwargs):
@@ -236,7 +231,6 @@ class CommentLikeToggleView(generics.DestroyAPIView):
     POST /entries/<uuid:pk>/comments/<int:comment_id>/like/
     Toggle a like on a comment for the current user/session.
     """
-    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, comment_id, *args, **kwargs):

@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, status, permissions
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.parsers import MultiPartParser, JSONParser
@@ -117,6 +118,7 @@ class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
     permission_classes = [IsAuthenticated]
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
     parser_classes = [JSONParser, MultiPartParser]
     lookup_field = "username"
     lookup_url_kwarg = "username"
@@ -151,6 +153,20 @@ class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
             raise PermissionDenied("You can only update your own profile")
         serializer.save()
     
+class AuthorByIdView(generics.RetrieveUpdateAPIView):
+    queryset = Author.objects.all()
+    serializer_class = AuthorSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
+    lookup_field = "id"  
+    lookup_url_kwarg = "author_id"
+        
+    def perform_update(self, serializer):
+        author = self.get_object()     
+        user = self.request.user
+        if not (user == author or user.is_staff):
+            raise PermissionDenied("You can only update your own profile")
+        serializer.save()
 
 class AuthorPagination(PageNumberPagination):
     # Custom pagination for authors list:
@@ -173,6 +189,11 @@ class AuthorListView(generics.ListAPIView):
     queryset = Author.objects.all().order_by("username")
     serializer_class = AuthorSerializer
     pagination_class = AuthorPagination
+    queryset = (
+        Author.objects
+        .filter(is_active=True, is_staff=False, is_superuser=False)
+        .order_by('username')
+    )
 
     def list(self, request, *args, **kwargs):
          # Apply pagination; if a page exists, return paginated data

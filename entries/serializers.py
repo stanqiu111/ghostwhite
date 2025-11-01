@@ -80,11 +80,14 @@ class EntryRetrieveSerializer(serializers.ModelSerializer):
         return bool(getattr(obj, "is_image_entry") and obj.is_image_entry())
 
     def get_image_url(self, obj):
-        if not self.get_is_image(obj):
-            return None
         request = self.context.get("request")
-        url = reverse("entries:entry-image-by-id", args=[str(obj.id)])
+        url = reverse(
+            "authors:entry-image-by-id",
+            kwargs={"author_id": obj.author.id, "pk": obj.id}
+        )
         return request.build_absolute_uri(url) if request else url
+
+# entries/serializers.py
 
 
 class EntryCreateSerializer(serializers.ModelSerializer):

@@ -218,12 +218,13 @@ const fmtTime = iso => { try{return new Date(iso).toLocaleString();}catch{return
 const esc = s => (s||"").replace(/[&<>'"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[m]));
 
 /* ============== API ============= */
-async function api(path, opts={}) {
+async function api(path, opts = {}) {
   const res = await fetch(`/api${path}`, {
     ...opts,
-    headers: { ...(opts.headers||{}), ...headersAuth }
+    credentials: 'same-origin',
+    headers: getHeaders(opts.headers || {}),
   });
-  let data = null; try{ data = await res.json(); }catch{}
+  let data = null; try { data = await res.json(); } catch {}
   if (!res.ok) throw new Error(data?.detail || `${res.status} ${res.statusText}`);
   return data;
 }
@@ -425,6 +426,7 @@ function renderRight(e){
 }
 
 async function deleteEntry() {
+  if (!confirm('Delete this entry?')) return;
   try{
     const res = await fetch(`/api/entries/${ENTRY_ID}/delete/`, {
       method: 'DELETE',

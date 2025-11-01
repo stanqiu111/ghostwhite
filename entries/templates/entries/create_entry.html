@@ -195,13 +195,11 @@
     </div>
   </div>
 
+
 <script src="{% static 'js/api.js' %}"></script>
 <script src="{% static 'js/common.js' %}"></script>
 <script>
-function getCSRFToken(){
-  const m = document.cookie.match(/csrftoken=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : '';
-}
+
 /* ----------- MODE: create or edit ----------- */
 const ENTRY_ID = '{{ entry_id|default:"" }}'; // we need id passed from django to know if we are editing or creating
 const IS_EDITING = !!ENTRY_ID;

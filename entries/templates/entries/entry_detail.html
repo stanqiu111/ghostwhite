@@ -42,8 +42,11 @@
   @media (max-width:980px){ .row{grid-template-columns:1fr} .right{order:2} }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
 <script src="{% static 'js/common.js' %}"></script>
+<script src="{% static 'js/api.js' %}"></script>
 </head>
+
 <body>
   <div class="header">
     <div class="header-content">
@@ -203,7 +206,6 @@
     </aside>
   </div>
 </div>
-<script src="{% static 'js/api.js' %}"></script>
 <script>
 /* ============ CONFIG ============ */
 const DEFAULT_PFP = "/static/images/default_pfp.png"; // change if your path differs

@@ -219,12 +219,32 @@ const esc = s => (s||"").replace(/[&<>'"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&
 
 /* ============== API ============= */
 async function api(path, opts = {}) {
-  const res = await fetch(`/api${path}`, {
-    ...opts,
-    credentials: 'same-origin',
-    headers: getHeaders(opts.headers || {}),
-  });
-  let data = null; try { data = await res.json(); } catch {}
+  const method = (opts.method || 'GET').toUpperCase();
+
+  async function doFetch(withAuth = true) {
+    const hdrs = { ...(opts.headers || {}) };
+    if (withAuth) Object.assign(hdrs, getHeaders(hdrs));
+    const res = await fetch(`/api${path}`, {
+      ...opts,
+      credentials: 'same-origin',
+      headers: hdrs,
+    });
+    let data = null; try { data = await res.json(); } catch {}
+    return { res, data };
+  }
+
+  let { res, data } = await doFetch(true);
+
+  const detail = String(data?.detail || '').toLowerCase();
+  if (method === 'GET' && res.status === 401 && detail.includes('token')) {
+    try {
+      localStorage.removeItem('access');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh');
+    } catch {}
+    ({ res, data } = await doFetch(false));
+  }
+
   if (!res.ok) throw new Error(data?.detail || `${res.status} ${res.statusText}`);
   return data;
 }

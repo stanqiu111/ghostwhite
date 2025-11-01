@@ -17,6 +17,11 @@ class EntryListView(generics.ListAPIView):
     authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
+
     def get_queryset(self):
         if self.request.user.is_authenticated and self.request.user.is_staff:
             # admin can see all entries, including the deleted ones
@@ -114,15 +119,20 @@ class EntryImageView(generics.GenericAPIView):
         if not self.verify_entry_access(request.user, entry):
             raise Http404()
 
-        if not entry.image or not entry.image.name:
+        # Only image entries are supported here per spec
+        if not hasattr(entry, "is_image_entry") or not entry.is_image_entry():
             raise Http404()
 
-        mime = getattr(entry, "content_type", None) or get_mime_type(entry.image.name) or "application/octet-stream"
+        # Decode base64 content into binary
+        import base64
+        try:
+            raw = base64.b64decode(entry.content or "")
+        except Exception:
+            raise Http404()
 
-        with entry.image.open("rb") as f:
-            data = f.read()
+        mime = getattr(entry, "image_mime", None) or "application/octet-stream"
 
-        resp = HttpResponse(data, content_type=mime)
+        resp = HttpResponse(raw, content_type=mime)
         resp["Cache-Control"] = "private, max-age=3600"
         resp["Last-Modified"] = http_date(now().timestamp())
         return resp

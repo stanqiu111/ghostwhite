@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Entry, Comment, CommentLike, EntryLike
 from authors.serializers import AuthorSerializer
 from nodes.serializers import NodeSerializer
+from django.urls import reverse
 
 class CommentLikeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -52,6 +53,8 @@ class EntryRetrieveSerializer(serializers.ModelSerializer):
     comments = CommentSerializer(many=True)
     likes = EntryLikeSerializer(many=True, read_only=True)
     like_count = serializers.IntegerField(read_only=True)
+    is_image = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Entry
@@ -68,8 +71,20 @@ class EntryRetrieveSerializer(serializers.ModelSerializer):
             "node",
             "like_count", 
             "likes",
-            "comments",    
+            "comments",
+            "is_image",
+            "image_url",    
         ]
+
+    def get_is_image(self, obj):
+        return bool(getattr(obj, "is_image_entry") and obj.is_image_entry())
+
+    def get_image_url(self, obj):
+        if not self.get_is_image(obj):
+            return None
+        request = self.context.get("request")
+        url = reverse("entries:entry-image-by-id", args=[str(obj.id)])
+        return request.build_absolute_uri(url) if request else url
 
 
 class EntryCreateSerializer(serializers.ModelSerializer):
@@ -84,3 +99,12 @@ class EntryCreateSerializer(serializers.ModelSerializer):
             "visibility",
             "image",
         ]
+        extra_kwargs = {"content_type": {"required": False}}
+
+    def validate(self, attrs):
+        if not attrs.get("content") and not attrs.get("image"):
+            raise serializers.ValidationError("Either 'content' or 'image' must be provided.")
+        return attrs
+
+    def create(self, validated_data):
+        return super().create(validated_data)

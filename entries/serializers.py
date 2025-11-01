@@ -99,10 +99,31 @@ class EntryCreateSerializer(serializers.ModelSerializer):
             "visibility",
             "image",
         ]
-        extra_kwargs = {"content_type": {"required": False}}
+        extra_kwargs = {
+            "content_type": {"required": False},
+            "content": {"required": False, "allow_blank": True},
+            "image": {"required": False},
+        }
 
     def validate(self, attrs):
-        if not attrs.get("content") and not attrs.get("image"):
+        """
+        Creation: require at least one of content or image
+        Update: allow clearing content if there's an existing image on the instance or a new image in attrs
+        """
+        content = attrs.get("content")
+        image = attrs.get("image")
+
+        # Update case: self.instance is present
+        if getattr(self, "instance", None) is not None:
+            # If no new image provided and content is empty/None, permit update as long as the instance already has an image
+            has_existing_image = bool(getattr(self.instance, "image", None))
+            content_empty = (content is None) or (isinstance(content, str) and content.strip() == "")
+            if content_empty and not image and not has_existing_image:
+                raise serializers.ValidationError("Either 'content' or 'image' must be provided.")
+            return attrs
+
+        # Create case
+        if (content is None or (isinstance(content, str) and content.strip() == "")) and not image:
             raise serializers.ValidationError("Either 'content' or 'image' must be provided.")
         return attrs
 

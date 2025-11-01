@@ -43,8 +43,8 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-<script src="{% static 'js/common.js' %}"></script>
 <script src="{% static 'js/api.js' %}"></script>
+<script src="{% static 'js/common.js' %}"></script>
 </head>
 
 <body>
@@ -309,9 +309,9 @@ function renderEntry(e){
   const ct = (e.content_type || '').toLowerCase();
 
   // Consider image entries when any of these is true:
-  // - backend exposes a direct URL (image_url)
-  // - backend exposes a stored file URL/path (image)
-  // - content_type says image/* or *base64
+  // 1. backend exposes a direct URL (image_url)
+  // 2. backend exposes a stored file URL/path (image)
+  // 3. content_type : image/* or *base64
   const isImage = Boolean(e.image_url || e.image || ct.startsWith('image/') || ct.includes('base64'));
 
   if (isImage) {
@@ -428,15 +428,11 @@ function renderRight(e){
 async function deleteEntry() {
   if (!confirm('Delete this entry?')) return;
   try{
-    const res = await fetch(`/api/entries/${ENTRY_ID}/delete/`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(data?.detail || `Failed (${res.status})`);
-    }
+    await api(`/entries/${ENTRY_ID}/delete/`, { method: 'DELETE' });
     window.location.href = '/home/';
-  }catch(err){ alert(err.message || 'Failed to delete entry'); }
+  }catch(err){
+    alert(err.message || 'Failed to delete entry');
+  }
 }
 
 function editEntry() {

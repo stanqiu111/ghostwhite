@@ -27,15 +27,27 @@ class Entry(models.Model):
         max_length=20, choices=VISIBILITY_CHOICES, default="public"
     )
     image = models.ImageField(upload_to="entry_images/", null=True, blank=True)
+    # Source metadata (for third-party origins such as GitHub)
+    source = models.CharField(max_length=50, blank=True, null=True)
+    source_url = models.URLField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)  # for soft delete
     node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="entries")
 
+    # fields for github integration
+    source = models.CharField(max_length=50, default="manual", db_index=True)
+    source_id = models.CharField(max_length=255, null=True, blank=True)
+    source_url = models.CharField(max_length=512, null=True, blank=True)
+
     class Meta:
-        ordering = [
-            "-created_at"
-        ]  # we are showing most recent first because in the requirement, we have to display the most recent post
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source", "source_id"],
+                name="unique_source_sourceid"
+            )
+        ]
 
     def __str__(self):
         return f"Entry by {self.author.username} at {self.created_at}"
@@ -48,6 +60,7 @@ class Entry(models.Model):
     @property
     def like_count(self):
         return self.likes.count()
+
 
 
 

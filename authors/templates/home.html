@@ -592,9 +592,18 @@
     <script src="{% static 'js/common.js' %}"></script>
     <script>
       async function api(path, opts={}) {
+        // if the user is not authenticated (no JWT in localStorage), avoid calling
+        // auth-only endpoints to prevent unnecessary 401 log spam. The follow-requests
+        // endpoint is one such endpoint and callers expect an array, so return []
+        // early when not authenticated.
+        const headers = { ...(opts.headers||{}), ...getHeaders() };
+        if (!headers.Authorization && path.includes('follow-requests')) {
+          return [];
+        }
+
         const res = await fetch(`/api${path}`, {
           ...opts,
-          headers: { ...(opts.headers||{}), ...getHeaders() }
+          headers
         });
         let data = null; try{ data = await res.json(); }catch{}
         if (!res.ok) throw new Error(data?.detail || `${res.status} ${res.statusText}`);

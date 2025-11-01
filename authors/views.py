@@ -29,6 +29,14 @@ from django.views.decorators.csrf import csrf_exempt
 from entries.models import Entry
 from entries.serializers import EntryRetrieveSerializer
 from django.db import IntegrityError
+
+from django.contrib.auth.decorators import login_required
+from .models import GitHubIntegration
+from .forms import GitHubIntegrationForm
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .github import sync_repos_for_author
  
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
@@ -123,7 +131,8 @@ class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
     """
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
-    permission_classes = [IsAuthenticated]
+    # allow anonymous users to GET (public profile) but require authentication for PUT
+    permission_classes = [IsAuthenticatedOrReadOnly]
     parser_classes = [JSONParser, MultiPartParser]
     lookup_field = "username"
     lookup_url_kwarg = "username"
@@ -315,3 +324,52 @@ class FollowDecisionView(APIView):
             return Response({"detail": "Follow request denied."}, status=status.HTTP_200_OK)
 
         return Response({"detail": "Invalid decision."}, status=status.HTTP_400_BAD_REQUEST)
+
+@login_required
+def link_github_view(request):
+    """
+    Display + process the GitHub link form for the logged-in user.
+    If the user already has a GitHubIntegration entry, we edit it.
+    Otherwise, we create one.
+    """
+    # Ensure the logged-in user has an Author record
+    author, _ = Author.objects.get_or_create(id=request.user.id, defaults={
+        "username": request.user.username,
+        "displayName": getattr(request.user, "displayName", request.user.username),
+    })
+
+    # Try to fetch existing GitHub link
+    integration = getattr(author, "github_integration", None)
+
+    if request.method == "POST":
+        form = GitHubIntegrationForm(request.POST, instance=integration)
+        if form.is_valid():
+            gi = form.save(commit=False)
+            gi.author = author
+            gi.save()
+            # page URLconf (authors.page_urls) names the profile view 'author_profile_page'
+            return redirect("authors_pages:author_profile_page", username=author.username)
+    else:
+        form = GitHubIntegrationForm(instance=integration)
+
+    return render(request, "authors/link_github.html", {
+        "form": form,
+        "integration": integration
+    })
+
+
+class SyncMyGithubReposView(APIView):
+    """POST: trigger a sync of the logged-in user's GitHub repos and create Entry objects."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            gi = request.user.github_integration
+        except GitHubIntegration.DoesNotExist:
+            return Response({"detail": "No GitHub integration configured."}, status=400)
+
+        created = sync_repos_for_author(request.user, gi.github_username, access_token=gi.access_token)
+        # update last_synced_at
+        gi.last_synced_at = timezone.now()
+        gi.save(update_fields=['last_synced_at'])
+        return Response({"created": created})

@@ -15,7 +15,7 @@ urlpatterns = [
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("register/", views.AuthorRegistrationView.as_view(), name="register"),
     path("author_profile/", views.AuthorRetrieveUpdateView.as_view(), name="profile"),
-    path("<uuid:author_id>/entries/", include("entries.urls")),
+    #path("<uuid:author_id>/entries/", include(("entries.urls", "entries"), namespace="authors_entries")),
     path("<uuid:author_id>/entries/<uuid:pk>/image/", EntryImageView.as_view(), name="entry-image-by-id"),
     path("<uuid:author_id>/follow/", views.FollowRequestView.as_view(), name="follow-request"),
     path("follow-requests/", FollowRequestsListView.as_view(), name="follow-requests"),

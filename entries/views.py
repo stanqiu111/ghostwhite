@@ -101,6 +101,7 @@ def get_mime_type(name: str) -> str | None:
 
 class EntryImageView(generics.GenericAPIView):
     permission_classes = [AllowAny]
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
     queryset = Entry.objects.all()
 
     def get(self, request, pk, *args, **kwargs):

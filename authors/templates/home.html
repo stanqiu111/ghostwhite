@@ -132,6 +132,7 @@
         flex-direction: column;
         gap: 20px;
       }
+     
 
       .entry-card {
         background: white;
@@ -189,12 +190,25 @@
         margin: 16px 0;
         line-height: 1.5;
         color: #1a1a1a;
+        
       }
 
-      .entry-image {
-        width: 100%;
+      /* Shared image styling for explicit entry images and images inside content */
+      .entry-image,
+      .entry-content img {
+        max-width: 100%;
+        width: auto;
+        height: auto;
+        max-height: 80vh;
+        object-fit: contain;
+        display: block;
+        margin: 12px 0;
         border-radius: 8px;
-        margin: 16px 0;
+        border: 1px solid #e5e7eb;
+      }
+
+      .entry-content img {
+        background: #f6f7f9;
       }
 
       .entry-actions {
@@ -477,10 +491,15 @@
           </div>
 
           <div class="entry_body" onclick="navigateToEntry('{{ entry.id }}')">
-            <div class="entry-content" >{{ entry.content }}</div>
-            
+            {% if entry.content_type == 'markdown' or entry.content_type == 'plain_text' or entry.content_type == 'text/markdown' or entry.content_type == 'text/plain' %}
+              {% if entry.content %}
+                <div class="entry-content">{{ entry.content }}</div>
+              {% endif %}
+            {% endif %}
             {% if entry.image %}
-            <img src="{{ entry.image.url }}" alt="Entry image" class="entry-image">
+              <img src="{{ entry.image.url }}" alt="Entry image" class="entry-image" loading="lazy" decoding="async">
+            {% elif entry.content_type == 'application/base64' or entry.content_type == 'image/png;base64' or entry.content_type == 'image/jpeg;base64' %}
+              <img src="/api/entries/{{ entry.id }}/image/" alt="Entry image" class="entry-image" loading="lazy" decoding="async">
             {% endif %}
           </div>
           <div class="entry-actions">

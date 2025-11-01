@@ -198,6 +198,10 @@
 <script src="{% static 'js/api.js' %}"></script>
 <script src="{% static 'js/common.js' %}"></script>
 <script>
+function getCSRFToken(){
+  const m = document.cookie.match(/csrftoken=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
 /* ----------- MODE: create or edit ----------- */
 const ENTRY_ID = '{{ entry_id|default:"" }}'; // we need id passed from django to know if we are editing or creating
 const IS_EDITING = !!ENTRY_ID;
@@ -315,8 +319,18 @@ async function loadEntry() {
     const entry = await res.json();
     
     // Populate form
-    contentArea.value = entry.content || '';
-    state.contentType = entry.content_type || 'markdown';
+    const ct = (entry.content_type || '').toLowerCase();
+    const isImage = ct.startsWith('image/') || ct.includes('base64');
+
+    if (isImage) {
+      // Do not load raw base64 into the editor
+      contentArea.value = '';
+      // Keep the editor in a safe plain text mode
+      state.contentType = 'plain_text';
+    } else {
+      contentArea.value = entry.content || '';
+      state.contentType = entry.content_type || 'markdown';
+    }
     contentTypeSel.value = state.contentType;
     state.visibility = entry.visibility || 'public';
     
@@ -325,9 +339,9 @@ async function loadEntry() {
       btn.classList.toggle('active', btn.dataset.visibility === state.visibility);
     });
     
-    // Show existing image
-    if (entry.image) {
-      state.existingImageUrl = entry.image;
+    // Show existing image (prefer direct URL if provided)
+    if (entry.image || entry.image_url) {
+      state.existingImageUrl = entry.image_url || entry.image;
       renderPhoto();
     }
   } catch (err) {
@@ -354,10 +368,15 @@ postBtn.addEventListener('click', async ()=>{
     
     const url = IS_EDITING ? `/api/entries/${ENTRY_ID}/update/` : '/api/entries/create/';
     const method = IS_EDITING ? 'PUT' : 'POST';
+
+    const headers = getHeadersWithNoContentType();
+    headers['X-CSRFToken'] = getCSRFToken();
+    headers['X-Requested-With'] = 'XMLHttpRequest';
     
     const res = await fetch(url, {
       method: method,
-      headers: getHeadersWithNoContentType(),         
+      headers: headers,
+      credentials: 'same-origin',
       body: fd
     });
 

@@ -141,11 +141,25 @@
 
       <section class="friends">
         <h3>Friends</h3>
-        <ul class="friend-grid" id="friendsGrid"><li><img src="https://i.pravatar.cc/80?img=1" alt="Friend 1"></li>
-            <li><img src="https://i.pravatar.cc/80?img=2" alt="Friend 2"></li>
-            <li><img src="https://i.pravatar.cc/80?img=3" alt="Friend 3"></li>
-            <li><img src="https://i.pravatar.cc/80?img=4" alt="Friend 4"></li>
-            <li><img src="https://i.pravatar.cc/80?img=5" alt="Friend 5"></li>
+        <ul class="friend-grid" id="friendsGrid">
+          {% for friend in request_user_friends %}
+            <li class="friend-item" onclick="navigateToPublicProfile('{{ friend.username }}')">
+              <div class="friend-avatar">
+                {% if friend.image %}
+                  <img src="{{ friend.image.url }}" alt="{{ friend.display_name }}">
+                {% else %}
+                  <img src="{% static 'images/default_pfp.png' %}" alt="{{ friend.display_name }}">
+                {% endif %}
+              </div>
+              <div class="friend-name" title="{{ friend.display_name }}">
+                {{ friend.display_name|default:friend.username }}
+              </div>
+            </li>
+          {% empty %}
+            <li class="empty-state">
+              Nothing
+            </li>
+          {% endfor %}
         </ul>
       </section>
     </section>
@@ -216,196 +230,231 @@
       return m ? decodeURIComponent(m[1]) : null;
     }
 
-    const API = {
-      getProfile(username) {    //get author info
-        return fetch(`/api/authors/${encodeURIComponent(username)}/`, {
-          headers: getHeaders(),
-          credentials: 'same-origin'
-        });
-      },
-      updateProfile(username, body) {    // update author info
-        return fetch(`/api/authors/${encodeURIComponent(username)}/`, {
-          method: 'PUT',
-          headers: getHeaders(),
-          body: JSON.stringify(body),
-          credentials: 'same-origin'
-        });
-      }
-    };
-
-    //upload avatar
-    const uploadBtn   = document.getElementById('uploadBtn');
-    const avatarInput = document.getElementById('avatarInput');
-    const mainAvatar  = document.getElementById('mainAvatar');
-    let selectedAvatarFile = null;  // keep selected file for later upload
-
-    if (uploadBtn && avatarInput && mainAvatar) {
-      uploadBtn.addEventListener('click', () => avatarInput.click());
-      avatarInput.addEventListener('change', (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        selectedAvatarFile = file;           // remember for Save
-        const reader = new FileReader();
-        reader.onload = () => { mainAvatar.src = reader.result; }; // instant preview only
-        reader.readAsDataURL(file);
-        // Do not upload here; upload happens on Save
-      });
-    }
-
-    //  preloads an image and only replaces the avatar once the new image is confirmed to load correctly
-    function swapAvatar(imgEl, url) {
-      if (!imgEl || !url) return;
-      const tmp = new Image();
-      tmp.onload = () => { imgEl.src = url; };
-      tmp.src = url;
-    }
-
-    // Fetch and display author profile info from backend API
-    async function getProfile() {
-      const usernameInUrl = getUsernameFromPath();
-      if (!usernameInUrl) {
-        console.error('Cannot parse username from URL.');
-        return;     //If username cannot be parsed from URL, stop and log error
-      }
-
-      try {
-        const r = await API.getProfile(usernameInUrl);    //get author profile
-
-        if (r.status === 401){
-          window.location = '/authors/auth/';  //back to auth page if 401
-          return;
-        }
-        if (!r.ok) {
-          const errText = await r.text();
-          console.error('Failed to load profile:', r.status, errText);
-          alert('Failed to load profile details.');
-          return;
-        }
-
-        const d = await r.json();  //parse author profile to Json
-
-        document.getElementById('username').value = d.username || usernameInUrl || '';
-        document.getElementById('profile-name').textContent = d.display_name || d.username || usernameInUrl || '';
-        document.getElementById('display_name').value = d.display_name || d.username || usernameInUrl || '';
-        document.getElementById('github_url').value = d.github_url || '';
-        document.getElementById('bio').value = d.bio || '';
-
-        const main = document.getElementById('mainAvatar');
-        const small = document.getElementById('smallAvatar');
-        const fallbackSrc = main?.dataset?.fallback || "{% static 'authors/avatar1.jpg' %}";
-
-        if (d.image) {
-          const bust = d.image + '?t=' + Date.now();  // prevent stale cache
-          swapAvatar(main, bust);
-          if (small) {
-            swapAvatar(small, bust)
-          };
-        } else {
-          // no uploaded avatar -> use static fallback for both
-          swapAvatar(main, fallbackSrc);
-          if (small) {
-            swapAvatar(small, fallbackSrc)
-          };
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Network error. Please try again.');
-      }
-    }
-    
-    //handle profile save(update info & avatar uploading)
-    document.getElementById('profileForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      // Extract username from URL to know which author profile to update( /api/authors/<username>/json/)
-      const usernameInUrl = getUsernameFromPath();
-      if (!usernameInUrl) {
-        alert('Invalid profile URL.');
+    // Check if user is authorized and is the author of the profile, if not redirect to home
+    (async function checkAuthorization() {
+      // if doesnt have token then redirect to home
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        window.location.href = "/home/";
         return;
       }
-      const body = {
-        display_name: document.getElementById('display_name').value,
-        github_url: document.getElementById('github_url').value,
-        bio: document.getElementById('bio').value
+
+      const usernameInUrl = getUsernameFromPath();
+      if (!usernameInUrl) {
+        window.location.href = "/home/";
+        return;
+      }
+
+      try {
+        const meRes = await fetch('/api/authors/author_profile/', {
+          headers: getHeaders(),
+          credentials: 'same-origin'
+        });
+
+        if (!meRes.ok || meRes.status === 401) {
+          window.location.href = "/home/";
+          return;
+        }
+
+        const me = await meRes.json();
+        const currentUsername = me.username;
+
+        if (currentUsername !== usernameInUrl) {
+          window.location.href = "/home/";
+          return;
+        }
+
+        initializePage();
+      } catch (err) {
+        // Network error or other issue - redirect for safety
+        console.error('Authorization check failed:', err);
+        window.location.href = "/home/";
+      }
+    })();
+
+    function initializePage() {
+      const API = {
+        getProfile(username) {    //get author info
+          return fetch(`/api/authors/${encodeURIComponent(username)}/`, {
+            headers: getHeaders(),
+            credentials: 'same-origin'
+          });
+        },
+        updateProfile(username, body) {    // update author info
+          return fetch(`/api/authors/${encodeURIComponent(username)}/`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(body),
+            credentials: 'same-origin'
+          });
+        }
       };
 
-      const saveBtn = document.getElementById('saveBtn');
-      const prevText = saveBtn.textContent;
-      saveBtn.disabled = true; //Prevent double submission
-      
-      try {
-        //Send PUT request to update profile info
-        const r = await API.updateProfile(usernameInUrl, body);   
+      //upload avatar
+      const uploadBtn   = document.getElementById('uploadBtn');
+      const avatarInput = document.getElementById('avatarInput');
+      const mainAvatar  = document.getElementById('mainAvatar');
+      let selectedAvatarFile = null;  // keep selected file for later upload
 
-        saveBtn.disabled = false; //enable after response
-        saveBtn.textContent = prevText;
-
-        if (r.status === 401) {
-          window.location = '/authors/auth/';
-          return;
-        }
-        if (!r.ok) {
-          const errText = await r.text();
-          console.error('Update failed:', r.status, errText);
-          alert('Failed to save. Please try again.');
-          return;
-        }
-
-        // If an avatar file was selected, upload it after profile update
-        if (selectedAvatarFile) {
-          const fd = new FormData();
-          // For PUT, we need to send ALL fields, not just the image
-          fd.append("username", document.getElementById('username').value);
-          fd.append("display_name", document.getElementById('display_name').value);
-          fd.append("github_url", document.getElementById('github_url').value);
-          fd.append("bio", document.getElementById('bio').value);
-          fd.append("image", selectedAvatarFile);
-          
-          const up = await fetch(`/api/authors/${encodeURIComponent(usernameInUrl)}/`, {
-            method: "PUT",
-            headers: getHeadersWithNoContentType(),
-            body: fd,
-            credentials: "same-origin"
-          });
-          
-          if (!up.ok) {
-            const t = await up.text();
-            console.error("Avatar upload failed", up.status, t);
-            alert("Avatar upload failed");
-            return;    // stop here; don't overwrite preview with old data
-          }
-          const data = await up.json();
-          const newUrl = data.image + "?t=" + Date.now();
-          swapAvatar(document.getElementById('mainAvatar'), newUrl);
-          const smallAvatar = document.getElementById('smallAvatar');
-          if (smallAvatar) swapAvatar(smallAvatar, newUrl);
-          selectedAvatarFile = null;   // clear after successful upload
-        }
-        
-        await getProfile();
-      } catch (err) {
-        saveBtn.disabled = false;
-        saveBtn.textContent = prevText;
-        console.error(err);
-        alert('Network error. Please try again.');
+      if (uploadBtn && avatarInput && mainAvatar) {
+        uploadBtn.addEventListener('click', () => avatarInput.click());
+        avatarInput.addEventListener('change', (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          selectedAvatarFile = file;           // remember for Save
+          const reader = new FileReader();
+          reader.onload = () => { mainAvatar.src = reader.result; }; // instant preview only
+          reader.readAsDataURL(file);
+          // Do not upload here; upload happens on Save
+        });
       }
-    });
 
-   getProfile();
+      //  preloads an image and only replaces the avatar once the new image is confirmed to load correctly
+      function swapAvatar(imgEl, url) {
+        if (!imgEl || !url) return;
+        const tmp = new Image();
+        tmp.onload = () => { imgEl.src = url; };
+        tmp.src = url;
+      }
 
+      // Fetch and display author profile info from backend API
+      async function getProfile() {
+        const usernameInUrl = getUsernameFromPath();
+        if (!usernameInUrl) {
+          console.error('Cannot parse username from URL.');
+          return;     //If username cannot be parsed from URL, stop and log error
+        }
+
+        try {
+          const r = await API.getProfile(usernameInUrl);    //get author profile
+
+          if (r.status === 401){
+            window.location = '/authors/auth/';  //back to auth page if 401
+            return;
+          }
+          if (!r.ok) {
+            const errText = await r.text();
+            console.error('Failed to load profile:', r.status, errText);
+            alert('Failed to load profile details.');
+            return;
+          }
+
+          const d = await r.json();  //parse author profile to Json
+
+          document.getElementById('username').value = d.username || usernameInUrl || '';
+          document.getElementById('profile-name').textContent = d.display_name || d.username || usernameInUrl || '';
+          document.getElementById('display_name').value = d.display_name || d.username || usernameInUrl || '';
+          document.getElementById('github_url').value = d.github_url || '';
+          document.getElementById('bio').value = d.bio || '';
+
+          const main = document.getElementById('mainAvatar');
+          const small = document.getElementById('smallAvatar');
+          const fallbackSrc = main?.dataset?.fallback || "{% static 'authors/avatar1.jpg' %}";
+
+          if (d.image) {
+            const bust = d.image + '?t=' + Date.now();  // prevent stale cache
+            swapAvatar(main, bust);
+            if (small) {
+              swapAvatar(small, bust)
+            };
+          } else {
+            // no uploaded avatar -> use static fallback for both
+            swapAvatar(main, fallbackSrc);
+            if (small) {
+              swapAvatar(small, fallbackSrc)
+            };
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Network error. Please try again.');
+        }
+      }
+      
+      //handle profile save(update info & avatar uploading)
+      document.getElementById('profileForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // Extract username from URL to know which author profile to update( /api/authors/<username>/json/)
+        const usernameInUrl = getUsernameFromPath();
+        if (!usernameInUrl) {
+          alert('Invalid profile URL.');
+          return;
+        }
+        const body = {
+          display_name: document.getElementById('display_name').value,
+          github_url: document.getElementById('github_url').value,
+          bio: document.getElementById('bio').value
+        };
+
+        const saveBtn = document.getElementById('saveBtn');
+        const prevText = saveBtn.textContent;
+        saveBtn.disabled = true; //Prevent double submission
+        
+        try {
+          //Send PUT request to update profile info
+          const r = await API.updateProfile(usernameInUrl, body);   
+
+          saveBtn.disabled = false; //enable after response
+          saveBtn.textContent = prevText;
+
+          if (r.status === 401) {
+            window.location = '/authors/auth/';
+            return;
+          }
+          if (!r.ok) {
+            const errText = await r.text();
+            console.error('Update failed:', r.status, errText);
+            alert('Failed to save. Please try again.');
+            return;
+          }
+
+          // If an avatar file was selected, upload it after profile update
+          if (selectedAvatarFile) {
+            const fd = new FormData();
+            // For PUT, we need to send ALL fields, not just the image
+            fd.append("username", document.getElementById('username').value);
+            fd.append("display_name", document.getElementById('display_name').value);
+            fd.append("github_url", document.getElementById('github_url').value);
+            fd.append("bio", document.getElementById('bio').value);
+            fd.append("image", selectedAvatarFile);
+            
+            const up = await fetch(`/api/authors/${encodeURIComponent(usernameInUrl)}/`, {
+              method: "PUT",
+              headers: getHeadersWithNoContentType(),
+              body: fd,
+              credentials: "same-origin"
+            });
+            
+            if (!up.ok) {
+              const t = await up.text();
+              console.error("Avatar upload failed", up.status, t);
+              alert("Avatar upload failed");
+              return;    // stop here; don't overwrite preview with old data
+            }
+            const data = await up.json();
+            const newUrl = data.image + "?t=" + Date.now();
+            swapAvatar(document.getElementById('mainAvatar'), newUrl);
+            const smallAvatar = document.getElementById('smallAvatar');
+            if (smallAvatar) swapAvatar(smallAvatar, newUrl);
+            selectedAvatarFile = null;   // clear after successful upload
+          }
+          
+          await getProfile();
+        } catch (err) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = prevText;
+          console.error(err);
+          alert('Network error. Please try again.');
+        }
+      });
+
+      // Load profile data
+      getProfile();
+    }
 
     function navigateToPublicProfile(username) {
       window.location.href = `/authors/${username}/`;
     }
-
-   // when loading the page, disabled the fields if it is not the current user's profile and hide the save button
-   if (getUsernameFromPath() !== localStorage.getItem("username")) {
-    document.getElementById('username').disabled = true;
-    document.getElementById('display_name').disabled = true;
-    document.getElementById('github_url').disabled = true;
-    document.getElementById('bio').disabled = true;
-    document.getElementById('saveBtn').style.display = 'none';
-   }
   </script>
   
 </body>

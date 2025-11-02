@@ -10,6 +10,7 @@ class AuthorSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     web = serializers.SerializerMethodField()
     full_url = serializers.SerializerMethodField()
+    follow_status = serializers.SerializerMethodField()
 
     def build_full_url(self, path: str):
         """
@@ -46,8 +47,27 @@ class AuthorSerializer(serializers.ModelSerializer):
         return self.build_full_url("/api/")
 
     def get_web(self, obj):
-       # Return absolute frontend URL for author’s profile page (e.g., /authors/<username>/)
+       # Return absolute frontend URL for author's profile page (e.g., /authors/<username>/)
         return self.build_full_url(f"/authors/{obj.username}/")
+
+    def get_follow_status(self, obj):
+        """
+        Return the follow status between the current user and this author.
+        Returns 'accepted', 'pending', or None
+        """
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+
+        # Don't check if viewing own profile
+        if request.user.id == obj.id:
+            return None
+
+        # Check if current user follows this author
+        follow_relation = Follow.objects.filter(follower=request.user, following=obj).first()
+        if follow_relation:
+            return follow_relation.status
+        return None
 
     class Meta:
         model = Author
@@ -64,8 +84,9 @@ class AuthorSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "full_url",
+            "follow_status",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "username", "host", "type", "web"]
+        read_only_fields = ["id", "created_at", "updated_at", "username", "host", "type", "web", "follow_status"]
 
 
 class AuthorRegistrationSerializer(serializers.ModelSerializer):

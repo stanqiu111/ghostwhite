@@ -168,6 +168,29 @@
           {% else %}
           <button class="profile-btn" onclick="navigateToLogin()">Follow</button>
           {% endif %}
+          <section class="friends">
+            <h3>Friends</h3>
+            <ul class="friend-grid" id="friendsGrid">
+              {% for friend in author_friends %}
+                <li class="friend-item" onclick="navigateToProfile('{{ friend.username }}')">
+                  <div class="friend-avatar">
+                    {% if friend.image %}
+                      <img src="{{ friend.image.url }}" alt="{{ friend.display_name }}">
+                    {% else %}
+                      <img src="{% static 'images/default_pfp.png' %}" alt="{{ friend.display_name }}">
+                    {% endif %}
+                  </div>
+                  <div class="friend-name" title="{{ friend.display_name }}">
+                    {{ friend.display_name|default:friend.username }}
+                  </div>
+                </li>
+              {% empty %}
+                <li class="empty-state">
+                  Nothing
+                </li>
+              {% endfor %}
+            </ul>
+          </section>
         </div>
       </div>
 

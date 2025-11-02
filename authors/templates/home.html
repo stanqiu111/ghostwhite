@@ -127,6 +127,19 @@
         cursor: not-allowed;
       }
 
+      .unfollow-btn {
+        background: #ef4444;
+        color: #fff;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 16px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .unfollow-btn:hover { background: #dc2626; }
+      .unfollow-btn:disabled { background:#fca5a5; cursor:not-allowed; }
+          
       .middle-column {
         display: flex;
         flex-direction: column;
@@ -191,10 +204,21 @@
         color: #1a1a1a;
       }
 
+      .entry-content img {
+        max-width: 100%;   
+        height: auto;       
+        display: block;    
+        margin: 16px 0;     
+        border-radius: 8px;
+        object-fit: contain;
+      }
+
       .entry-image {
         width: 100%;
+        height: auto;   
         border-radius: 8px;
-        margin: 16px 0;
+        margin: 16px 0px;
+        max-height: 520px;
       }
 
       .entry-actions {
@@ -284,6 +308,8 @@
         }
       }
     </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   </head>
   <body>
     <!-- Header -->
@@ -423,10 +449,6 @@
             </div>
           </div>
           <button class="profile-btn" onclick="navigateToProfile('{{ user.username }}')">My Profile</button>
-          {% if user.is_authenticated %}
-          <br><br>
-          <button class="profile-btn" onclick="window.location.href='/authors/link_github/'">Link GitHub</button>
-          {% endif %}
         </div>
 
         <div class="card">
@@ -440,7 +462,7 @@
         {% for entry in entries %}
         <div class="entry-card">
           <div class="entry-header">
-            <div class="entry-author" onclick="navigateToProfile('{{ entry.author.username }}')">
+            <div class="entry-author" onclick="navigateToPublicProfile('{{ entry.author.username }}')">
               <div class="entry-avatar">
                 {% if entry.author.image %}
                 <img
@@ -471,17 +493,25 @@
                 <div class="entry-time">{{ entry.created_at|timesince }} ago</div>
               </div>
             </div>
-            {% if entry.author.id != user.id and entry.follow_status != 'pending' and entry.follow_status != 'accepted' %}
-            <button class="follow-btn"
-                    data-author-id="{{ entry.author.id }}"
-                    data-author-username="{{ entry.author.username }}"
-                    onclick="followFromButton(this)">Follow</button>
+            {% if entry.author.id != user.id %}
+              {% if entry.follow_status == 'accepted' %}
+                <button class="unfollow-btn"
+                        data-author-id="{{ entry.author.id }}"
+                        onclick="unfollowFromButton(this)">Unfollow</button>
+              {% elif entry.follow_status == 'pending' %}
+                <button class="follow-btn" disabled>Requested</button>
+              {% else %}
+                <button class="follow-btn"
+                        data-author-id="{{ entry.author.id }}"
+                        data-author-username="{{ entry.author.username }}"
+                        onclick="followFromButton(this)">Follow</button>
+              {% endif %}
             {% endif %}
 
           </div>
 
           <div class="entry_body" onclick="navigateToEntry('{{ entry.id }}')">
-            <div class="entry-content" >{{ entry.content }}</div>
+            <div class="entry-content" data-ctype="{{ entry.content_type|lower }}">{{ entry.content }}</div>
             
             {% if entry.image %}
             <img src="{{ entry.image.url }}" alt="Entry image" class="entry-image">
@@ -575,12 +605,16 @@
               </div>
               <div class="suggestion-name">{{ suggestion.display_name }}</div>
             </div>
-            {% if suggestion.follow_status == 'pending' %}
+            {% if suggestion.follow_status == 'accepted' %}
+              <button class="unfollow-btn"
+                      data-author-id="{{ suggestion.id }}"
+                      onclick="unfollowFromButton(this)">Unfollow</button>
+            {% elif suggestion.follow_status == 'pending' %}
               <button class="follow-btn" disabled>Requested</button>
             {% else %}
               <button class="follow-btn"
                       data-author-id="{{ suggestion.id }}"
-                    data-author-username="{{ suggestion.username }}"
+                      data-author-username="{{ suggestion.username }}"
                       onclick="followFromButton(this)">Follow</button>
             {% endif %}
 
@@ -596,18 +630,9 @@
     <script src="{% static 'js/common.js' %}"></script>
     <script>
       async function api(path, opts={}) {
-        // if the user is not authenticated (no JWT in localStorage), avoid calling
-        // auth-only endpoints to prevent unnecessary 401 log spam. The follow-requests
-        // endpoint is one such endpoint and callers expect an array, so return []
-        // early when not authenticated.
-        const headers = { ...(opts.headers||{}), ...getHeaders() };
-        if (!headers.Authorization && path.includes('follow-requests')) {
-          return [];
-        }
-
         const res = await fetch(`/api${path}`, {
           ...opts,
-          headers
+          headers: { ...(opts.headers||{}), ...getHeaders() }
         });
         let data = null; try{ data = await res.json(); }catch{}
         if (!res.ok) throw new Error(data?.detail || `${res.status} ${res.statusText}`);
@@ -675,7 +700,6 @@
           document.body.removeChild(ta);
         }
       }
-      
       
       // ---- Follow Requests ----
 
@@ -750,10 +774,17 @@
 
         try {
           rowEl.style.opacity = .6;
-          await api(url, {
+          const result = await api(url, {
             method: 'POST',
             body: JSON.stringify({ decision })
           });
+
+          // Log the result to see what the server returned
+          console.log('[DEBUG] Decision result:', result);
+
+          if (result && result.status) {
+            console.log('[DEBUG] Follow status after decision:', result.status, 'Approved:', result.approved);
+          }
 
           rowEl.remove();
           counter.textContent = Math.max(0, (+counter.textContent || 0) - 1);
@@ -798,7 +829,82 @@
           alert(e.message || 'Failed to send follow request');
         }
       }
-      
+
+      async function unfollowFromButton(btn) {
+        const id = btn.dataset.authorId;
+        if (!id) return;
+
+        const toFollowState = () => {
+          btn.className = 'follow-btn';
+          btn.textContent = 'Follow';
+          btn.disabled = false;
+          btn.onclick = () => followFromButton(btn);
+        };
+
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Unfollowing…';
+
+        try {
+          // Preferred: RESTful DELETE to the same resource
+          try {
+            await api(`/authors/${id}/follow/`, { method: 'DELETE' });
+          } catch (e) {
+            // Fallback for backends that use a separate endpoint
+            const msg = String(e?.message || '');
+            if (msg.startsWith('405') || msg.startsWith('404')) {
+              await api(`/authors/${id}/unfollow/`, { method: 'POST', body: '{}' });
+            } else {
+              throw e;
+            }
+          }
+
+          // Swap button to "Follow"
+          toFollowState();
+
+          // (Optional) if you render counts client-side, you could also decrement following_count here.
+          // document.querySelector('.stat-number-for-following')…
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = original;
+          alert(e.message || 'Failed to unfollow');
+        }
+      }
+
+    function renderSafeMarkdown(mdText) {
+      // convert markdown -> html and sanitize
+      marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
+      const rawHtml = marked.parse(mdText || '');
+
+      const cleanHtml = DOMPurify.sanitize(rawHtml, {
+        ALLOWED_TAGS: [
+          'p','br','strong','em','s','code','pre','blockquote',
+          'ul','ol','li','h1','h2','h3','h4','h5','h6','hr',
+          'a','img'
+        ],
+        ALLOWED_ATTR: [
+          'href','title','target','rel',                // for <a>
+          'src','alt','width','height','loading','decoding','referrerpolicy' // for <img>
+        ],
+        ALLOW_DATA_ATTR: false,
+        FORBID_TAGS: ['style','svg','math','form','input','button','iframe','script']
+      });
+      // ensure safe links
+      const tmp = document.createElement('div');
+      tmp.innerHTML = cleanHtml;
+      tmp.querySelectorAll('a[target="_blank"]').forEach(a => {
+        if (!/noopener|noreferrer/.test(a.rel)) a.rel = 'noopener noreferrer';
+      });
+      return tmp.innerHTML;
+    }
+    // Apply it to all .entry-content elements on the page
+    document.querySelectorAll('.entry-content').forEach(node => {
+      const type = (node.dataset.ctype || 'plain_text');
+      if (type.includes('markdown')) {
+        const md = node.textContent; // raw markdown
+        node.innerHTML = renderSafeMarkdown(md);  // call once
+      }
+    });
     </script>
   </body>
 </html>

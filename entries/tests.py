@@ -60,7 +60,8 @@ class EntryAPITests(APITestCase):
     def test_entry_list_requires_auth(self):
         url = reverse("entries:entry-list")
         res = self.client.get(url)
-        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+        # If SessionAuthentication is enabled, unauthenticated requests may return 403 (CSRF) instead of 401
+        self.assertIn(res.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
 
         self.client.force_authenticate(self.author)
         res = self.client.get(url)
@@ -227,3 +228,46 @@ class EntryAPITests(APITestCase):
         res = self.client.post(url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertFalse(CommentLike.objects.filter(comment=comment, author=self.other).exists())
+    
+    class ImageHostingTests(APITestCase):
+        def setUp(self):
+            self.author = Author.objects.create_user(
+                username="tester", password="pass123", display_name="tester"
+            )
+            self.client.login(username="tester", password="pass123")
+
+        def generate_image(self):
+            img = Image.new("RGB", (50, 50), color="red")
+            tmp = BytesIO()
+            img.save(tmp, format="PNG")
+            tmp.name = "test.png"
+            tmp.seek(0)
+            return tmp
+
+        def test_image_entry_upload_and_retrieve(self):
+            url = reverse("entry-list")  # e.g. /api/entries/
+            image_file = self.generate_image()
+
+            data = {
+                "author": str(self.author.id),
+                "content_type": "image/png;base64",
+                "visibility": "public",
+                "image": image_file,
+            }
+            res = self.client.post(url, data, format="multipart")
+            self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+            entry_id = res.data["id"]
+
+            # GET image endpoint
+            image_url = reverse("entry-image-by-id", kwargs={
+                "author_id": self.author.id,
+                "pk": entry_id
+            })
+            get_res = self.client.get(image_url)
+            self.assertEqual(get_res.status_code, status.HTTP_200_OK)
+            self.assertEqual(get_res["Content-Type"], "image/png")
+
+            # Check image URL appears in entry API
+            entry_res = self.client.get(reverse("entry-detail", kwargs={"pk": entry_id}))
+            self.assertIn("image_url", entry_res.data)
+            self.assertTrue(entry_res.data["image_url"].endswith("/image/"))

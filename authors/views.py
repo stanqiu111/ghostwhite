@@ -106,11 +106,37 @@ def logout_view(request):
 
 def author_profile_page(request, username):
     author = Author.objects.get(username=username)
-    top_5_entries = Entry.objects.filter(author=author.id, deleted_at__isnull=True).order_by('-created_at')[:5]
-    entry_count = Entry.objects.filter(author=author.id, deleted_at__isnull=True).count()
-    follower_count = Follow.objects.filter(following=author.id, approved=True).count()
-    following_count = Follow.objects.filter(follower=author.id, approved=True).count()
-    return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count, 'follower_count': follower_count, 'following_count': following_count})
+    entries = Entry.objects.filter(author=author.id, deleted_at__isnull=True).order_by('-created_at')
+    top_5_entries = entries[:5]
+    entry_count = entries.count()
+    
+    request_user_entry_count = Entry.objects.filter(author=request.user.id, deleted_at__isnull=True).count()
+    request_user_follower_count = Follow.objects.filter(following=request.user.id, approved=True).count()
+    request_user_following_count = Follow.objects.filter(follower=request.user.id, approved=True).count()
+    
+    author_follower_count = Follow.objects.filter(following=author.id, approved=True).count()
+    author_following_count = Follow.objects.filter(follower=author.id, approved=True).count()
+    
+    # Check follow status if user is authenticated
+    follow_status = None
+    if request.user.is_authenticated and request.user.id != author.id:
+        try:
+            follow = Follow.objects.get(follower=request.user, following=author)
+            follow_status = follow.status
+        except Follow.DoesNotExist:
+            follow_status = None
+
+    # Get friends (mutual followers) - limit to 5 for display
+    author_friends = Follow.get_friends(author)[:5]
+    request_user_friends = Follow.get_friends(request.user)[:5]
+
+    if request.path.endswith('/settings/'):
+        # this we dont have to show the full list of entries, only return top 5
+        # we only have to show the follower and following count for the request user
+        return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count, 'follower_count': request_user_follower_count, 'following_count': request_user_following_count, "request_user_friends": request_user_friends})
+    else:
+        # Public profile page - use author_public.html, here we yave to show the full list of entries
+        return render(request, "authors/author_public.html", {'author': author, "entries": entries, "entry_count": entry_count, "request_user_entry_count": request_user_entry_count, "request_user_follower_count": request_user_follower_count, "request_user_following_count": request_user_following_count, "author_follower_count": author_follower_count, "author_following_count": author_following_count, "follow_status": follow_status, "author_friends": author_friends, "request_user_friends": request_user_friends})
 
 
 class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
@@ -220,9 +246,9 @@ class FollowRequestView(APIView):
         if Follow.objects.filter(follower=follower, following=followee).exists():
             return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
 
-        # 3) create pending request (approved=False)
+        # 3) create pending request (approved=False, status='pending')
         try:
-            f = Follow.objects.create(follower=follower, following=followee, approved=False)
+            f = Follow.objects.create(follower=follower, following=followee, approved=False, status=Follow.PENDING)
         except IntegrityError:
             # race-safe fallback
             return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
@@ -230,6 +256,21 @@ class FollowRequestView(APIView):
         # serialize minimal response (id is enough for tests)
         data = {"id": str(f.id), "follower": str(f.follower_id), "following": str(f.following_id), "approved": f.approved}
         return Response(data, status=status.HTTP_201_CREATED)
+     
+    def delete(self, request, author_id): 
+        """ UNFOLLOW (or cancel a pending request): 
+        DELETE /api/authors/<author_id>/follow/ Deletes 
+        both pending and approved relationships where current user is the follower. 
+        """ 
+        followee = get_object_or_404(Author, id=author_id) 
+        follower = request.user 
+        if follower.id == followee.id: 
+            return Response({"detail": "Cannot unfollow yourself."}, status=status.HTTP_400_BAD_REQUEST) 
+        qs = Follow.objects.filter(follower=follower, following=followee) 
+        deleted, _ = qs.delete() 
+        if deleted == 0: 
+            return Response({"detail": "No follow relationship found."}, status=status.HTTP_404_NOT_FOUND) 
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class FollowRequestsListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -299,19 +340,29 @@ class FollowDecisionView(APIView):
         decision = (request.data or {}).get("decision", "").lower()
         try:
             fr = Follow.objects.select_related("follower", "following").get(
-                id=pk, following=request.user, approved=False  # must still be pending
+                id=pk, following=request.user
             )
         except Follow.DoesNotExist:
             return Response({"detail": "Request not found or already handled."},
                             status=status.HTTP_404_NOT_FOUND)
 
-        if decision == "accept":
-            fr.approved = True
-            fr.save(update_fields=["approved"])
-            return Response({"detail": "Follow request accepted."}, status=status.HTTP_200_OK)
+        # Use the model's approve/deny methods which properly update the status field
+        try:
+            if decision == "accept":
+                print(f"[DEBUG] Before approve - Status: {fr.status}, Approved: {fr.approved}")
+                fr.approve(request.user)
+                print(f"[DEBUG] After approve - Status: {fr.status}, Approved: {fr.approved}")
+                # Refresh from database to confirm the save worked
+                fr.refresh_from_db()
+                print(f"[DEBUG] After refresh - Status: {fr.status}, Approved: {fr.approved}")
+                return Response({"detail": "Follow request accepted.", "status": fr.status, "approved": fr.approved}, status=status.HTTP_200_OK)
 
-        if decision == "deny":
-            fr.delete()  # simply drop the pending request
-            return Response({"detail": "Follow request denied."}, status=status.HTTP_200_OK)
+            if decision == "deny":
+                fr.deny(request.user)
+                fr.refresh_from_db()
+                return Response({"detail": "Follow request denied.", "status": fr.status}, status=status.HTTP_200_OK)
+        except PermissionError as e:
+            print(f"[DEBUG] PermissionError: {str(e)}")
+            return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
 
         return Response({"detail": "Invalid decision."}, status=status.HTTP_400_BAD_REQUEST)

@@ -127,6 +127,19 @@
         cursor: not-allowed;
       }
 
+      .unfollow-btn {
+        background: #ef4444;
+        color: #fff;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 16px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .unfollow-btn:hover { background: #dc2626; }
+      .unfollow-btn:disabled { background:#fca5a5; cursor:not-allowed; }
+          
       .middle-column {
         display: flex;
         flex-direction: column;
@@ -191,10 +204,21 @@
         color: #1a1a1a;
       }
 
+      .entry-content img {
+        max-width: 100%;   
+        height: auto;       
+        display: block;    
+        margin: 16px 0;     
+        border-radius: 8px;
+        object-fit: contain;
+      }
+
       .entry-image {
         width: 100%;
+        height: auto;   
         border-radius: 8px;
-        margin: 16px 0;
+        margin: 16px 0px;
+        max-height: 520px;
       }
 
       .entry-actions {
@@ -284,6 +308,8 @@
         }
       }
     </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   </head>
   <body>
     <!-- Header -->
@@ -436,7 +462,7 @@
         {% for entry in entries %}
         <div class="entry-card">
           <div class="entry-header">
-            <div class="entry-author" onclick="navigateToProfile('{{ entry.author.username }}')">
+            <div class="entry-author" onclick="navigateToPublicProfile('{{ entry.author.username }}')">
               <div class="entry-avatar">
                 {% if entry.author.image %}
                 <img
@@ -468,16 +494,24 @@
               </div>
             </div>
             {% if entry.author.id != user.id %}
-            <button class="follow-btn"
-                    data-author-id="{{ entry.author.id }}"
-                    data-author-username="{{ entry.author.username }}"
-                    onclick="followFromButton(this)">Follow</button>
+              {% if entry.follow_status == 'accepted' %}
+                <button class="unfollow-btn"
+                        data-author-id="{{ entry.author.id }}"
+                        onclick="unfollowFromButton(this)">Unfollow</button>
+              {% elif entry.follow_status == 'pending' %}
+                <button class="follow-btn" disabled>Requested</button>
+              {% else %}
+                <button class="follow-btn"
+                        data-author-id="{{ entry.author.id }}"
+                        data-author-username="{{ entry.author.username }}"
+                        onclick="followFromButton(this)">Follow</button>
+              {% endif %}
             {% endif %}
 
           </div>
 
           <div class="entry_body" onclick="navigateToEntry('{{ entry.id }}')">
-            <div class="entry-content" >{{ entry.content }}</div>
+            <div class="entry-content" data-ctype="{{ entry.content_type|lower }}">{{ entry.content }}</div>
             
             {% if entry.image %}
             <img src="{{ entry.image.url }}" alt="Entry image" class="entry-image">
@@ -506,12 +540,17 @@
               </svg>
               <span>{{ entry.comments.count|default:0 }}</span>
             </button>
-            <button class="action-btn" onclick="shareEntry('{{ entry.id }}')">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8.98969 21.5001C7.32969 21.5001 5.65969 20.8701 4.38969 19.6001C1.85969 17.0601 1.85969 12.9401 4.38969 10.4101C4.67969 10.1201 5.15969 10.1201 5.44969 10.4101C5.73969 10.7001 5.73969 11.1801 5.44969 11.4701C3.49969 13.4201 3.49969 16.5901 5.44969 18.5401C7.39969 20.4901 10.5697 20.4901 12.5197 18.5401C13.4597 17.6001 13.9797 16.3401 13.9797 15.0001C13.9797 13.6701 13.4597 12.4101 12.5197 11.4601C12.2297 11.1701 12.2297 10.6901 12.5197 10.4001C12.8097 10.1101 13.2897 10.1101 13.5797 10.4001C14.8097 11.6301 15.4797 13.2601 15.4797 15.0001C15.4797 16.7401 14.7997 18.3701 13.5797 19.6001C12.3197 20.8701 10.6597 21.5001 8.98969 21.5001Z" fill="#292D32"/>
-                <path d="M19.0701 14.16C18.8801 14.16 18.6901 14.09 18.5401 13.94C18.2501 13.65 18.2501 13.17 18.5401 12.88C20.5901 10.83 20.5901 7.49999 18.5401 5.45999C16.4901 3.40999 13.1601 3.40999 11.1201 5.45999C10.1301 6.44999 9.58008 7.76999 9.58008 9.16999C9.58008 10.57 10.1301 11.89 11.1201 12.88C11.4101 13.17 11.4101 13.65 11.1201 13.94C10.8301 14.23 10.3501 14.23 10.0601 13.94C8.79008 12.67 8.08008 10.97 8.08008 9.16999C8.08008 7.36999 8.78008 5.66999 10.0601 4.39999C12.6901 1.76999 16.9701 1.76999 19.6101 4.39999C22.2401 7.02999 22.2401 11.32 19.6101 13.95C19.4601 14.09 19.2601 14.16 19.0701 14.16Z" fill="#292D32"/>
-              </svg>
-            </button>
+            {% if entry.visibility == "public" or entry.visibility == "unlisted" %}
+            <span class="chip" id="copyChip-{{ entry.id }}" style="cursor:pointer;" onclick="copyEntryLink('{{ entry.id }}')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                          <path d="M8.99005 21.5C7.33005 21.5 5.66005 20.87 4.39005 19.6C1.86005 17.06 1.86005 12.94 4.39005 10.41C4.68005 10.12 5.16005 10.12 5.45005 10.41C5.74005 10.7 5.74005 11.18 5.45005 11.47C3.50005 13.42 3.50005 16.59 5.45005 18.54C7.40005 20.49 10.5701 20.49 12.5201 18.54C13.4601 17.6 13.9801 16.34 13.9801 15C13.9801 13.67 13.4601 12.41 12.5201 11.46C12.2301 11.17 12.2301 10.69 12.5201 10.4C12.8101 10.11 13.2901 10.11 13.5801 10.4C14.8101 11.63 15.4801 13.26 15.4801 15C15.4801 16.74 14.8001 18.37 13.5801 19.6C12.3201 20.87 10.6601 21.5 8.99005 21.5Z" fill="#292D32"/>
+                          <path d="M19.07 14.16C18.88 14.16 18.69 14.09 18.54 13.94C18.25 13.65 18.25 13.17 18.54 12.88C20.59 10.83 20.59 7.49999 18.54 5.45999C16.49 3.40999 13.16 3.40999 11.12 5.45999C10.13 6.44999 9.57996 7.76999 9.57996 9.16999C9.57996 10.57 10.13 11.89 11.12 12.88C11.41 13.17 11.41 13.65 11.12 13.94C10.83 14.23 10.35 14.23 10.06 13.94C8.78996 12.67 8.07996 10.97 8.07996 9.16999C8.07996 7.36999 8.77996 5.66999 10.06 4.39999C12.69 1.76999 16.97 1.76999 19.61 4.39999C22.24 7.02999 22.24 11.32 19.61 13.95C19.46 14.09 19.26 14.16 19.07 14.16Z" fill="#292D32"/>
+                          </svg>
+            </span>
+            <span id="copyNote-{{ entry.id }}" class="muted" style="display:none; margin-left:8px;">
+              Copied!
+            </span>
+            {% endif %}
           </div>
         </div>
         {% empty %}
@@ -566,12 +605,16 @@
               </div>
               <div class="suggestion-name">{{ suggestion.display_name }}</div>
             </div>
-            {% if suggestion.follow_status == 'pending' %}
+            {% if suggestion.follow_status == 'accepted' %}
+              <button class="unfollow-btn"
+                      data-author-id="{{ suggestion.id }}"
+                      onclick="unfollowFromButton(this)">Unfollow</button>
+            {% elif suggestion.follow_status == 'pending' %}
               <button class="follow-btn" disabled>Requested</button>
             {% else %}
               <button class="follow-btn"
                       data-author-id="{{ suggestion.id }}"
-                    data-author-username="{{ suggestion.username }}"
+                      data-author-username="{{ suggestion.username }}"
                       onclick="followFromButton(this)">Follow</button>
             {% endif %}
 
@@ -630,8 +673,32 @@
         window.location.href = `/entries/${entryId}/`;
       }
 
-      function shareEntry(entryId) {
-        // TODO: Implement share functionality
+      async function copyEntryLink(entryId) {
+        const url = `${window.location.origin}/entries/${entryId}/`;
+        const note = document.getElementById(`copyNote-${entryId}`);
+        try {
+          await copyToClipboard(url);
+          note.style.display = 'inline';
+          note.textContent = '✅ Link copied!';
+          setTimeout(() => (note.style.display = 'none'), 1200);
+        } catch (err) {
+          note.style.display = 'inline';
+          note.textContent = '⚠️ Failed to copy';
+          setTimeout(() => (note.style.display = 'none'), 1600);
+        }
+      }
+      
+      async function copyToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
       }
       
       // ---- Follow Requests ----
@@ -707,10 +774,17 @@
 
         try {
           rowEl.style.opacity = .6;
-          await api(url, {
+          const result = await api(url, {
             method: 'POST',
             body: JSON.stringify({ decision })
           });
+
+          // Log the result to see what the server returned
+          console.log('[DEBUG] Decision result:', result);
+
+          if (result && result.status) {
+            console.log('[DEBUG] Follow status after decision:', result.status, 'Approved:', result.approved);
+          }
 
           rowEl.remove();
           counter.textContent = Math.max(0, (+counter.textContent || 0) - 1);
@@ -755,7 +829,82 @@
           alert(e.message || 'Failed to send follow request');
         }
       }
-      
+
+      async function unfollowFromButton(btn) {
+        const id = btn.dataset.authorId;
+        if (!id) return;
+
+        const toFollowState = () => {
+          btn.className = 'follow-btn';
+          btn.textContent = 'Follow';
+          btn.disabled = false;
+          btn.onclick = () => followFromButton(btn);
+        };
+
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Unfollowing…';
+
+        try {
+          // Preferred: RESTful DELETE to the same resource
+          try {
+            await api(`/authors/${id}/follow/`, { method: 'DELETE' });
+          } catch (e) {
+            // Fallback for backends that use a separate endpoint
+            const msg = String(e?.message || '');
+            if (msg.startsWith('405') || msg.startsWith('404')) {
+              await api(`/authors/${id}/unfollow/`, { method: 'POST', body: '{}' });
+            } else {
+              throw e;
+            }
+          }
+
+          // Swap button to "Follow"
+          toFollowState();
+
+          // (Optional) if you render counts client-side, you could also decrement following_count here.
+          // document.querySelector('.stat-number-for-following')…
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = original;
+          alert(e.message || 'Failed to unfollow');
+        }
+      }
+
+    function renderSafeMarkdown(mdText) {
+      // convert markdown -> html and sanitize
+      marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
+      const rawHtml = marked.parse(mdText || '');
+
+      const cleanHtml = DOMPurify.sanitize(rawHtml, {
+        ALLOWED_TAGS: [
+          'p','br','strong','em','s','code','pre','blockquote',
+          'ul','ol','li','h1','h2','h3','h4','h5','h6','hr',
+          'a','img'
+        ],
+        ALLOWED_ATTR: [
+          'href','title','target','rel',                // for <a>
+          'src','alt','width','height','loading','decoding','referrerpolicy' // for <img>
+        ],
+        ALLOW_DATA_ATTR: false,
+        FORBID_TAGS: ['style','svg','math','form','input','button','iframe','script']
+      });
+      // ensure safe links
+      const tmp = document.createElement('div');
+      tmp.innerHTML = cleanHtml;
+      tmp.querySelectorAll('a[target="_blank"]').forEach(a => {
+        if (!/noopener|noreferrer/.test(a.rel)) a.rel = 'noopener noreferrer';
+      });
+      return tmp.innerHTML;
+    }
+    // Apply it to all .entry-content elements on the page
+    document.querySelectorAll('.entry-content').forEach(node => {
+      const type = (node.dataset.ctype || 'plain_text');
+      if (type.includes('markdown')) {
+        const md = node.textContent; // raw markdown
+        node.innerHTML = renderSafeMarkdown(md);  // call once
+      }
+    });
     </script>
   </body>
 </html>

@@ -1,3 +1,4 @@
+# entries/tests.py
 from io import BytesIO
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -21,22 +22,18 @@ def make_test_image_bytes(fmt="JPEG", size=(8, 8), color=(255, 0, 0)):
 @override_settings(MEDIA_ROOT="/tmp/test-media")  # isolate test media
 class EntryAPITests(TestCase):
     def setUp(self):
-        # One local node (unique is_local)
-        self.node, _ = Node.objects.get_or_create(is_local=True, defaults={'host_url': 'http://testserver'})
+        # Local node required for FK on Author
+        self.node, _ = Node.objects.get_or_create(
+            is_local=True, defaults={"host_url": "http://testserver"}
+        )
 
-        # Create users and ensure node is provided at creation (required FK)
         self.author = User.objects.create_user(
-            username="alice",
-            password="pass1234",
-            node=self.node,
+            username="alice", password="pass1234", node=self.node
         )
         self.other = User.objects.create_user(
-            username="bob",
-            password="pass5678",
-            node=self.node,
+            username="bob", password="pass5678", node=self.node
         )
 
-        # One base entry owned by author
         self.entry = Entry.objects.create(
             author=self.author,
             node=self.node,
@@ -62,9 +59,20 @@ class EntryAPITests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIsInstance(res.data, list)
 
-    def test_entry_retrieve_allow_any(self):
+    def test_entry_retrieve_requires_auth(self):
+        """
+        EntryRetrieveView has IsAuthenticated in views.py,
+        so unauthenticated GET must be 401; authed should be 200.
+        """
         url = reverse("entries:entry-detail", args=[self.entry.id])
-        res = self.client.get(url)  # AllowAny
+
+        # unauthenticated -> 401
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # authenticated -> 200
+        self.client.force_authenticate(self.author)
+        res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["id"], str(self.entry.id))
 
@@ -77,6 +85,7 @@ class EntryAPITests(TestCase):
             "content_type": "plain_text",
             "visibility": "public",
         }
+
         # unauthenticated
         res = self.client.post(url, data)
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -156,7 +165,7 @@ class EntryAPITests(TestCase):
         self.entry.refresh_from_db()
         self.assertIsNotNone(self.entry.deleted_at)
 
-    # ---------------- COMMENTS ----------------
+    # ---------------- COMMENTS: CREATE / LIKE ----------------
 
     def test_comment_create(self):
         url = reverse("entries:add_comment", args=[self.entry.id])
@@ -174,8 +183,6 @@ class EntryAPITests(TestCase):
         c = self.entry.comments.first()
         self.assertEqual(c.content, "Nice post!")
         self.assertEqual(c.author, self.other)
-
-    # ---------------- LIKES ----------------
 
     def test_like_entry_toggle(self):
         url = reverse("entries:like_entry", args=[self.entry.id])
@@ -214,3 +221,77 @@ class EntryAPITests(TestCase):
         res = self.client.post(url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertFalse(CommentLike.objects.filter(comment=comment, author=self.other).exists())
+
+    # ---------------- COMMENTS: PATCH / PUT / DELETE ----------------
+    # Hit the REST path directly to avoid relying on a missing URL name.
+
+    def _comment_detail_url(self, entry_id, comment_id):
+        # Matches CommentUpdateDeleteView docstring:
+        #   /api/entries/<uuid:pk>/comments/<int:comment_id>/
+        return f"/api/entries/{entry_id}/comments/{comment_id}/"
+
+    def test_comment_patch_requires_auth(self):
+        comment = Comment.objects.create(entry=self.entry, author=self.other, content="hi")
+        url = self._comment_detail_url(self.entry.id, comment.id)
+
+        # unauthenticated -> 401
+        res = self.client.patch(url, {"content": "edited"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_comment_patch_only_author_can_edit(self):
+        comment = Comment.objects.create(entry=self.entry, author=self.other, content="orig")
+        url = self._comment_detail_url(self.entry.id, comment.id)
+
+        # not author -> 403
+        self.client.force_authenticate(self.author)  # entry owner but NOT comment author
+        res = self.client.patch(url, {"content": "hacked"}, format="json")
+        call_status = res.status_code
+        self.assertIn(call_status, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
+        # If your URL conf additionally enforces entry binding and returns 404 for non-author, accept that too.
+
+        # author -> 200 and content changes
+        self.client.force_authenticate(self.other)
+        res = self.client.patch(url, {"content": "edited by author"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        comment.refresh_from_db()
+        self.assertEqual(comment.content, "edited by author")
+
+    def test_comment_patch_empty_content_400(self):
+        comment = Comment.objects.create(entry=self.entry, author=self.other, content="not empty")
+        url = self._comment_detail_url(self.entry.id, comment.id)
+
+        self.client.force_authenticate(self.other)
+        res = self.client.patch(url, {"content": "   "}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", res.data)
+
+    def test_comment_put_behaves_like_patch(self):
+        comment = Comment.objects.create(entry=self.entry, author=self.other, content="orig")
+        url = self._comment_detail_url(self.entry.id, comment.id)
+
+        self.client.force_authenticate(self.other)
+        res = self.client.put(url, {"content": "put update"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        comment.refresh_from_db()
+        self.assertEqual(comment.content, "put update")
+
+    def test_comment_delete_permissions(self):
+        comment = Comment.objects.create(entry=self.entry, author=self.other, content="bye")
+        url = self._comment_detail_url(self.entry.id, comment.id)
+
+        # not author and not staff -> 403 (or 404 if URL conf hides existence)
+        self.client.force_authenticate(self.author)  # owner of entry, not comment author
+        res = self.client.delete(url)
+        self.assertIn(res.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
+
+    def test_comment_delete_staff_allowed(self):
+        comment = Comment.objects.create(entry=self.entry, author=self.other, content="bye")
+        url = self._comment_detail_url(self.entry.id, comment.id)
+
+        staff = User.objects.create_user(
+            username="admin", password="root", node=self.node, is_staff=True
+        )
+        self.client.force_authenticate(staff)
+        res = self.client.delete(url)
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Comment.objects.filter(pk=comment.id).exists())

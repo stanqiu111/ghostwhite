@@ -1,4 +1,3 @@
-# entries/tests.py
 from io import BytesIO
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile

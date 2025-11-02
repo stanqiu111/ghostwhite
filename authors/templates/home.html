@@ -191,10 +191,21 @@
         color: #1a1a1a;
       }
 
+      .entry-content img {
+        max-width: 100%;   
+        height: auto;       
+        display: block;    
+        margin: 16px 0;     
+        border-radius: 8px;
+        object-fit: contain;
+      }
+
       .entry-image {
         width: 100%;
+        height: auto;   
         border-radius: 8px;
-        margin: 16px 0;
+        margin: 16px 0px;
+        max-height: 520px;
       }
 
       .entry-actions {
@@ -284,6 +295,8 @@
         }
       }
     </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   </head>
   <body>
     <!-- Header -->
@@ -477,7 +490,7 @@
           </div>
 
           <div class="entry_body" onclick="navigateToEntry('{{ entry.id }}')">
-            <div class="entry-content" >{{ entry.content }}</div>
+            <div class="entry-content" data-ctype="{{ entry.content_type|lower }}">{{ entry.content }}</div>
             
             {% if entry.image %}
             <img src="{{ entry.image.url }}" alt="Entry image" class="entry-image">
@@ -755,7 +768,41 @@
           alert(e.message || 'Failed to send follow request');
         }
       }
-      
+
+    function renderSafeMarkdown(mdText) {
+      // convert markdown -> html and sanitize
+      marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
+      const rawHtml = marked.parse(mdText || '');
+
+      const cleanHtml = DOMPurify.sanitize(rawHtml, {
+        ALLOWED_TAGS: [
+          'p','br','strong','em','s','code','pre','blockquote',
+          'ul','ol','li','h1','h2','h3','h4','h5','h6','hr',
+          'a','img'
+        ],
+        ALLOWED_ATTR: [
+          'href','title','target','rel',                // for <a>
+          'src','alt','width','height','loading','decoding','referrerpolicy' // for <img>
+        ],
+        ALLOW_DATA_ATTR: false,
+        FORBID_TAGS: ['style','svg','math','form','input','button','iframe','script']
+      });
+      // ensure safe links
+      const tmp = document.createElement('div');
+      tmp.innerHTML = cleanHtml;
+      tmp.querySelectorAll('a[target="_blank"]').forEach(a => {
+        if (!/noopener|noreferrer/.test(a.rel)) a.rel = 'noopener noreferrer';
+      });
+      return tmp.innerHTML;
+    }
+    // Apply it to all .entry-content elements on the page
+    document.querySelectorAll('.entry-content').forEach(node => {
+      const type = (node.dataset.ctype || 'plain_text');
+      if (type.includes('markdown')) {
+        const md = node.textContent; // raw markdown
+        node.innerHTML = renderSafeMarkdown(md);  // call once
+      }
+    });
     </script>
   </body>
 </html>

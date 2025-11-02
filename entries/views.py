@@ -5,7 +5,7 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
 from .models import Entry, Comment, EntryLike, CommentLike
-from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
+from .serializers import EntryRetrieveSerializer, EntryCreateSerializer 
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, status
@@ -13,6 +13,13 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.db.models import Exists, OuterRef
+from django.http import Http404
+from django.core.paginator import Paginator
+from django.shortcuts import render
+from django.db.models import Prefetch
+from django.contrib.auth.decorators import login_required
+from rest_framework.views import APIView
+from authors.models import Follow
 
 
 class EntryListView(generics.ListAPIView):
@@ -37,10 +44,14 @@ class EntryRetrieveView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         if self.request.user.is_authenticated and self.request.user.is_staff:
-            #  if entry is deleted, admin can still see it
             return Entry.objects.all()
 
-        return Entry.objects.filter(deleted_at__isnull=True)
+        base = Entry.objects.filter(deleted_at__isnull=True)
+        return base.select_related("author", "node").prefetch_related(
+            Prefetch("comments", queryset=Comment.objects.select_related("author").order_by("-created_at")),
+            "likes",
+            "comments__likes",
+        )
     
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -82,7 +93,13 @@ class EntryDeleteView(generics.DestroyAPIView):
 
         instance.soft_delete()
 
-
+def _are_friends(a, b) -> bool:
+    return (
+        Follow.objects.filter(follower=a, followee=b, status="accepted").exists()
+        and
+        Follow.objects.filter(follower=b, followee=a, status="accepted").exists()
+    )
+    
 def entry_detail_page(request, pk):
     # initial entry detail page load
     entry = get_object_or_404(Entry, pk=pk)
@@ -104,7 +121,6 @@ def entry_edit_page(request, pk):
     if request.user != entry.author:
         return render(request, "entries/entry_detail.html", {"entry_id": pk})
     return render(request, "entries/create_entry.html", {"entry_id": pk})
-
 # -------------------------------------------------------------------------
 # COMMENTS AND LIKES AS DRF VIEWS (API, no direct request.POST)
 # -------------------------------------------------------------------------
@@ -172,3 +188,30 @@ class CommentLikeToggleView(generics.DestroyAPIView):
         return Response(
             {"detail": "Comment like added."}, status=status.HTTP_201_CREATED
         )
+
+class CommentUpdateDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk, comment_id):
+        comment = get_object_or_404(Comment, pk=comment_id, entry_id=pk)
+        if comment.author_id != request.user.id:
+            raise PermissionDenied("You can only edit your own comment.")
+
+        new_text = (request.data.get("content") or "").strip()  # <- strip(), not trim()
+        if not new_text:
+            return Response({"detail": "Content is required."}, status=400)
+
+        comment.content = new_text
+        comment.save(update_fields=["content"])
+        return Response({"detail": "Comment updated.", "id": comment.id}, status=200)
+
+    def delete(self, request, pk, comment_id):
+        comment = get_object_or_404(Comment, pk=comment_id, entry_id=pk)
+        if comment.author_id != request.user.id and not request.user.is_staff:
+            raise PermissionDenied("You can only delete your own comment.")
+        comment.delete()
+        return Response(status=204)
+
+    # optional: let PUT behave like PATCH so accidental PUTs still work
+    def put(self, request, pk, comment_id):
+        return self.patch(request, pk, comment_id)

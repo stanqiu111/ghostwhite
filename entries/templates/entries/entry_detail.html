@@ -40,8 +40,18 @@
   .delete_button{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer}
   .edit_button{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer}
   @media (max-width:980px){ .row{grid-template-columns:1fr} .right{order:2} }
+  .section .content img {
+  width: 320px !important;   
+  height: 180px !important;   
+  object-fit: cover;          
+  display: block;
+  border-radius: 10px;
+  margin: 12px 0;
+  border: 1px solid var(--line);
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <script src="{% static 'js/common.js' %}"></script>
 </head>
 <body>
@@ -150,6 +160,7 @@
           <div id="button_panel" class="button_panel" style="display:none">
             <button class="delete_button" onclick="deleteEntry()">Delete</button>
             <button class="edit_button" onclick="editEntry()">Edit</button>
+            <button class="edit_button" onclick="copyCurrentEntryLink()">Copy link</button>
           </div>
         </div>
 
@@ -214,7 +225,15 @@ const $ = (sel, root=document)=> root.querySelector(sel);
 const el = (html)=>{ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; };
 const fmtTime = iso => { try{return new Date(iso).toLocaleString();}catch{return iso||"";} };
 const esc = s => (s||"").replace(/[&<>'"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[m]));
+const updateComment = (entryId, commentId, newContent) =>
+    api(`/entries/${entryId}/comments/${commentId}/`, {
+      method: "PATCH",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ content: newContent })
+    });
 
+  const deleteComment = (entryId, commentId) =>
+    api(`/entries/${entryId}/comments/${commentId}/`, { method: "DELETE" });
 /* ============== API ============= */
 async function api(path, opts={}) {
   const res = await fetch(`/api${path}`, {
@@ -303,8 +322,35 @@ function renderEntry(e){
 
   const contentNode = $('#entryContent');
   const ct = (e.content_type||'plain_text').toLowerCase();
-  if (ct.includes('markdown')) { marked.setOptions({gfm:true,breaks:true}); contentNode.innerHTML = marked.parse(e.content||''); }
-  else { contentNode.textContent = e.content || ''; }
+
+  if (ct.includes('markdown')) {
+    marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
+    const rawHtml = marked.parse(e.content || '');
+
+    const cleanHtml = DOMPurify.sanitize(rawHtml, {
+      ALLOWED_TAGS: [
+        'p','br','strong','em','s','code','pre','blockquote',
+        'ul','ol','li','h1','h2','h3','h4','h5','h6','hr',
+        'a','img'
+      ],
+      ALLOWED_ATTR: [
+        'href','title','target','rel',               
+        'src','alt','width','height','loading','decoding','referrerpolicy'  
+      ],
+      ALLOW_DATA_ATTR: false,
+      FORBID_TAGS: ['style','svg','math','form','input','button','iframe','script']
+    });
+
+    // keep external links safe
+    const tmp = document.createElement('div');
+    tmp.innerHTML = cleanHtml;
+    tmp.querySelectorAll('a[target="_blank"]').forEach(a => {
+      if (!/noopener|noreferrer/.test(a.rel)) a.rel = 'noopener noreferrer';
+    });
+    contentNode.innerHTML = tmp.innerHTML;
+  } else {
+    contentNode.textContent = e.content || '';
+  }
 
   const img = $('#entryImage');
   if (e.image) { img.src = e.image; img.style.display = 'block'; } else { img.style.display = 'none'; }
@@ -328,41 +374,125 @@ function setTab(which){
 function renderRight(e){
   // tabs
   $('#tabComments').onclick = ()=> setTab('comments');
-  $('#tabLikes').onclick = ()=> setTab('likes');
+  $('#tabLikes').onclick    = ()=> setTab('likes');
 
-  // comments
-  const clist = $('#commentsList'); clist.innerHTML = '';
-  (e.comments||[]).forEach(c=>{
+  // ===== COMMENTS =====
+  const clist = $('#commentsList');
+  clist.innerHTML = '';
+
+  const currentUserId = String(localStorage.getItem('user_id') || '');
+
+  (e.comments || []).forEach(c => {
+    const isMine = String(c.author?.id || '') === currentUserId;
+
     const node = el(`
-      <div class="item">
-        <img class="pfp" style="width:36px;height:36px" src="${(c.author && c.author.image) ? c.author.image : DEFAULT_PFP}" alt="">
+      <div class="item" data-id="${c.id}">
+        <img class="pfp" style="width:36px;height:36px"
+             src="${(c.author && c.author.image) ? c.author.image : DEFAULT_PFP}" alt="">
         <div>
-          <div><strong>${esc(c.author?.display_name || c.author?.username || '—')}</strong> <span class="cmeta">${fmtTime(c.created_at)}</span></div>
-          <div>${esc(c.content||'')}</div>
+          <div>
+            <strong>${esc(c.author?.display_name || c.author?.username || '—')}</strong>
+            <span class="cmeta">${fmtTime(c.created_at)}</span>
+          </div>
+          <div class="comment-body" style="white-space:pre-wrap;"></div>
+          <textarea class="comment-edit" style="display:none;width:100%;min-height:64px;"></textarea>
           <div class="cmeta" style="margin-top:6px">${c.like_count ?? 0} likes</div>
         </div>
-        <button class="btn" style="background:#fff;color:#111;border:1px solid var(--line)" title="Like">
-          ${c.user_has_liked_comment ? 
-            `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16.44 3.1001C14.63 3.1001 13.01 3.9801 12 5.3301C10.99 3.9801 9.37 3.1001 7.56 3.1001C4.49 3.1001 2 5.6001 2 8.6901C2 9.8801 2.19 10.9801 2.52 12.0001C4.1 17.0001 8.97 19.9901 11.38 20.8101C11.72 20.9301 12.28 20.9301 12.62 20.8101C15.03 19.9901 19.9 17.0001 21.48 12.0001C21.81 10.9801 22 9.8801 22 8.6901C22 5.6001 19.51 3.1001 16.44 3.1001Z" fill="#292D32"/>
-            </svg>` :
-            `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 21.6501C11.69 21.6501 11.39 21.6101 11.14 21.5201C7.32 20.2101 1.25 15.5601 1.25 8.6901C1.25 5.1901 4.08 2.3501 7.56 2.3501C9.25 2.3501 10.83 3.0101 12 4.1901C13.17 3.0101 14.75 2.3501 16.44 2.3501C19.92 2.3501 22.75 5.2001 22.75 8.6901C22.75 15.5701 16.68 20.2101 12.86 21.5201C12.61 21.6101 12.31 21.6501 12 21.6501ZM7.56 3.8501C4.91 3.8501 2.75 6.0201 2.75 8.6901C2.75 15.5201 9.32 19.3201 11.63 20.1101C11.81 20.1701 12.2 20.1701 12.38 20.1101C14.68 19.3201 21.26 15.5301 21.26 8.6901C21.26 6.0201 19.1 3.8501 16.45 3.8501C14.93 3.8501 13.52 4.5601 12.61 5.7901C12.33 6.1701 11.69 6.1701 11.41 5.7901C10.48 4.5501 9.08 3.8501 7.56 3.8501Z" fill="#292D32"/>
-            </svg>`
-          }
-        </button>
+        <div class="c-actions" style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-like" style="background:#fff;color:#111;border:1px solid var(--line)" title="Like">
+            ${c.user_has_liked_comment
+              ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                   <path d="M16.44 3.1001C14.63 3.1001 13.01 3.9801 12 5.3301C10.99 3.9801 9.37 3.1001 7.56 3.1001C4.49 3.1001 2 5.6001 2 8.6901C2 9.8801 2.19 10.9801 2.52 12.0001C4.1 17.0001 8.97 19.9901 11.38 20.8101C11.72 20.9301 12.28 20.9301 12.62 20.8101C15.03 19.9901 19.9 17.0001 21.48 12.0001C21.81 10.9801 22 9.8801 22 8.6901C22 5.6001 19.51 3.1001 16.44 3.1001Z" fill="#292D32"/></svg>`
+              : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                   <path d="M12 21.6501C11.69 21.6501 11.39 21.6101 11.14 21.5201C7.32 20.2101 1.25 15.5601 1.25 8.6901C1.25 5.1901 4.08 2.3501 7.56 2.3501C9.25 2.3501 10.83 3.0101 12 4.1901C13.17 3.0101 14.75 2.3501 16.44 2.3501C19.92 2.3501 22.75 5.2001 22.75 8.6901C22.75 15.5701 16.68 20.2101 12.86 21.5201C12.61 21.6101 12.31 21.6501 12 21.6501ZM7.56 3.8501C4.91 3.8501 2.75 6.0201 2.75 8.6901C2.75 15.5201 9.32 19.3201 11.63 20.1101C11.81 20.1701 12.2 20.1701 12.38 20.1101C14.68 19.3201 21.26 15.5301 21.26 8.6901C21.26 6.0201 19.1 3.8501 16.45 3.8501C14.93 3.8501 13.52 4.5601 12.61 5.7901C12.33 6.1701 11.69 6.1701 11.41 5.7901C10.48 4.5501 9.08 3.8501 7.56 3.8501Z" fill="#292D32"/></svg>`
+            }
+          </button>
+
+          ${isMine ? `
+            <button class="btn btn-edit"  style="background:#fff;color:#111;border:1px solid var(--line)" title="Edit">Edit</button>
+            <button class="btn btn-save"  style="display:none;background:#111827;color:#fff" title="Save">Save</button>
+            <button class="btn btn-delete" style="background:#ef4444;color:#fff" title="Delete">Delete</button>
+          ` : ``}
+        </div>
       </div>
     `);
-    node.querySelector('button').onclick = async ()=>{ try{ await likeComment(e.id, c.id); await load(); }catch(err){ alert(err.message); } };
+
+    // Fill content safely
+    node.querySelector('.comment-body').textContent = c.content || '';
+    node.querySelector('.comment-edit').value      = c.content || '';
+
+    // Like toggle
+    node.querySelector('.btn-like').onclick = async () => {
+      try { await likeComment(e.id, c.id); await load(); }
+      catch(err){ alert(err.message || 'Failed to like comment'); }
+    };
+
+    if (isMine) {
+      const editBtn = node.querySelector('.btn-edit');
+      const saveBtn = node.querySelector('.btn-save');
+      const delBtn  = node.querySelector('.btn-delete');
+      const bodyEl  = node.querySelector('.comment-body');
+      const editEl  = node.querySelector('.comment-edit');
+
+      // Enter edit mode
+      editBtn.onclick = () => {
+        bodyEl.style.display = 'none';
+        editEl.style.display = '';
+        saveBtn.style.display = '';
+        editBtn.style.display = 'none';
+        editEl.focus();
+      };
+
+      // Save (PATCH) – no confirm dialogs anywhere
+      saveBtn.onclick = async () => {
+        const newTxt = (editEl.value || '').trim();
+        if (!newTxt) { alert('Comment cannot be empty.'); return; }
+        saveBtn.disabled = true;
+        try {
+          await updateComment(e.id, c.id, newTxt);
+          await load();
+        } catch (err) {
+          alert(err.message || 'Failed to update comment');
+        } finally {
+          saveBtn.disabled = false;
+        }
+      };
+
+      // Delete (DELETE) – no confirm dialog
+      delBtn.onclick = async () => {
+        delBtn.disabled = true;
+        try {
+          await deleteComment(e.id, c.id);
+          await load();
+        } catch (err) {
+          alert(err.message || 'Failed to delete comment');
+        } finally {
+          delBtn.disabled = false;
+        }
+      };
+
+      // Optional: Esc cancels edit
+      editEl.addEventListener('keydown', ev => {
+        if (ev.key === 'Escape') {
+          editEl.style.display = 'none';
+          bodyEl.style.display = '';
+          saveBtn.style.display = 'none';
+          editBtn.style.display = '';
+        }
+      });
+    }
+
     clist.append(node);
   });
 
-  // likes
-  const llist = $('#likesList'); llist.innerHTML = '';
-  (e.likes||[]).forEach(l=>{
+  // ===== LIKES TAB =====
+  const llist = $('#likesList');
+  llist.innerHTML = '';
+  (e.likes || []).forEach(l => {
     llist.append(el(`
       <div class="item">
-        <img class="pfp" style="width:36px;height:36px" src="${(l.author && l.author.image) ? l.author.image : DEFAULT_PFP}" alt="">
+        <img class="pfp" style="width:36px;height:36px"
+             src="${(l.author && l.author.image) ? l.author.image : DEFAULT_PFP}" alt="">
         <div>
           <div><strong>${esc(l.author?.display_name || l.author?.username || '—')}</strong></div>
           <div class="cmeta">${fmtTime(l.created_at)}</div>
@@ -372,12 +502,18 @@ function renderRight(e){
     `));
   });
 
-  // add comment
-  $('#postComment').onclick = async ()=>{
+  // Post a new comment
+  $('#postComment').onclick = async () => {
     const val = $('#commentInput').value.trim();
     if (!val) return;
-    try{ await addComment(e.id, val); $('#commentInput').value=''; await load(); setTab('comments'); }
-    catch(err){ alert(err.message || 'Failed to add comment'); }
+    try {
+      await addComment(e.id, val);
+      $('#commentInput').value = '';
+      await load();
+      setTab('comments');
+    } catch (err) {
+      alert(err.message || 'Failed to add comment');
+    }
   };
 }
 
@@ -401,6 +537,18 @@ function editEntry() {
 function navigateToHome(){
   window.location.href = '/home/';
 }
+
+function copyCurrentEntryLink(){
+  const url = window.location.href.split('?')[0];
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = url; ta.style.position='fixed'; ta.style.left='-9999px';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  }
+}
+
 /* ============ START ============ */
 boot();
 </script>

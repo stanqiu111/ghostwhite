@@ -35,6 +35,17 @@ class CommentSerializer(serializers.ModelSerializer):
             return obj.likes.filter(author=request.user).exists()
         return False
 
+class CommentUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = ["id", "content"]  # keep it minimal
+
+    def validate_content(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("Comment cannot be empty.")
+        return value
+    
 class EntryLikeSerializer(serializers.ModelSerializer):
     author = AuthorSerializer()
     class Meta:
@@ -70,6 +81,48 @@ class EntryRetrieveSerializer(serializers.ModelSerializer):
             "likes",
             "comments",    
         ]
+    def get_comments(self, obj: Entry):
+        request = self.context.get("request")
+        # start with a selectable, ordered queryset for efficiency/consistency
+        qs = obj.comments.select_related("author").order_by("-created_at")
+
+        # Staff can see everything
+        if request and getattr(request.user, "is_staff", False):
+            return CommentSerializer(qs, many=True, context=self.context).data
+
+        visibility = (obj.visibility or "").lower()
+        if visibility == "friends_only":
+            # Anonymous: hide all
+            if not request or not request.user.is_authenticated:
+                return []
+
+            viewer = request.user
+            # Author sees all
+            if viewer == obj.author:
+                pass  # keep qs
+            # Friends see all
+            elif self._is_friend(obj.author, viewer):
+                pass  # keep qs
+            else:
+                # Not a friend: show only viewer's own comments
+                qs = qs.filter(author=viewer)
+
+        # public/unlisted: no extra filtering
+        return CommentSerializer(qs, many=True, context=self.context).data
+
+    @staticmethod
+    def _is_friend(owner, viewer) -> bool:
+        """
+        Mutual accepted follow == friends.
+        Adjust import/model/field names to your project if needed.
+        """
+        # Delay import to avoid circulars if your Follow model is in another app
+        from authors.models import Follow  # <-- change path if different
+        return (
+            Follow.objects.filter(follower=viewer, followee=owner, status="accepted").exists()
+            and
+            Follow.objects.filter(follower=owner, followee=viewer, status="accepted").exists()
+        )
 
 
 class EntryCreateSerializer(serializers.ModelSerializer):

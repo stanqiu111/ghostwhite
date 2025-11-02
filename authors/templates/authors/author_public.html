@@ -154,25 +154,13 @@
             </div>
           </div>
           {% if request.user.is_authenticated %}
-          {% if request.user.id != author.id %}
-            {% if follow_status == "pending" %}
-            <button class="profile-btn" disabled>Requested</button>
-            {% elif follow_status == "accepted" %}
-            <button class="profile-btn" disabled>Following</button>
-            {% else %}
-            <button class="profile-btn" onclick="followAuthor('{{ author.id }}')">Follow</button>
-            {% endif %}
-          {% else %}
-          <button class="profile-btn" onclick="navigateToProfile('{{ author.username }}')">My Profile</button>
-          {% endif %}
-          {% else %}
-          <button class="profile-btn" onclick="navigateToLogin()">Follow</button>
+          <button id="followBtn" class="followBtn hidden">Follow</button>
           {% endif %}
           <section class="friends">
             <h3>Friends</h3>
             <ul class="friend-grid" id="friendsGrid">
               {% for friend in author_friends %}
-                <li class="friend-item" onclick="navigateToProfile('{{ friend.username }}')">
+                <li class="friend-item" onclick="navigateToPublicProfile('{{ friend.username }}')">
                   <div class="friend-avatar">
                     {% if friend.image %}
                       <img src="{{ friend.image.url }}" alt="{{ friend.display_name }}">
@@ -326,7 +314,7 @@
                 <div class="stat-label">Following</div>
               </div>
             </div>
-            <button class="profile-btn" onclick="navigateToProfile('{{ user.username }}')">My Profile</button>
+            <button class="profile-btn" onclick="navigateToPublicProfile('{{ user.username }}')">My Profile</button>
           </div>
 
           <div class="card">
@@ -343,6 +331,16 @@
       const isAuthenticated = {{ request.user.is_authenticated|yesno:"true,false" }};
       const userId = {% if request.user.id %}"{{ request.user.id }}"{% else %}null{% endif %};
       const authorId = {% if author.id %}"{{ author.id }}"{% else %}null{% endif %};
+
+      window.onload = function() {
+        if (isAuthenticated && userId !== authorId) {
+          const mainContainer = document.querySelector('.main-container');
+          if (mainContainer) {
+            mainContainer.classList.add('has-right');
+          }
+        }
+      }
+
       async function api(path, opts={}) {
         const res = await fetch(`/api${path}`, {
           ...opts,
@@ -399,37 +397,286 @@
         window.location.href = `/authors/auth/`;
       }
 
-      async function followAuthor(authorId) {
-        const btn = event.target;
-        if (!btn) return;
-        
-        btn.disabled = true;
-        btn.textContent = 'Requesting…';
-        
-        try {
-          await api(`/authors/${authorId}/follow/`, {
-            method: 'POST',
-            body: '{}'
+      // -------- utils --------
+      function getUsernameFromPath() {
+        const m = location.pathname.match(/\/authors\/([^\/]+)\/?$/);
+        return m ? decodeURIComponent(m[1]) : null;
+      }
+
+      // -------- API wrappers (reuse getHeaders() from static/js/api.js) --------
+      const API = {
+        // Public profile by username
+        getAuthorByUsername(username) {
+          return fetch(`/api/authors/${encodeURIComponent(username)}/`, {
+            headers: getHeaders(),
+            credentials: 'same-origin'
           });
-          
-          btn.textContent = 'Requested';
-        } catch (e) {
-          console.error(e);
-          btn.disabled = false;
-          btn.textContent = 'Follow';
-          alert(e.message || 'Failed to send follow request');
+        },
+        // Current logged-in user (to hide follow on own profile)
+        getMe() {
+          return fetch(`/api/authors/author_profile/`, {
+            headers: getHeaders(),
+            credentials: 'same-origin'
+          });
+        },
+        // Send follow request by author UUID
+        follow(authorId) {
+          return fetch(`/api/authors/${authorId}/follow/`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({}),
+            credentials: 'same-origin'
+          });
+        },
+        // Unfollow by author UUID (DELETE the follow relationship)
+        unfollow(authorId) {
+          return fetch(`/api/authors/${authorId}/follow/`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+            credentials: 'same-origin'
+          });
+        }
+      };
+
+      // -------- page init --------
+      let meUsername = null;
+      let currentProfile = null;
+
+      async function init() {
+        // Get current logged-in user
+        if (isAuthenticated) {
+          try {
+            const meRes = await API.getMe();
+            if (meRes.ok) {
+              const me = await meRes.json();
+              meUsername = me.username;
+            }
+          } catch (err) {
+            console.error('Failed to get current user:', err);
+          }
+        }
+
+        // Load target profile
+        await loadProfile();
+      }
+
+      async function loadProfile() {
+        try {
+          const username = "{{ author.username }}";
+          if (!username) {
+            console.error('Author username not available');
+            return;
+          }
+
+          const r = await API.getAuthorByUsername(username);
+
+          if (r.status === 401) {
+            window.location = '/authors/auth/';
+            return;
+          }
+
+          if (!r.ok) {
+            const errText = await r.text();
+            console.error('Failed to load profile:', r.status, errText);
+            return;
+          }
+
+          const d = await r.json();
+          currentProfile = d;
+
+          // Setup follow button
+          if (isAuthenticated) {
+            setupFollowButton(d);
+          }
+        } catch (err) {
+          console.error(err);
         }
       }
 
-      
-      window.onload = function() {
-        if (isAuthenticated && userId !== authorId) {
-          const mainContainer = document.querySelector('.main-container');
-          if (mainContainer) {
-            mainContainer.classList.add('has-right');
-          }
+      function setupFollowButton(profile) {
+        const btn = document.getElementById('followBtn');
+        if (!btn) return;
+
+        // Hide follow button if viewing own profile
+        if (meUsername && profile.username && meUsername === profile.username) {
+          btn.classList.add('hidden');
+          return;
+        }
+
+        // Get follow status from profile data (added by serializer)
+        const followStatus = profile.follow_status;
+
+        // Show and configure button based on status
+        btn.classList.remove('hidden', 'following', 'requested', 'unfollow');
+        btn.disabled = false;
+
+        if (followStatus === 'accepted') {
+          // Already following - show Unfollow button
+          btn.textContent = 'Unfollow';
+          btn.classList.add('unfollow');
+          btn.onclick = () => handleUnfollow(profile, btn);
+        } else if (followStatus === 'pending') {
+          // Request pending - show Requested button (can unfollow to cancel)
+          btn.textContent = 'Requested';
+          btn.classList.add('requested');
+          btn.onclick = () => handleUnfollow(profile, btn);
+        } else {
+          // Not following - show Follow button
+          btn.textContent = 'Follow';
+          btn.onclick = () => handleFollow(profile, btn);
         }
       }
+
+      async function handleFollow(profile, btn) {
+        if (!profile.id) {
+          console.error('Profile ID not available');
+          alert('Cannot follow: profile ID missing');
+          return;
+        }
+
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = 'Sending...';
+
+        try {
+          const res = await API.follow(profile.id);
+
+          if (res.status === 201) {
+            // Successfully created follow request
+            btn.textContent = 'Requested';
+            btn.classList.remove('following');
+            btn.classList.add('requested');
+            btn.disabled = false;
+            btn.onclick = () => handleUnfollow(profile, btn);
+            // Update the profile's follow_status
+            currentProfile.follow_status = 'pending';
+            console.log('Follow request sent successfully');
+          } else if (res.status === 409 || res.status === 400) {
+            // Already exists - treat as requested
+            btn.textContent = 'Requested';
+            btn.classList.add('requested');
+            btn.disabled = false;
+            btn.onclick = () => handleUnfollow(profile, btn);
+            currentProfile.follow_status = 'pending';
+          } else if (res.status === 401) {
+            // Not authenticated
+            window.location = '/authors/auth/';
+            return;
+          } else {
+            // Other error
+            const errText = await res.text();
+            console.error('Follow failed:', res.status, errText);
+            alert('Failed to send follow request. Please try again.');
+            btn.textContent = originalText;
+            btn.disabled = false;
+          }
+        } catch (err) {
+          console.error('Network error:', err);
+          alert('Network error. Please check your connection.');
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }
+      }
+
+      async function handleUnfollow(profile, btn) {
+        if (!profile.id) {
+          console.error('Profile ID not available');
+          return;
+        }
+
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = 'Unfollowing...';
+
+        try {
+          const res = await API.unfollow(profile.id);
+
+          if (res.status === 204 || res.status === 200) {
+            // Successfully unfollowed
+            btn.textContent = 'Follow';
+            btn.classList.remove('unfollow', 'requested');
+            btn.disabled = false;
+            btn.onclick = () => handleFollow(profile, btn);
+            console.log('Successfully unfollowed');
+          } else if (res.status === 401) {
+            // Not authenticated
+            window.location = '/authors/auth/';
+            return;
+          } else {
+            // Other error
+            const errText = await res.text();
+            console.error('Unfollow failed:', res.status, errText);
+            alert('Failed to unfollow. Please try again.');
+            btn.textContent = originalText;
+            btn.disabled = false;
+          }
+        } catch (err) {
+          console.error('Network error:', err);
+          alert('Network error. Please check your connection.');
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }
+      }
+
+      // Function to refresh follow status
+      async function refreshFollowStatus() {
+        if (!currentProfile || !currentProfile.username) return;
+
+        try {
+          const username = currentProfile.username;
+          const r = await API.getAuthorByUsername(username);
+
+          if (r.ok) {
+            const updatedProfile = await r.json();
+            const oldStatus = currentProfile.follow_status;
+            const newStatus = updatedProfile.follow_status;
+
+            // Only update if status changed
+            if (oldStatus !== newStatus) {
+              console.log(`Follow status changed from ${oldStatus} to ${newStatus}`);
+              currentProfile.follow_status = newStatus;
+              setupFollowButton(currentProfile);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to refresh follow status:', err);
+        }
+      }
+
+      // Poll for follow status updates every 5 seconds
+      let statusCheckInterval;
+
+      function startStatusPolling() {
+        // Clear any existing interval
+        if (statusCheckInterval) {
+          clearInterval(statusCheckInterval);
+        }
+
+        // Check for updates every 5 seconds
+        statusCheckInterval = setInterval(refreshFollowStatus, 5000);
+      }
+
+      function stopStatusPolling() {
+        if (statusCheckInterval) {
+          clearInterval(statusCheckInterval);
+          statusCheckInterval = null;
+        }
+      }
+
+      // Initialize on page load
+      document.addEventListener('DOMContentLoaded', async () => {
+        if (isAuthenticated) {
+          await init();
+
+          // Start polling for status updates if viewing someone else's profile
+          if (currentProfile && meUsername && currentProfile.username !== meUsername) {
+            startStatusPolling();
+          }
+        }
+      });
+
+      // Clean up interval when leaving the page
+      window.addEventListener('beforeunload', stopStatusPolling);
     </script>
   </body>
 </html>

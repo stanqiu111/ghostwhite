@@ -143,7 +143,7 @@
         <h3>Friends</h3>
         <ul class="friend-grid" id="friendsGrid">
           {% for friend in request_user_friends %}
-            <li class="friend-item" onclick="navigateToProfile('{{ friend.username }}')">
+            <li class="friend-item" onclick="navigateToPublicProfile('{{ friend.username }}')">
               <div class="friend-avatar">
                 {% if friend.image %}
                   <img src="{{ friend.image.url }}" alt="{{ friend.display_name }}">

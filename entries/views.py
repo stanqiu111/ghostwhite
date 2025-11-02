@@ -27,7 +27,7 @@ class EntryListView(generics.ListAPIView):
             # admin can see all entries, including the deleted ones
             return Entry.objects.all()
 
-        queryset = Entry.objects.filter(deleted_at__isnull=True)
+        queryset = Entry.objects.filter(deleted_at__isnull=True).exclude(visibility="DELETED")
 
         return queryset
 
@@ -43,7 +43,7 @@ class EntryRetrieveView(generics.RetrieveAPIView):
             #  if entry is deleted, admin can still see it
             return Entry.objects.all()
 
-        return Entry.objects.filter(deleted_at__isnull=True)
+        return Entry.objects.filter(deleted_at__isnull=True).exclude(visibility="DELETED")
     
     def get_serializer_context(self):
         context = super().get_serializer_context()

@@ -80,6 +80,9 @@ class EntryRetrieveSerializer(serializers.ModelSerializer):
         return bool(getattr(obj, "is_image_entry") and obj.is_image_entry())
 
     def get_image_url(self, obj):
+        # Only expose the proxy image URL for base64 image entries
+        if not (getattr(obj, "is_image_entry") and obj.is_image_entry()):
+            return None
         request = self.context.get("request")
         url = reverse(
             "authors:entry-image-by-id",
@@ -87,7 +90,6 @@ class EntryRetrieveSerializer(serializers.ModelSerializer):
         )
         return request.build_absolute_uri(url) if request else url
 
-# entries/serializers.py
 
 
 class EntryCreateSerializer(serializers.ModelSerializer):

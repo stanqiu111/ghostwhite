@@ -16,6 +16,7 @@ VISIBILITY_CHOICES = [
     ("public", "Public"),
     ("unlisted", "Unlisted"),
     ("friends_only", "Friends Only"),
+    ("DELETED", "Deleted"),  # for soft delete
 ]
 
 
@@ -87,6 +88,7 @@ class Entry(models.Model):
 
     def soft_delete(self):
         """We are marking the entry as deleted instead of deleting it because we want to keep the entry in the database so admin/is_staff can see it"""
+        self.visibility = "DELETED"
         self.deleted_at = timezone.now()
         self.save()
 

@@ -9,10 +9,10 @@
   <div class="card-link-gh link-gh-container card-link-gh">
     <h1 class="link-gh-title">Link GitHub account</h1>
 
-    <form method="post" class="link-gh-form">
+    <form method="post" class="link-gh-form" id="linkGithubForm">
       {% csrf_token %}
       {{ form.as_p }}
-      <button type="submit" class="profile-btn mt-8">Save</button>
+      <button type="button" class="profile-btn mt-8" onclick="saveGithubLink(event)">Save</button>
     </form>
 
     {% if integration %}
@@ -28,6 +28,48 @@
 
     <script src="{% static 'js/api.js' %}"></script>
     <script>
+      async function saveGithubLink(e) {
+        e.preventDefault();
+        const form = document.getElementById('linkGithubForm');
+        const formData = new FormData(form);
+        const saveBtn = e.target;
+        
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        
+        try {
+          const res = await fetch('/authors/link_github/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+          });
+          
+          if (res.ok) {
+            window.location.reload();
+          } else {
+            try {
+              const text = await res.text();
+              try {
+                const data = JSON.parse(text);
+                alert(data.detail || data.error || 'Failed to save');
+              } catch {
+                alert('Failed to save. Please check your input.');
+              }
+            } catch {
+              alert('Failed to save. Please check your input.');
+            }
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save';
+          }
+        } catch (err) {
+          alert(err.message || 'Error saving');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save';
+        }
+      }
+
       const syncBtn = document.getElementById('syncReposBtn');
       if (syncBtn) syncBtn.addEventListener('click', async (e) => {
         e.preventDefault();

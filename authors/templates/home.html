@@ -423,6 +423,10 @@
             </div>
           </div>
           <button class="profile-btn" onclick="navigateToProfile('{{ user.username }}')">My Profile</button>
+          {% if user.is_authenticated %}
+          <br><br>
+          <button class="profile-btn" onclick="window.location.href='/authors/link_github/'">Link GitHub</button>
+          {% endif %}
         </div>
 
         <div class="card">

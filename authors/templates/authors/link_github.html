@@ -1,41 +1,50 @@
 {% extends "base.html" %}
 {% load static %}
 
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/link_github.css' %}">
+{% endblock %}
+
 {% block content %}
-  <h1>Link GitHub account</h1>
+  <div class="card-link-gh link-gh-container card-link-gh">
+    <h1 class="link-gh-title">Link GitHub account</h1>
 
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save</button>
-  </form>
+    <form method="post" class="link-gh-form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit" class="profile-btn mt-8">Save</button>
+    </form>
 
-  {% if integration %}
-    <p>Currently linked to <strong>{{ integration.github_username }}</strong>.</p>
-    <p>Last synced: {{ integration.last_synced_at }}</p>
-    <p>
-      <button id="syncReposBtn" class="btn">Sync my GitHub repos</button>
-      <span id="syncResult" style="margin-left:8px;color:#6b7280"></span>
-    </p>
-  {% endif %}
-  <script src="{% static 'js/api.js' %}"></script>
-  <script>
-    const syncBtn = document.getElementById('syncReposBtn');
-    if (syncBtn) syncBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const result = document.getElementById('syncResult');
-      result.textContent = 'Syncing...';
-      try {
-        const res = await fetch('/api/authors/sync-repos/', { method: 'POST', headers: getHeaders() });
-        const data = await res.json();
-        if (res.ok) {
-          result.textContent = `Created ${data.created} entries`;
-        } else {
-          result.textContent = data.detail || 'Failed to sync';
+    {% if integration %}
+      <div class="link-gh-muted">
+        <p>Currently linked to <strong>{{ integration.github_username }}</strong>.</p>
+        <p>Last synced: {{ integration.last_synced_at }}</p>
+        <p>
+          <button id="syncReposBtn" class="profile-btn" style="margin-right:8px;">Sync my GitHub repos</button>
+          <span id="syncResult" class="link-gh-muted" style="margin-left:8px"></span>
+        </p>
+      </div>
+    {% endif %}
+
+    <script src="{% static 'js/api.js' %}"></script>
+    <script>
+      const syncBtn = document.getElementById('syncReposBtn');
+      if (syncBtn) syncBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const result = document.getElementById('syncResult');
+        result.textContent = 'Syncing...';
+        try {
+          const res = await fetch('/api/authors/sync-repos/', { method: 'POST', headers: getHeaders() });
+          const data = await res.json();
+          if (res.ok) {
+            result.textContent = `Created ${data.created} entries`;
+          } else {
+            result.textContent = data.detail || 'Failed to sync';
+          }
+        } catch (err) {
+          result.textContent = err.message || 'Error';
         }
-      } catch (err) {
-        result.textContent = err.message || 'Error';
-      }
-    });
-  </script>
+      });
+    </script>
+  </div>
 {% endblock %}

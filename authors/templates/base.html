@@ -6,11 +6,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{% block title %}Ghostwhite{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
   <header style="padding:16px;border-bottom:1px solid #eee;background:#fff;">
     <div style="max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:12px;">
-      <a href="/home/" style="font-weight:700;text-decoration:none;color:#111827">ÉTHÉRÉ</a>
+      <a href="/home/" style="font-weight:700;text-decoration:none;color:#111827; font-size: 24px;">ÉTHÉRÉ</a>
       <nav style="margin-left:auto">
         {% if user.is_authenticated %}
           <a href="#" onclick="navigateToProfile(localStorage.getItem('username') || '{{ user.username }}')">Profile</a> |
@@ -26,10 +27,6 @@
   <main style="max-width:1180px;margin:28px auto;padding:0 16px;">
     {% block content %}{% endblock %}
   </main>
-
-  <footer style="padding:16px;border-top:1px solid #eee;color:#6b7280;text-align:center;">
-    © {{ now|date:"Y" }} Ghostwhite
-  </footer>
 </body>
 <script src="{% static 'js/common.js' %}"></script>
 </html>

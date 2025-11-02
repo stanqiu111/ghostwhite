@@ -436,7 +436,7 @@
         {% for entry in entries %}
         <div class="entry-card">
           <div class="entry-header">
-            <div class="entry-author" onclick="navigateToProfile('{{ entry.author.username }}')">
+            <div class="entry-author" onclick="navigateToPublicProfile('{{ entry.author.username }}')">
               <div class="entry-avatar">
                 {% if entry.author.image %}
                 <img

@@ -181,7 +181,7 @@
       <section class="entries">
         <div class="entries-header">
           <h3>Entries</h3>
-          <a href="#" onclick="return false;" title="Will be implemented in part 2">View All</a>
+          <a href="#" onclick="navigateToPublicProfile('{{ user.username }}')">View All</a>
         </div>
         <ul class="gallery" id="entriesGallery">
           {% for entry in top_5_entries %}
@@ -210,9 +210,9 @@
   <script src="{% static 'js/api.js' %}"></script>
   <script src="{% static 'js/common.js' %}"></script>
   <script>
-    //Extracts the username from the current URL, e.g. /authors/makima/ --> "makiam".Used to know whose profile to fetch.
+    //Extracts the username from the current URL, e.g. /authors/makima/settings/ --> "makiam".Used to know whose profile to fetch.
     function getUsernameFromPath() {
-      const m = location.pathname.match(/\/authors\/([^\/]+)\/?$/);
+      const m = location.pathname.match(/\/authors\/([^\/]+)\/settings\/?$/);
       return m ? decodeURIComponent(m[1]) : null;
     }
 
@@ -392,6 +392,11 @@
     });
 
    getProfile();
+
+
+    function navigateToPublicProfile(username) {
+      window.location.href = `/authors/${username}/`;
+    }
 
    // when loading the page, disabled the fields if it is not the current user's profile and hide the save button
    if (getUsernameFromPath() !== localStorage.getItem("username")) {

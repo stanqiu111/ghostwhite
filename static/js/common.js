@@ -14,6 +14,10 @@ window.location.href = "/entries/create/";
 }
 
 function navigateToProfile(username) {
+window.location.href = `/authors/${username}/settings/`;
+}
+
+function navigateToPublicProfile(username) {
 window.location.href = `/authors/${username}/`;
 }
 

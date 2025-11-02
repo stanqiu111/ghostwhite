@@ -481,7 +481,7 @@
               </div>
             </div>
             {% if entry.author.id != user.id %}
-              {% if entry.follow_status == 'pending' %}
+              {% if entry.follow_status == 'accepted' %}
                 <button class="unfollow-btn"
                         data-author-id="{{ entry.author.id }}"
                         onclick="unfollowFromButton(this)">Unfollow</button>
@@ -732,10 +732,17 @@
 
         try {
           rowEl.style.opacity = .6;
-          await api(url, {
+          const result = await api(url, {
             method: 'POST',
             body: JSON.stringify({ decision })
           });
+
+          // Log the result to see what the server returned
+          console.log('[DEBUG] Decision result:', result);
+
+          if (result && result.status) {
+            console.log('[DEBUG] Follow status after decision:', result.status, 'Approved:', result.approved);
+          }
 
           rowEl.remove();
           counter.textContent = Math.max(0, (+counter.textContent || 0) - 1);

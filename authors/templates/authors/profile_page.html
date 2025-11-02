@@ -141,11 +141,25 @@
 
       <section class="friends">
         <h3>Friends</h3>
-        <ul class="friend-grid" id="friendsGrid"><li><img src="https://i.pravatar.cc/80?img=1" alt="Friend 1"></li>
-            <li><img src="https://i.pravatar.cc/80?img=2" alt="Friend 2"></li>
-            <li><img src="https://i.pravatar.cc/80?img=3" alt="Friend 3"></li>
-            <li><img src="https://i.pravatar.cc/80?img=4" alt="Friend 4"></li>
-            <li><img src="https://i.pravatar.cc/80?img=5" alt="Friend 5"></li>
+        <ul class="friend-grid" id="friendsGrid">
+          {% for friend in friends %}
+            <li class="friend-item" onclick="navigateToProfile('{{ friend.username }}')">
+              <div class="friend-avatar">
+                {% if friend.image %}
+                  <img src="{{ friend.image.url }}" alt="{{ friend.display_name }}">
+                {% else %}
+                  <img src="{% static 'images/default_pfp.png' %}" alt="{{ friend.display_name }}">
+                {% endif %}
+              </div>
+              <div class="friend-name" title="{{ friend.display_name }}">
+                {{ friend.display_name|default:friend.username }}
+              </div>
+            </li>
+          {% empty %}
+            <li class="empty-state">
+              Nothing
+            </li>
+          {% endfor %}
         </ul>
       </section>
     </section>

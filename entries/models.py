@@ -64,12 +64,8 @@ class Entry(models.Model):
                 mime = "image/jpeg"
             elif name.endswith(".png"):
                 mime = "image/png"
-            elif name.endswith(".gif"):
-                mime = "image/gif"
-            elif name.endswith(".webp"):
-                mime = "image/webp"
             else:
-                mime = "image/jpeg"  # sensible default
+                mime = "application/base64"  
 
             try:
                 f = self.image.file
@@ -78,9 +74,8 @@ class Entry(models.Model):
                 self.content = base64.b64encode(b).decode("ascii")
                 self.content_type = f"{mime};base64"
                 f.seek(0)
-            except Exception:
-                # If anything goes wrong, keep the record saveable
-                pass
+            except Exception as e:
+                print("Base64 encode failed:", e)
         super().save(*args, **kwargs)
     
     def __str__(self):

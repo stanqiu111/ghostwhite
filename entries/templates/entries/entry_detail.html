@@ -215,6 +215,14 @@ const headersAuth = getHeaders();
 const $ = (sel, root=document)=> root.querySelector(sel);
 const el = (html)=>{ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; };
 const fmtTime = iso => { try{return new Date(iso).toLocaleString();}catch{return iso||"";} };
+
+// Add a cache-busting query param to a URL, using a version (timestamp or string)
+const withCacheBust = (u, version) => {
+  if (!u) return u;
+  const sep = u.includes('?') ? '&' : '?';
+  const v = version ? (Date.parse(version) || version) : Date.now();
+  return `${u}${sep}v=${encodeURIComponent(v)}`;
+};
 const esc = s => (s||"").replace(/[&<>'"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[m]));
 
 /* ============== API ============= */
@@ -337,7 +345,8 @@ function renderEntry(e){
   if (isImage) {
     const src = e.image_url || e.image || '';
     if (src) {
-      img.src = src;
+      const version = e.updated_at || e.created_at || e.id;
+      img.src = withCacheBust(src, version);
       img.style.display = 'block';
     } else {
       img.style.display = 'none';

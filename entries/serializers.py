@@ -64,7 +64,6 @@ class EntryRetrieveSerializer(serializers.ModelSerializer):
             "content",
             "content_type",
             "visibility",
-            "image",
             "created_at",
             "updated_at",
             "deleted_at",

@@ -3,12 +3,12 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, status, permissions
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.parsers import MultiPartParser, JSONParser
+from rest_framework.parsers import MultiPartParser, JSONParser, FormParser
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
@@ -165,17 +165,18 @@ class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
     """
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
-    permission_classes = [IsAuthenticated]
-    parser_classes = [JSONParser, MultiPartParser]
-    lookup_field = "username"
-    lookup_url_kwarg = "username"
-    
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+    http_method_names = ["get", "put", "head", "options"]
+
+    lookup_field = "id"                # Author object identified by its UUID or ID
+    lookup_url_kwarg = "author_id"     # URL pattern param name expected (e.g., /api/authors/<author_id>/)
+
     def perform_update(self, serializer):
-        """Only allow users to update their own profile"""
         author = self.get_object()
         user = self.request.user
-        if not (user == author or user.is_staff):
-            raise PermissionDenied("You can only update your own profile")
+        if not (user.is_authenticated and (user == author or user.is_staff)):
+            raise PermissionDenied("Forbidden")
         serializer.save()
     
 
@@ -223,14 +224,14 @@ class AuthorListView(generics.ListAPIView):
 class FollowRequestViewww(generics.CreateAPIView):
     queryset = Follow.objects.all()
     serializer_class = FollowRequestSerializer
-    permission_classes = [IsAuthenticated, IsApproved]
+    permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
         following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
         serializer.save(follower=self.request.user, following=following_author)
 
 class FollowRequestView(APIView):
-    permission_classes = [IsAuthenticated, IsApproved]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, author_id):
         followee = get_object_or_404(Author, id=author_id)
@@ -271,7 +272,7 @@ class FollowRequestView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class FollowRequestsListView(generics.ListAPIView):
-    permission_classes = [IsAuthenticated, IsApproved]
+    permission_classes = [IsAuthenticated]
     serializer_class = FollowRequestSerializer
 
     def get_queryset(self):
@@ -281,7 +282,7 @@ class FollowRequestsListView(generics.ListAPIView):
         )
 
 class FollowRequestsListViewwww(APIView):
-    permission_classes = [IsAuthenticated, IsApproved]
+    permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
         following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
@@ -327,7 +328,7 @@ class FollowDecisionView(APIView):
     this endpoint a model—it's a custom action (“approve” or “deny” a pending follow). 
 
     """
-    permission_classes = [permissions.IsAuthenticated, IsApproved]
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
         """

@@ -23,11 +23,10 @@ def home_view(request):
         (Q(visibility="unlisted") & Q(is_from_following=True)) |
         (Q(visibility="friends_only") & Q(is_from_following=True) & Q(is_following_me=True))
     ).order_by("-created_at")
-
-
     for entry in entries:
         entry.user_has_liked = EntryLike.objects.filter(entry=entry, author=user).exists()
-        
+        entry.serial = entry.id
+
         follow_relation = Follow.objects.filter(follower=user, following=entry.author).first()
         if follow_relation:
             entry.follow_status = follow_relation.status

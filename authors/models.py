@@ -108,8 +108,8 @@ class Follow(models.Model):
         if not self.can_be_decided_by(actor_author):
             raise PermissionError("Not yours to decide or not pending.")
         self.status = self.ACCEPTED
-        self.decided_at = timezone.now()
-        self.save(update_fields=["status", "decided_at"])
+        self.approved = True
+        self.save(update_fields=["status", "approved"])
         return self
 
     @transaction.atomic
@@ -117,8 +117,8 @@ class Follow(models.Model):
         if not self.can_be_decided_by(actor_author):
             raise PermissionError("Not yours to decide or not pending.")
         self.status = self.DENIED
-        self.decided_at = timezone.now()
-        self.save(update_fields=["status", "decided_at"])
+        self.approved = False
+        self.save(update_fields=["status", "approved"])
         return self
 
     @staticmethod
@@ -126,7 +126,7 @@ class Follow(models.Model):
         return Follow.objects.select_related("follower").filter(
             following=followee, status=Follow.PENDING
         )
-    
+      
     @staticmethod
     def get_friends(author):
         """

@@ -4,36 +4,17 @@ from .models import Author
 from .models import Follow
 from nodes.models import Node
 from django.conf import settings
+from utils.serializers import UrlBuildingMixin
 
-class AuthorSerializer(serializers.ModelSerializer):
+class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     host = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
     web = serializers.SerializerMethodField()
     full_url = serializers.SerializerMethodField()
+    follow_status = serializers.SerializerMethodField()
+    id = serializers.SerializerMethodField()
+    serial = serializers.SerializerMethodField()
 
-    def build_full_url(self, path: str):
-        """
-        Construct a full absolute URL for the given path.
-
-        - If the serializer context contains a request, use request.build_absolute_uri(path)
-        - If not, fall back to settings.HOST_URL (e.g., "http://127.0.0.1:8000")
-        - Ensures all API fields (id, host, web, profileImage) return consistent absolute URLs
-        """
-        if not path:
-            return ""
-        request = self.context.get("request")
-        if request:
-            return request.build_absolute_uri(path)
-        base = getattr(settings, "HOST_URL", "").rstrip("/")
-        if base:
-            # base = "http://127.0.0.1:8000"
-            # path = "/api/authors/abcd1234/" --> "http://127.0.0.1:8000/api/authors//api/authors/abcd1234/"
-            return f"{base}{path}"
-        else:
-            # return raw path if no base URL available
-            return path
-
-    
     def get_type(self, obj):
         return "author"
 
@@ -46,14 +27,40 @@ class AuthorSerializer(serializers.ModelSerializer):
         return self.build_full_url("/api/")
 
     def get_web(self, obj):
-       # Return absolute frontend URL for author’s profile page (e.g., /authors/<username>/)
+       # Return absolute frontend URL for author's profile page (e.g., /authors/<username>/)
         return self.build_full_url(f"/authors/{obj.username}/")
+
+    def get_id(self, obj):
+        return self.get_full_url(obj)
+
+    def get_serial(self, obj):
+        return str(obj.id)
+
+    def get_follow_status(self, obj):
+        """
+        Return the follow status between the current user and this author.
+        Returns 'accepted', 'pending', or None
+        """
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+
+        # Don't check if viewing own profile
+        if request.user.id == obj.id:
+            return None
+
+        # Check if current user follows this author
+        follow_relation = Follow.objects.filter(follower=request.user, following=obj).first()
+        if follow_relation:
+            return follow_relation.status
+        return None
 
     class Meta:
         model = Author
         fields = [
             "type",
             "id",
+            "serial",
             "host",
             "username",
             "display_name",
@@ -64,8 +71,9 @@ class AuthorSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "full_url",
+            "follow_status",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "username", "host", "type", "web"]
+        read_only_fields = ["id", "serial", "created_at", "updated_at", "username", "host", "type", "web", "follow_status"]
 
 
 class AuthorRegistrationSerializer(serializers.ModelSerializer):

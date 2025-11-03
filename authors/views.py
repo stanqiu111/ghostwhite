@@ -268,7 +268,7 @@ class FollowRequestViewww(generics.CreateAPIView):
         serializer.save(follower=self.request.user, following=following_author)
 
 class FollowRequestView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsApproved]
 
     def post(self, request, author_id):
         followee = get_object_or_404(Author, id=author_id)
@@ -402,8 +402,8 @@ class FollowDecisionView(APIView):
 
             if decision == "deny":
                 fr.deny(request.user)
-                fr.refresh_from_db()
-                return Response({"detail": "Follow request denied.", "status": fr.status}, status=status.HTTP_200_OK)
+                fr.delete()
+                return Response({"detail": "Follow request denied."}, status=status.HTTP_204_NO_CONTENT)
         except PermissionError as e:
             print(f"[DEBUG] PermissionError: {str(e)}")
             return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)

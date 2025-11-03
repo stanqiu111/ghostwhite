@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     # authentication
     "rest_framework",
     "rest_framework_simplejwt",
-    # OpenAPI / Swagger
+    # documentation
     "drf_spectacular",
 ]
 
@@ -68,8 +68,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ],
-    
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema"
 }
 
 SIMPLE_JWT = {

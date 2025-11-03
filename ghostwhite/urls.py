@@ -29,8 +29,8 @@ from django.conf.urls.static import static
 from django.conf import settings
 from django.conf.urls.static import static
 
-# drf spectacular for API schema and docs
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+
 
 urlpatterns = [
     path("", RedirectView.as_view(url="/home/", permanent=False)),
@@ -40,8 +40,6 @@ urlpatterns = [
     path("api/", include(("entries.urls", "entries"), namespace="entries_api")),
     path("", include(("entries.page_urls", "entries_pages"), namespace="entries_pages")),
     path("authors/", include(("authors.page_urls", "authors"), namespace="authors_pages")),
-
-    # API schema and docs
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
 ]

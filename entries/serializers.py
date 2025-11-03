@@ -81,7 +81,11 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     comments = CommentSerializer(many=True)
     likes = EntryLikeSerializer(many=True, read_only=True)
     like_count = serializers.IntegerField(read_only=True)
-    
+    is_image = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+    image = serializers.ImageField(read_only=True)
+    visibility = serializers.SerializerMethodField()
+
     class Meta:
         model = Entry
         fields = [
@@ -98,6 +102,7 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
             "like_count", 
             "likes",
             "comments",
+            "image",
             "is_image",
             "image_url",    
         ]
@@ -145,6 +150,7 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         )
 
 
+    def get_image_url(self, obj):
 class EntryCreateSerializer(serializers.ModelSerializer):
     """Having a separate serializer for creating because we don't need all info for creating an entry"""
 

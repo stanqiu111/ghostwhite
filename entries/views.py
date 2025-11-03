@@ -73,6 +73,62 @@ def visible_comments_queryset_for(user):
     )
 
 
+class EntryImageView(APIView):
+    """
+    GET /api/entries/<uuid:author_id>/entries/<uuid:pk>/image/
+    Returns raw image bytes for an image entry after visibility checks
+    """
+    permission_classes = [AllowAny]  
+
+    def verify_entry_access(self, user, entry):
+        vis = entry.visibility or ""
+        if vis in ("public", "unlisted"):
+            return True
+
+        if not getattr(user, "is_authenticated", False):
+            return False
+
+        if getattr(user, "is_staff", False):
+            return True
+
+        if getattr(entry, "author_id", None) == getattr(user, "id", None):
+            return True
+
+        if vis == "friends_only":
+            return hasattr(user, "is_friend_with") and user.is_friend_with(entry.author)
+
+        return False
+
+    def get(self, request, author_id, pk, *args, **kwargs):
+        entry = get_object_or_404(Entry, pk=pk, author_id=author_id)
+
+        # hide soft-deleted content from non-staff
+        if getattr(entry, "deleted_at", None) and not (
+            request.user.is_authenticated and getattr(request.user, "is_staff", False)
+        ):
+            raise Http404()
+        
+        if not self.verify_entry_access(request.user, entry):
+            raise Http404()
+
+        # must be an image/*;base64 payload per spec
+        ct = (entry.content_type or "").lower()
+        if not (ct.startswith("image/") and ct.endswith(";base64")):
+            raise Http404()
+
+        # decode base64 body
+        import base64
+        try:
+            raw = base64.b64decode(entry.content or "")
+        except Exception:
+            raise Http404()
+
+        mime = ct.split(";")[0] or "application/octet-stream"
+        resp = HttpResponse(raw, content_type=mime)
+        resp["Cache-Control"] = "private, max-age=3600"
+        resp["Last-Modified"] = http_date(now().timestamp())
+        return resp
+
 class EntryListView(generics.ListAPIView):
     serializer_class = EntryRetrieveSerializer
     authentication_classes = [SessionAuthentication, BasicAuthentication]
@@ -88,7 +144,12 @@ class EntryListView(generics.ListAPIView):
         base_qs = Entry.objects.all() if user.is_staff else Entry.objects.filter(deleted_at__isnull=True)
         qs = with_follow_flags(base_qs.select_related('author', 'node'), user)
 
-        queryset = Entry.objects.filter(deleted_at__isnull=True)
+        visibility_filter = (
+            Q(author=user)  # authors can see their own entries
+            | Q(visibility='public')  # anyone (authed) can see public entries
+            | (Q(visibility='unlisted') & Q(is_from_following=True))  # your previous list semantics
+            | (Q(visibility='friends_only') & Q(is_from_following=True) & Q(is_following_me=True))  # mutual
+        )
 
         # Prefetch only the comments visible to this viewer
         return qs.filter(visibility_filter).prefetch_related(
@@ -108,12 +169,34 @@ class EntryRetrieveView(generics.RetrieveAPIView):
 
     serializer_class = EntryRetrieveSerializer
     permission_classes = [IsAuthenticated]
-
+    
     def get_queryset(self):
         user = self.request.user
         base = Entry.objects.filter(deleted_at__isnull=True).select_related("author", "node")
 
-        return Entry.objects.filter(deleted_at__isnull=True)
+        if user.is_staff:
+            # Admins: no filtering
+            return base.prefetch_related(
+                Prefetch("comments", queryset=Comment.objects.select_related("author").order_by("-created_at")),
+                "likes",
+                "comments__likes",
+            )
+
+        # Apply entry visibility rules (note: retrieve allows 'unlisted' by link)
+        qs = with_follow_flags(base, user)
+        visibility_filter = (
+            Q(author=user)
+            | Q(visibility='public')
+            | Q(visibility='unlisted')  # link-based access for retrieve
+            | (Q(visibility='friends_only') & Q(is_from_following=True) & Q(is_following_me=True))
+        )
+        
+        return qs.filter(visibility_filter).prefetch_related(
+            Prefetch("comments", queryset=visible_comments_queryset_for(user)),
+            "likes",
+            "comments__likes",
+        )
+
     
     def get_serializer_context(self):
         context = super().get_serializer_context()

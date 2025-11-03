@@ -362,18 +362,17 @@ function renderEntry(e){
   $('#entryTime').textContent = fmtTime(e.created_at);
 
   const contentNode = $('#entryContent');
-  const ct = (e.content_type||'plain_text').toLowerCase();
-  if (ct.includes('markdown')) { marked.setOptions({gfm:true,breaks:true}); contentNode.innerHTML = marked.parse(e.content||''); }
+  const contentType = (e.content_type||'plain_text').toLowerCase();
+  if (contentType.includes('markdown')) { marked.setOptions({gfm:true,breaks:true}); contentNode.innerHTML = marked.parse(e.content||''); }
   else { contentNode.textContent = e.content || ''; }
 
   const img = $('#entryImage');
-  const ct = (e.content_type || '').toLowerCase();
 
   // Consider image entries when any of these is true:
   // 1. backend exposes a direct URL (image_url)
   // 2. backend exposes a stored file URL/path (image)
   // 3. content_type : image/* or *base64
-  const isImage = Boolean(e.image_url || e.image || ct.startsWith('image/') || ct.includes('base64'));
+  const isImage = Boolean(e.image_url || e.image || contentType.startsWith('image/') || contentType.includes('base64'));
 
   if (isImage) {
     const src = e.image_url || e.image || '';
@@ -385,11 +384,11 @@ function renderEntry(e){
       img.style.display = 'none';
     }
     // For pure image entries encoded as base64/image types, do not echo raw content
-    if (ct.includes('base64') || ct.startsWith('image/')) {
+    if (contentType.includes('base64') || contentType.startsWith('image/')) {
       contentNode.innerHTML = '';
     } else {
       // Otherwise render text as usual
-      if (ct.includes('markdown')) {
+      if (contentType.includes('markdown')) {
         if (window.marked) {
           marked.setOptions({ gfm: true, breaks: true });
           contentNode.innerHTML = marked.parse(e.content || '');
@@ -403,7 +402,7 @@ function renderEntry(e){
   } else {
     // Non-image: render text/markdown, hide image
     img.style.display = 'none';
-    if (ct.includes('markdown')) {
+    if (contentType.includes('markdown')) {
       if (window.marked) {
         marked.setOptions({ gfm: true, breaks: true });
         contentNode.innerHTML = marked.parse(e.content || '');

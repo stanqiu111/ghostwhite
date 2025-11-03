@@ -314,8 +314,8 @@
         }
       }
     </style>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   </head>
   <body>
     <!-- Header -->
@@ -516,8 +516,15 @@
 
           </div>
 
-          <div class="entry_body" onclick="navigateToEntry('{{ entry.serial }}')">
-            <div class="entry-content" data-ctype="{{ entry.content_type|lower }}">{{ entry.content }}</div>
+          <div class="entry_body" onclick="navigateToEntry('{{ entry.id }}')">
+            {% with ctype=entry.content_type|lower %}
+            <div class="entry-content" data-ctype="{{ ctype }}">
+              {% if 'base64' in ctype or ctype|slice:":6" == "image/" %}
+              {% else %}
+                {{ entry.content }}
+              {% endif %}
+            </div>
+            {% endwith %}
             
             {% if entry.image %}
               <img src="{{ entry.image.url }}" alt="Entry image" class="entry-image" loading="lazy" decoding="async">
@@ -634,8 +641,8 @@
       </div>
     </div>
 
-    <script src="{% static 'js/api.js' %}"></script>
-    <script src="{% static 'js/common.js' %}"></script>
+    <script defer src="{% static 'js/api.js' %}"></script>
+    <script defer src="{% static 'js/common.js' %}"></script>
     <script>
       async function api(path, opts={}) {
         const res = await fetch(`/api${path}`, {
@@ -907,11 +914,23 @@
     }
     // Apply it to all .entry-content elements on the page
     document.querySelectorAll('.entry-content').forEach(node => {
-      const type = (node.dataset.ctype || 'plain_text');
-      if (type.includes('markdown')) {
-        const md = node.textContent; // raw markdown
-        node.innerHTML = renderSafeMarkdown(md);  // call once
+      const type = String(node.dataset.ctype || 'plain_text').toLowerCase();
+
+      // If this entry represents an image (base64 or `image/*`), do NOT echo the raw content.
+      // The <img> element below will display it instead.
+      if (type.includes('base64') || type.startsWith('image/')) {
+        node.textContent = '';
+        return;
       }
+
+      // Markdown -> safe HTML
+      if (type.includes('markdown')) {
+        const md = node.textContent; // raw markdown text
+        node.innerHTML = renderSafeMarkdown(md);
+        return;
+      }
+
+      // Otherwise (plain_text etc.) leave as-is.
     });
     </script>
   </body>

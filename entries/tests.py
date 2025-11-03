@@ -9,6 +9,8 @@ from rest_framework.test import APIClient
 from authors.models import Author as User
 from nodes.models import Node
 from entries.models import Entry, Comment, EntryLike, CommentLike
+from rest_framework.test import APITestCase
+from authors.models import Author
 
 
 def make_test_image_bytes(fmt="JPEG", size=(8, 8), color=(255, 0, 0)):

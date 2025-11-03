@@ -330,6 +330,56 @@ class FQIDIntegrationTests(APITestCase):
         for l in res.data.get("likes", []):
             self.assertTrue(l["id"].startswith("http"))
 
+
+class FQIDIntegrationTests(APITestCase):
+    def setUp(self):
+        self.node, _ = Node.objects.get_or_create(is_local=True, defaults={'host_url': 'http://testserver'})
+
+        self.testUser1 = Author.objects.create_user(
+            username="testUser1", password="pw", display_name="Test User 1", node=self.node
+        )
+        self.testUser2 = Author.objects.create_user(
+            username="testUser2", password="pw", display_name="Test User 2", node=self.node
+        )
+
+        self.entry = Entry.objects.create(
+            author=self.testUser1, node=self.node, content="Hi", content_type="plain_text", visibility="public"
+        )
+
+        self.client = APIClient()
+
+    def test_entry_detail_uses_fqid_and_serial(self):
+        url = reverse("entries:entry-detail", args=[self.entry.id])
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        # id returned from the api is a FQID instead of UUID like the local id
+        self.assertTrue(res.data["id"].startswith("http"))
+        self.assertIn(str(self.entry.id), res.data["id"])
+        self.assertEqual(res.data.get("serial"), str(self.entry.id))
+
+    def test_like_and_comment_keep_fqid_in_response(self):
+        # testUser2 likes testUser1's entry
+        self.client.force_authenticate(self.testUser2)
+        like_url = reverse("entries:like_entry", args=[self.entry.id])
+        res = self.client.post(like_url)
+        self.assertIn(res.status_code, (status.HTTP_201_CREATED, status.HTTP_200_OK))
+
+        # testUser2 comments on testUser1's entry
+        comment_url = reverse("entries:add_comment", args=[self.entry.id])
+        res = self.client.post(comment_url, {"content": "Nice!"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        # Fetch entry detail and verify each comment's id is a FQID instead of UUID
+        detail_url = reverse("entries:entry-detail", args=[self.entry.id])
+        res = self.client.get(detail_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        for c in res.data.get("comments", []):
+            self.assertTrue(c["id"].startswith("http"))
+        for l in res.data.get("likes", []):
+            self.assertTrue(l["id"].startswith("http"))
+
     # ---------------- COMMENTS: PATCH / PUT / DELETE ----------------
     # Hit the REST path directly to avoid relying on a missing URL name.
 

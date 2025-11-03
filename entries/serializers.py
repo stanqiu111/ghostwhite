@@ -86,6 +86,9 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     image = serializers.ImageField(read_only=True)
     visibility = serializers.SerializerMethodField()
 
+    id = serializers.SerializerMethodField()
+    serial = serializers.SerializerMethodField()
+
     class Meta:
         model = Entry
         fields = [
@@ -148,6 +151,12 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
             and
             Follow.objects.filter(follower=owner, followee=viewer, status="accepted").exists()
         )
+
+    def get_id(self, obj):
+        return self.build_full_url(f"/api/authors/{obj.author.id}/entries/{obj.id}")
+
+    def get_serial(self, obj):
+        return str(obj.id)
 
 
     def get_image_url(self, obj):

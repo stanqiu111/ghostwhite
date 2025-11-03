@@ -4,25 +4,22 @@ from django.urls import reverse
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
+
+from authors.models import Follow
 from .models import Entry, Comment, EntryLike, CommentLike
 from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q, Exists, OuterRef, Prefetch
-from django.http import Http404
-from django.core.paginator import Paginator
-from django.contrib.auth.decorators import login_required
-from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404, render
+from django.db.models import Q, Exists, OuterRef
 from authors.models import Follow
-
 
 def with_follow_flags(qs, user):
     i_follow_author = Follow.objects.filter(
         follower=user, following=OuterRef("author_id")
     ).filter(Q(status=Follow.ACCEPTED) | Q(approved=True))
-
     author_follows_me = Follow.objects.filter(
         follower=OuterRef("author_id"), following=user
     ).filter(Q(status=Follow.ACCEPTED) | Q(approved=True))
@@ -70,6 +67,14 @@ def visible_comments_queryset_for(user):
         )
     )
 
+    author_follows_me = Follow.objects.filter(
+        follower=OuterRef("author_id"), following=user
+    ).filter(Q(status=Follow.ACCEPTED) | Q(approved=True))
+
+    return qs.annotate(
+        is_from_following=Exists(i_follow_author),
+        is_following_me=Exists(author_follows_me),
+    )
 
 class EntryListView(generics.ListAPIView):
     serializer_class = EntryRetrieveSerializer

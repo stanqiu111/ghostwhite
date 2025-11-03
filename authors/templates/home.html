@@ -510,7 +510,7 @@
 
           </div>
 
-          <div class="entry_body" onclick="navigateToEntry('{{ entry.serial }}')">
+          <div class="entry_body" onclick="navigateToEntry('{{ entry.id }}')">
             <div class="entry-content" data-ctype="{{ entry.content_type|lower }}">{{ entry.content }}</div>
             
             {% if entry.image %}
@@ -905,6 +905,37 @@
         node.innerHTML = renderSafeMarkdown(md);  // call once
       }
     });
+
+    async function syncGithubActivity() {
+      try {
+        const reposResponse = await api('/authors/sync-repos/', {
+          method: 'POST'
+        });
+
+        const created = reposResponse.created || 0;
+        console.log(`[GitHub Sync] Synced ${created} repos`);
+        
+        // only reload page if theres new entry
+        if (created > 0) {
+          window.location.reload();
+        }
+      } catch (e) {
+        if (e.message && !e.message.includes('No GitHub integration')) {
+          console.warn('[GitHub Sync] Error:', e.message);
+        }
+      }
+    }
+
+    function startGithubSync() {
+      syncGithubActivity(); 
+      setInterval(syncGithubActivity, 60000); // this will call once every 1 minute, according to https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28, we can call maximum 60 requests per hour
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startGithubSync);
+    } else {
+      startGithubSync();
+    }
     </script>
   </body>
 </html>

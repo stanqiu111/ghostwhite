@@ -126,6 +126,32 @@ class Follow(models.Model):
         return Follow.objects.select_related("follower").filter(
             following=followee, status=Follow.PENDING
         )
+    
+    @staticmethod
+    def get_friends(author):
+        """
+        Get all friends (mutual followers) of an author.
+        A friend is someone where:
+        - Author follows them (status='accepted')
+        - They follow author back (status='accepted')
+        """
+        # Get all authors that the given author follows (and are accepted)
+        following_ids = Follow.objects.filter(
+            follower=author,
+            status=Follow.ACCEPTED
+        ).values_list('following_id', flat=True)
+
+        # Get all authors that follow the given author back (and are accepted)
+        # Filter to only those who are also in following_ids (mutual)
+        friends = Author.objects.filter(
+            id__in=Follow.objects.filter(
+                follower_id__in=following_ids,
+                following=author,
+                status=Follow.ACCEPTED
+            ).values_list('follower_id', flat=True)
+        )
+
+        return friends
 
 class GitHubIntegration(models.Model):
     """

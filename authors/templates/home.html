@@ -906,50 +906,36 @@
       }
     });
 
-    // ---- GitHub Activity Sync ----
     async function syncGithubActivity() {
       try {
-        // Sync repos
         const reposResponse = await api('/authors/sync-repos/', {
           method: 'POST'
         });
+
         const created = reposResponse.created || 0;
         console.log(`[GitHub Sync] Synced ${created} repos`);
         
-        // Reload page if new repos were synced to show them
+        // only reload page if theres new entry
         if (created > 0) {
           window.location.reload();
         }
       } catch (e) {
-        // Silently fail if user doesn't have GitHub integration or other errors
         if (e.message && !e.message.includes('No GitHub integration')) {
           console.warn('[GitHub Sync] Error:', e.message);
         }
       }
     }
 
-    let githubSyncInterval = null;
-    
     function startGithubSync() {
-      syncGithubActivity();
-      
-      githubSyncInterval = setInterval(syncGithubActivity, 2000);
+      syncGithubActivity(); 
+      setInterval(syncGithubActivity, 60000); // this will call once every 1 minute, according to https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28, we can call maximum 60 requests per hour
     }
 
-    // Initialize sync when DOM is ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', startGithubSync);
     } else {
-      // DOM already loaded
       startGithubSync();
     }
-
-    // Clean up interval when page unloads
-    window.addEventListener('beforeunload', () => {
-      if (githubSyncInterval) {
-        clearInterval(githubSyncInterval);
-      }
-    });
     </script>
   </body>
 </html>

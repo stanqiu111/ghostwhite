@@ -60,8 +60,7 @@ function renderSafeMarkdown(mdText) {
 
 // Apply markdown rendering to all .entry-content elements on the page
 function renderMarkdownContent() {
-  if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
-    // Libraries not loaded yet, try again after a short delay
+  if (typeof marked === 'undefined') {
     setTimeout(renderMarkdownContent, 100);
     return;
   }
@@ -76,10 +75,13 @@ function renderMarkdownContent() {
       return;
     }
 
-    // Markdown -> safe HTML
     if (type.includes('markdown')) {
-      const md = node.textContent; // raw markdown text
-      node.innerHTML = renderSafeMarkdown(md);
+      const md = (node.textContent || node.innerText || '').trim();
+      
+      if (md) {
+        marked.setOptions({gfm:true,breaks:true});
+        node.innerHTML = marked.parse(md);
+      }
       return;
     }
 
@@ -89,8 +91,11 @@ function renderMarkdownContent() {
 
 function initMarkdownRendering() {
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', renderMarkdownContent);
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(renderMarkdownContent, 50);
+    });
   } else {
-    renderMarkdownContent();
+    // DOM already loaded, but wait a bit for any dynamic content
+    setTimeout(renderMarkdownContent, 50);
   }
 }

@@ -316,3 +316,294 @@ class SignupExtraApprovalTests(APITestCase):
         url = reverse("authors:follow-request", args=[followee.id])
         res = self.client.post(url, data={}, format="json")
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class UnfollowAPITests(APITestCase):
+    """
+    Tests for unfollow functionality.
+
+    User Story 1: As an author, I want to unfollow authors I am following,
+                  so that I don't have to see their entries anymore.
+
+    User Story 2: As an author, I want to unfriend other authors by unfollowing them,
+                  so that they can no longer see my friends-only entries.
+
+    Endpoint: DELETE /api/authors/<author_id>/follow/
+    """
+
+    def setUp(self):
+        # Create local node
+        self.node, _ = Node.objects.get_or_create(
+            is_local=True, defaults={"host_url": "http://testserver"}
+        )
+
+        # Create test users
+        self.alice = User.objects.create_user(
+            username="alice", password="alicepass", display_name="Alice", node=self.node
+        )
+        self.bob = User.objects.create_user(
+            username="bob", password="bobpass", display_name="Bob", node=self.node
+        )
+        self.charlie = User.objects.create_user(
+            username="charlie", password="charliepass", display_name="Charlie", node=self.node
+        )
+
+        # Mark all users as approved
+        for u in (self.alice, self.bob, self.charlie):
+            u.approved = True
+            u.save(update_fields=["approved"])
+
+        self.client = APIClient()
+
+    def url_unfollow(self, followee):
+        """Helper to get the unfollow URL"""
+        return reverse("authors:follow-request", args=[followee.id])
+
+    # ---- Basic unfollow tests ----
+
+    def test_unfollow_requires_authentication(self):
+        """Unauthenticated users cannot unfollow"""
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_cannot_unfollow_self(self):
+        """Users cannot unfollow themselves"""
+        self.client.force_authenticate(self.alice)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("cannot unfollow yourself", res.data.get("detail", "").lower())
+
+    def test_unfollow_pending_request_success(self):
+        """User can cancel/unfollow a pending follow request"""
+        # Bob sends a follow request to Alice (pending)
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=False, status=Follow.PENDING)
+
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        # Verify the follow relationship is deleted
+        self.assertFalse(Follow.objects.filter(follower=self.bob, following=self.alice).exists())
+
+    def test_unfollow_accepted_relationship_success(self):
+        """User can unfollow an accepted follow relationship"""
+        # Bob follows Alice (accepted)
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=True, status=Follow.ACCEPTED)
+
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        # Verify the follow relationship is deleted
+        self.assertFalse(Follow.objects.filter(follower=self.bob, following=self.alice).exists())
+
+    def test_unfollow_non_existent_relationship_returns_404(self):
+        """Attempting to unfollow when no relationship exists returns 404"""
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("no follow relationship found", res.data.get("detail", "").lower())
+
+    # ---- Unfollowing tests (User Story 1) ----
+
+    def test_unfollow_removes_from_following_list(self):
+        """After unfollowing, the user should no longer be in the follower's following list"""
+        # Bob follows Alice (accepted)
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=True, status=Follow.ACCEPTED)
+
+        # Verify Bob is following Alice
+        self.assertTrue(Follow.objects.filter(follower=self.bob, following=self.alice, approved=True).exists())
+
+        # Bob unfollows Alice
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        # Verify Bob is no longer following Alice
+        self.assertFalse(Follow.objects.filter(follower=self.bob, following=self.alice).exists())
+
+    def test_unfollow_does_not_affect_other_relationships(self):
+        """Unfollowing one author doesn't affect relationships with other authors"""
+        # Bob follows both Alice and Charlie
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=True, status=Follow.ACCEPTED)
+        Follow.objects.create(follower=self.bob, following=self.charlie, approved=True, status=Follow.ACCEPTED)
+
+        # Bob unfollows Alice
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        # Verify Bob is no longer following Alice
+        self.assertFalse(Follow.objects.filter(follower=self.bob, following=self.alice).exists())
+        # Verify Bob still follows Charlie
+        self.assertTrue(Follow.objects.filter(follower=self.bob, following=self.charlie, approved=True).exists())
+
+    def test_unfollow_does_not_affect_reverse_relationship(self):
+        """Unfollowing doesn't affect if the other person follows you"""
+        # Bob follows Alice
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=True, status=Follow.ACCEPTED)
+        # Alice follows Bob
+        Follow.objects.create(follower=self.alice, following=self.bob, approved=True, status=Follow.ACCEPTED)
+
+        # Bob unfollows Alice
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        # Verify Bob is no longer following Alice
+        self.assertFalse(Follow.objects.filter(follower=self.bob, following=self.alice).exists())
+        # Verify Alice still follows Bob
+        self.assertTrue(Follow.objects.filter(follower=self.alice, following=self.bob, approved=True).exists())
+
+    # ---- Unfriending tests (User Story 2) ----
+
+    def test_unfriend_by_unfollowing_breaks_friendship(self):
+        """Unfollowing a friend breaks the mutual friendship"""
+        # Create mutual follow relationship (friends)
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=True, status=Follow.ACCEPTED)
+        Follow.objects.create(follower=self.alice, following=self.bob, approved=True, status=Follow.ACCEPTED)
+
+        # Verify they are friends (mutual followers)
+        alice_friends = Follow.get_friends(self.alice)
+        bob_friends = Follow.get_friends(self.bob)
+        self.assertIn(self.bob, alice_friends)
+        self.assertIn(self.alice, bob_friends)
+
+        # Bob unfollows Alice
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify they are no longer friends
+        alice_friends = Follow.get_friends(self.alice)
+        bob_friends = Follow.get_friends(self.bob)
+        self.assertNotIn(self.bob, alice_friends)
+        self.assertNotIn(self.alice, bob_friends)
+
+    def test_unfriend_removes_from_both_friends_lists(self):
+        """When unfollowing a friend, both users lose each other from friends list"""
+        # Create mutual follow relationship (friends)
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=True, status=Follow.ACCEPTED)
+        Follow.objects.create(follower=self.alice, following=self.bob, approved=True, status=Follow.ACCEPTED)
+
+        # Get initial friend counts
+        alice_friends_before = Follow.get_friends(self.alice)
+        bob_friends_before = Follow.get_friends(self.bob)
+        self.assertEqual(alice_friends_before.count(), 1)
+        self.assertEqual(bob_friends_before.count(), 1)
+
+        # Bob unfollows Alice
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Get friend counts after unfollowing
+        alice_friends_after = Follow.get_friends(self.alice)
+        bob_friends_after = Follow.get_friends(self.bob)
+        self.assertEqual(alice_friends_after.count(), 0)
+        self.assertEqual(bob_friends_after.count(), 0)
+
+    def test_unfriend_preserves_one_way_follow(self):
+        """After unfollowing a friend, the reverse follow relationship persists"""
+        # Create mutual follow relationship (friends)
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=True, status=Follow.ACCEPTED)
+        Follow.objects.create(follower=self.alice, following=self.bob, approved=True, status=Follow.ACCEPTED)
+
+        # Bob unfollows Alice
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify Bob no longer follows Alice
+        self.assertFalse(Follow.objects.filter(follower=self.bob, following=self.alice).exists())
+        # Verify Alice still follows Bob (one-way relationship)
+        self.assertTrue(Follow.objects.filter(follower=self.alice, following=self.bob, approved=True).exists())
+
+    def test_multiple_unfriends_with_third_party(self):
+        """Unfriending one friend doesn't affect friendships with other friends"""
+        # Create a triangle: Alice-Bob, Bob-Charlie, Alice-Charlie (all mutual)
+        # Alice <-> Bob
+        Follow.objects.create(follower=self.alice, following=self.bob, approved=True, status=Follow.ACCEPTED)
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=True, status=Follow.ACCEPTED)
+        # Bob <-> Charlie
+        Follow.objects.create(follower=self.bob, following=self.charlie, approved=True, status=Follow.ACCEPTED)
+        Follow.objects.create(follower=self.charlie, following=self.bob, approved=True, status=Follow.ACCEPTED)
+
+        # Verify Bob is friends with both Alice and Charlie
+        bob_friends = Follow.get_friends(self.bob)
+        self.assertEqual(bob_friends.count(), 2)
+        self.assertIn(self.alice, bob_friends)
+        self.assertIn(self.charlie, bob_friends)
+
+        # Bob unfollows Alice
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify Bob is no longer friends with Alice
+        bob_friends = Follow.get_friends(self.bob)
+        self.assertNotIn(self.alice, bob_friends)
+        # Verify Bob is still friends with Charlie
+        self.assertIn(self.charlie, bob_friends)
+
+    # ---- Edge cases ----
+
+    def test_unfollow_denied_request(self):
+        """User can unfollow/delete a denied follow request"""
+        # Bob's request to follow Alice was denied
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=False, status=Follow.DENIED)
+
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        # Verify the follow relationship is deleted
+        self.assertFalse(Follow.objects.filter(follower=self.bob, following=self.alice).exists())
+
+    def test_cannot_unfollow_as_different_user(self):
+        """Users can only unfollow relationships where they are the follower"""
+        # Bob follows Alice
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=True, status=Follow.ACCEPTED)
+
+        # Charlie tries to unfollow Alice (but Charlie doesn't follow Alice)
+        self.client.force_authenticate(self.charlie)
+        url = self.url_unfollow(self.alice)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+        # Verify Bob's follow relationship still exists
+        self.assertTrue(Follow.objects.filter(follower=self.bob, following=self.alice, approved=True).exists())
+
+    def test_unfollow_idempotency(self):
+        """Attempting to unfollow twice returns 404 on second attempt"""
+        # Bob follows Alice
+        Follow.objects.create(follower=self.bob, following=self.alice, approved=True, status=Follow.ACCEPTED)
+
+        self.client.force_authenticate(self.bob)
+        url = self.url_unfollow(self.alice)
+
+        # First unfollow succeeds
+        res1 = self.client.delete(url)
+        self.assertEqual(res1.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Second unfollow returns 404
+        res2 = self.client.delete(url)
+        self.assertEqual(res2.status_code, status.HTTP_404_NOT_FOUND)

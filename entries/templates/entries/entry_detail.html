@@ -517,7 +517,7 @@ function renderRight(e){
   const currentUserId = String(localStorage.getItem('user_id') || '');
 
   (e.comments || []).forEach(c => {
-    const isMine = String(c.author?.id || '') === currentUserId;
+    const isMine = String(c.author?.serial || '') === currentUserId;
 
     const node = el(`
       <div class="item" data-id="${c.id}">

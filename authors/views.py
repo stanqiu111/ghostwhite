@@ -115,9 +115,16 @@ def author_profile_page(request, username):
     top_5_entries = entries[:5]
     entry_count = entries.count()
     
-    request_user_entry_count = Entry.objects.filter(author=request.user.id, deleted_at__isnull=True).count()
-    request_user_follower_count = Follow.objects.filter(following=request.user.id, approved=True).count()
-    request_user_following_count = Follow.objects.filter(follower=request.user.id, approved=True).count()
+    request_user_entry_count = 0
+    request_user_follower_count = 0
+    request_user_following_count = 0
+    request_user_friends = []
+    
+    if request.user.is_authenticated:
+        request_user_entry_count = Entry.objects.filter(author=request.user.id, deleted_at__isnull=True).count()
+        request_user_follower_count = Follow.objects.filter(following=request.user.id, approved=True).count()
+        request_user_following_count = Follow.objects.filter(follower=request.user.id, approved=True).count()
+        request_user_friends = Follow.get_friends(request.user)[:5]
     
     author_follower_count = Follow.objects.filter(following=author.id, approved=True).count()
     author_following_count = Follow.objects.filter(follower=author.id, approved=True).count()
@@ -133,7 +140,6 @@ def author_profile_page(request, username):
 
     # Get friends (mutual followers) - limit to 5 for display
     author_friends = Follow.get_friends(author)[:5]
-    request_user_friends = Follow.get_friends(request.user)[:5]
 
     if request.path.endswith('/settings/'):
         # this we dont have to show the full list of entries, only return top 5
@@ -359,7 +365,7 @@ class FollowDecisionView(APIView):
     this endpoint a model—it's a custom action (“approve” or “deny” a pending follow). 
 
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
         """

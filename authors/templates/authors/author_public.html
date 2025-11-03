@@ -539,8 +539,7 @@
         btn.textContent = 'Sending...';
 
         try {
-          const res = await API.follow(profile.id);
-
+          const res = await API.follow(profile.serial);
           if (res.status === 201) {
             // Successfully created follow request
             btn.textContent = 'Requested';

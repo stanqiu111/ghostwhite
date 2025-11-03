@@ -516,7 +516,7 @@
 
           </div>
 
-          <div class="entry_body" onclick="navigateToEntry('{{ entry.id }}')">
+          <div class="entry_body" onclick="navigateToEntry('{{ entry.serial }}')">
             <div class="entry-content" data-ctype="{{ entry.content_type|lower }}">{{ entry.content }}</div>
             
             {% if entry.image %}
@@ -526,7 +526,7 @@
             {% endif %}
           </div>
           <div class="entry-actions">
-            <button class="action-btn" onclick="likeEntry('{{ entry.id }}', this)">
+            <button class="action-btn" onclick="likeEntry('{{ entry.serial }}', this)">
               {% if entry.user_has_liked %}
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M16.44 3.1001C14.63 3.1001 13.01 3.9801 12 5.3301C10.99 3.9801 9.37 3.1001 7.56 3.1001C4.49 3.1001 2 5.6001 2 8.6901C2 9.8801 2.19 10.9801 2.52 12.0001C4.1 17.0001 8.97 19.9901 11.38 20.8101C11.72 20.9301 12.28 20.9301 12.62 20.8101C15.03 19.9901 19.9 17.0001 21.48 12.0001C21.81 10.9801 22 9.8801 22 8.6901C22 5.6001 19.51 3.1001 16.44 3.1001Z" fill="#292D32"/>
@@ -647,9 +647,9 @@
         return data;
       }
       
-      async function likeEntry(entryId, buttonElement) {
+      async function likeEntry(entrySerial, buttonElement) {
         try {
-          const response = await api(`/entries/${entryId}/like/`, { method: 'POST' });
+          const response = await api(`/entries/${entrySerial}/like/`, { method: 'POST' });
           
           if (response && response.detail) {
             // Get current like count
@@ -677,8 +677,8 @@
         }
       }
 
-      function navigateToEntry(entryId) {
-        window.location.href = `/entries/${entryId}/`;
+      function navigateToEntry(entrySerial) {
+        window.location.href = `/entries/${entrySerial}/`;
       }
 
       async function copyEntryLink(entryId) {

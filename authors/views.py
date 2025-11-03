@@ -278,15 +278,22 @@ class FollowRequestView(APIView):
         if follower.id == followee.id:
             return Response({"detail": "Cannot follow yourself."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 2) if already exists, return 409
-        if Follow.objects.filter(follower=follower, following=followee).exists():
+        # 2) Check existing - allow retry if denied
+        existing = Follow.objects.filter(follower=follower, following=followee).first()
+        if existing:
+            if existing.status == Follow.DENIED:
+                existing.status = Follow.PENDING
+                existing.approved = False
+                existing.save(update_fields=['status', 'approved'])
+                data = {"id": str(existing.id), "follower": str(existing.follower_id), 
+                       "following": str(existing.following_id), "approved": existing.approved}
+                return Response(data, status=status.HTTP_200_OK)
             return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
 
         # 3) create pending request (approved=False, status='pending')
         try:
             f = Follow.objects.create(follower=follower, following=followee, approved=False, status=Follow.PENDING)
         except IntegrityError:
-            # race-safe fallback
             return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
 
         # serialize minimal response (id is enough for tests)

@@ -516,7 +516,7 @@
 
           </div>
 
-          <div class="entry_body" onclick="navigateToEntry('{{ entry.id }}')">
+          <div class="entry_body" onclick="navigateToEntry('{{ entry.serial }}')">
             {% with ctype=entry.content_type|lower %}
             <div class="entry-content" data-ctype="{{ ctype }}">
               {% if 'base64' in ctype or ctype|slice:":6" == "image/" %}

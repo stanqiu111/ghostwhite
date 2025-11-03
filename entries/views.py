@@ -75,7 +75,7 @@ def visible_comments_queryset_for(user):
 
 class EntryImageView(APIView):
     """
-    GET /api/entries/<uuid:author_id>/entries/<uuid:pk>/image/
+    GET /api/authors/<uuid:author_id>/entries/<uuid:pk>/image/
     Returns raw image bytes for an image entry after visibility checks
     """
     permission_classes = [AllowAny]  
@@ -134,11 +134,6 @@ class EntryListView(generics.ListAPIView):
     authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context["request"] = self.request
-        return context
-
     def get_queryset(self):
         user = self.request.user
         base_qs = Entry.objects.all() if user.is_staff else Entry.objects.filter(deleted_at__isnull=True)
@@ -157,11 +152,6 @@ class EntryListView(generics.ListAPIView):
             "likes",
             "comments__likes",
         )
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['request'] = self.request
-        return context
 
 
 class EntryRetrieveView(generics.RetrieveAPIView):
@@ -196,12 +186,6 @@ class EntryRetrieveView(generics.RetrieveAPIView):
             "likes",
             "comments__likes",
         )
-
-    
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['request'] = self.request
-        return context
 
 
 class EntryCreateView(generics.CreateAPIView):

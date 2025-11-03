@@ -158,6 +158,26 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     def get_serial(self, obj):
         return str(obj.id)
 
+    def get_is_image(self, obj):
+        """
+        Need to determine if this entry is an image since entries store images either as uploaded files (entry.image)
+        or as base64-encoded str in entry.content
+        """
+        if getattr(obj, "image", None):
+            return True
+
+        ctype = (getattr(obj, "content_type", "") or "").lower()
+        if "base64" in ctype or ctype.startswith("image/"):
+            return True
+
+        if hasattr(obj, "is_image_entry") and callable(obj.is_image_entry):
+            try:
+                return bool(obj.is_image_entry())
+            except Exception:
+                pass
+
+        return False
+
 
     def get_image_url(self, obj):
         # Only expose the proxy image URL for base64 image entries

@@ -220,7 +220,7 @@
             </div>
           </div>
           
-          <div class="entry_body" onclick="navigateToEntry('{{ entry.id }}')">
+          <div class="entry-body" onclick="navigateToEntry('{{ entry.id }}')">
             {% with ctype=entry.content_type|lower %}
               <div class="entry-content" data-ctype="{{ ctype }}">
                 {% if 'base64' in ctype or ctype|slice:":6" == "image/" %}
@@ -229,7 +229,7 @@
                 {% endif %}
               </div>
 
-             {% if entry.is_image or 'base64' in ctype or ctype|slice:":6" == "image/" or ctype == "application/base64" %}
+              {% if entry.image or entry.image_url or entry.is_image or 'base64' in ctype or ctype|slice:":6" == "image/" or ctype == "application/base64" %}
                 {% if entry.image %}
                   <img src="{{ entry.image.url }}" alt="Entry image" class="entry-image">
                 {% elif entry.image_url %}

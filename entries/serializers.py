@@ -108,6 +108,9 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
             "image",
             "is_image",
             "image_url",    
+            "comments",    
+            "source",
+            "source_url",
         ]
     def get_comments(self, obj: Entry):
         request = self.context.get("request")
@@ -199,7 +202,7 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         return obj.visibility
 
 class EntryCreateSerializer(serializers.ModelSerializer):
-    """Having a separate serializer for creating because we don't need all info for creating an entry"""
+    """Having a separate serializer  for creating because we don't need all info for creating an entry"""
 
     class Meta:
         model = Entry
@@ -238,3 +241,9 @@ class EntryCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return super().create(validated_data)
+
+class EntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Entry
+        fields = ["id", "content", "author", "created_at", "visibility", "source", "source_url"]
+        read_only_fields = ["source", "source_id", "source_url"]

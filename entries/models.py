@@ -31,15 +31,23 @@ class Entry(models.Model):
         max_length=20, choices=VISIBILITY_CHOICES, default="public"
     )
     image = models.ImageField(upload_to="entry_images/", null=True, blank=True)
+    # Source metadata (for third-party origins such as GitHub)
+    source = models.CharField(max_length=50, default="manual", db_index=True, blank=True, null=True)
+    source_id = models.CharField(max_length=255, null=True, blank=True)
+    source_url = models.CharField(max_length=512, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)  # for soft delete
     node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="entries")
 
     class Meta:
-        ordering = [
-            "-created_at"
-        ]  # we are showing most recent first because in the requirement, we have to display the most recent post
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source", "source_id"],
+                name="unique_source_sourceid"
+            )
+        ]
 
     def is_image_entry(self):
         """Return True if this entry represents a base64 image"""
@@ -111,6 +119,7 @@ class Entry(models.Model):
             return path
         scheme = "https" if request.is_secure() else "http"
         return f"{scheme}://{request.get_host()}{path}"
+
 
 
 

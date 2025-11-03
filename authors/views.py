@@ -1,5 +1,8 @@
 import json
 from django.shortcuts import render, redirect, get_object_or_404
+import re
+from django.shortcuts import render, redirect, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, status, permissions
@@ -18,6 +21,13 @@ from django.contrib.auth import authenticate, login, logout
 from entries.models import Entry
 from django.db import IntegrityError
 from .permissions import IsApproved
+from django.contrib.auth.decorators import login_required
+from .models import GitHubIntegration
+from .forms import GitHubIntegrationForm
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .github import sync_repos_for_author
  
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
@@ -143,7 +153,8 @@ class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
     """
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
-    permission_classes = [IsAuthenticated]
+    # allow anonymous users to GET (public profile) but require authentication for PUT
+    permission_classes = [IsAuthenticatedOrReadOnly]
     parser_classes = [JSONParser, MultiPartParser]
     lookup_field = "username"
     lookup_url_kwarg = "username"
@@ -154,7 +165,26 @@ class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
         user = self.request.user
         if not (user == author or user.is_staff):
             raise PermissionDenied("You can only update your own profile")
+        
+        # Create github intergration if github_url is provided
+        github_url = self.request.data.get('github_url', None)
         serializer.save()
+        if github_url:
+            github_username = github_url
+            if github_url.startswith('http'):
+                match = re.search(r'github\.com/([^/?#]+)', github_url, re.IGNORECASE)
+                if match:
+                    github_username = match.group(1)
+            
+            # Update or create GitHubIntegration
+            integration, created = GitHubIntegration.objects.get_or_create(
+                author=author,
+                defaults={'github_username': github_username}
+            )
+            if not created:
+                # Update existing integration
+                integration.github_username = github_username
+                integration.save()
 
 
 
@@ -364,3 +394,26 @@ class FollowDecisionView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
 
         return Response({"detail": "Invalid decision."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+class SyncMyGithubReposView(APIView):
+    """POST: trigger a sync of the logged-in user's GitHub repos and create Entry objects."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            gi = request.user.github_integration
+        except GitHubIntegration.DoesNotExist:
+            return Response({"detail": "No GitHub integration configured."}, status=400)
+
+        # Check if github_username is empty or blank - if yes we wont call
+        if not gi.github_username or not gi.github_username.strip():
+            return Response({"created": 0}) 
+
+        created = sync_repos_for_author(request.user, gi.github_username, access_token=gi.access_token)
+        # update last_synced_at
+        gi.last_synced_at = timezone.now()
+        gi.save(update_fields=['last_synced_at'])
+        return Response({"created": created})

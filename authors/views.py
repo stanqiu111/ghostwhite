@@ -28,7 +28,8 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .github import sync_repos_for_author
- 
+from django.utils import timezone
+
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
     authentication_classes = []  # disable SessionAuthentication -> no CSRF required

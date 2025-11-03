@@ -344,37 +344,7 @@ class FollowDecisionView(APIView):
 
         return Response({"detail": "Invalid decision."}, status=status.HTTP_400_BAD_REQUEST)
 
-@login_required
-def link_github_view(request):
-    """
-    Display + process the GitHub link form for the logged-in user.
-    If the user already has a GitHubIntegration entry, we edit it.
-    Otherwise, we create one.
-    """
-    # Ensure the logged-in user has an Author record
-    author, _ = Author.objects.get_or_create(id=request.user.id, defaults={
-        "username": request.user.username,
-        "displayName": getattr(request.user, "displayName", request.user.username),
-    })
 
-    # Try to fetch existing GitHub link
-    integration = getattr(author, "github_integration", None)
-
-    if request.method == "POST":
-        form = GitHubIntegrationForm(request.POST, instance=integration)
-        if form.is_valid():
-            gi = form.save(commit=False)
-            gi.author = author
-            gi.save()
-            # page URLconf (authors.page_urls) names the profile view 'author_profile_page'
-            return redirect("authors_pages:author_profile_page", username=author.username)
-    else:
-        form = GitHubIntegrationForm(instance=integration)
-
-    return render(request, "authors/link_github.html", {
-        "form": form,
-        "integration": integration
-    })
 
 
 class SyncMyGithubReposView(APIView):

@@ -40,8 +40,18 @@
   .delete_button{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer}
   .edit_button{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer}
   @media (max-width:980px){ .row{grid-template-columns:1fr} .right{order:2} }
+  .section .content img {
+  width: 320px !important;   
+  height: 180px !important;   
+  object-fit: cover;          
+  display: block;
+  border-radius: 10px;
+  margin: 12px 0;
+  border: 1px solid var(--line);
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <script src="{% static 'js/common.js' %}"></script>
 </head>
 <body>
@@ -176,7 +186,14 @@
               <path d="M6.7998 14.1899C6.2398 14.1899 5.7998 13.7399 5.7998 13.1899C5.7998 12.6399 6.2498 12.1899 6.7998 12.1899C7.3498 12.1899 7.7998 12.6399 7.7998 13.1899C7.7998 13.7399 7.3498 14.1899 6.7998 14.1899Z" fill="#292D32"/>
               <path d="M17.9396 16.29C17.7396 16.29 17.5396 16.21 17.3996 16.06C17.2396 15.9 17.1697 15.67 17.1997 15.45C17.2297 15.24 17.2396 15.02 17.2396 14.79V10.79C17.2396 8.00001 15.9897 6.75 13.1997 6.75H6.79963C6.56963 6.75 6.34966 6.76 6.13966 6.78C5.91966 6.81 5.68964 6.72999 5.52964 6.57999C5.36964 6.41999 5.27963 6.20001 5.29963 5.98001C5.47963 3.82001 6.58963 1.25 10.7996 1.25H17.1997C20.8197 1.25 22.7396 3.17001 22.7396 6.79001V10.79C22.7396 15 20.1697 16.1 18.0097 16.29C17.9797 16.29 17.9596 16.29 17.9396 16.29ZM6.91966 5.25H13.1896C16.8096 5.25 18.7297 7.17001 18.7297 10.79V14.66C20.4297 14.24 21.2297 12.99 21.2297 10.79V6.79001C21.2297 4.00001 19.9796 2.75 17.1896 2.75H10.7897C8.58965 2.75 7.34966 3.55 6.91966 5.25Z" fill="#292D32"/>
               </svg>
-               <span id="commentCount">0</span></span>
+              <span id="commentCount">0</span></span>
+          <span class="chip" id="copyChip" style="display:none; cursor:pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M8.99005 21.5C7.33005 21.5 5.66005 20.87 4.39005 19.6C1.86005 17.06 1.86005 12.94 4.39005 10.41C4.68005 10.12 5.16005 10.12 5.45005 10.41C5.74005 10.7 5.74005 11.18 5.45005 11.47C3.50005 13.42 3.50005 16.59 5.45005 18.54C7.40005 20.49 10.5701 20.49 12.5201 18.54C13.4601 17.6 13.9801 16.34 13.9801 15C13.9801 13.67 13.4601 12.41 12.5201 11.46C12.2301 11.17 12.2301 10.69 12.5201 10.4C12.8101 10.11 13.2901 10.11 13.5801 10.4C14.8101 11.63 15.4801 13.26 15.4801 15C15.4801 16.74 14.8001 18.37 13.5801 19.6C12.3201 20.87 10.6601 21.5 8.99005 21.5Z" fill="#292D32"/>
+              <path d="M19.07 14.16C18.88 14.16 18.69 14.09 18.54 13.94C18.25 13.65 18.25 13.17 18.54 12.88C20.59 10.83 20.59 7.49999 18.54 5.45999C16.49 3.40999 13.16 3.40999 11.12 5.45999C10.13 6.44999 9.57996 7.76999 9.57996 9.16999C9.57996 10.57 10.13 11.89 11.12 12.88C11.41 13.17 11.41 13.65 11.12 13.94C10.83 14.23 10.35 14.23 10.06 13.94C8.78996 12.67 8.07996 10.97 8.07996 9.16999C8.07996 7.36999 8.77996 5.66999 10.06 4.39999C12.69 1.76999 16.97 1.76999 19.61 4.39999C22.24 7.02999 22.24 11.32 19.61 13.95C19.46 14.09 19.26 14.16 19.07 14.16Z" fill="#292D32"/>
+              </svg>
+          </span>
+          <span id="copyNote" class="muted" style="display:none; margin-left:8px;">Copied!</span>
         </div>
       </div>
     </main>
@@ -214,7 +231,19 @@ const $ = (sel, root=document)=> root.querySelector(sel);
 const el = (html)=>{ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; };
 const fmtTime = iso => { try{return new Date(iso).toLocaleString();}catch{return iso||"";} };
 const esc = s => (s||"").replace(/[&<>'"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[m]));
+const updateComment = (entryId, commentId, newContent) =>
+    api(`/entries/${entryId}/comments/${commentId}/`, {
+      method: "PATCH",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ content: newContent })
+    });
 
+  const deleteComment = (entryId, commentId) =>
+    api(`/entries/${entryId}/comments/${commentId}/`, { method: "DELETE" });
+    
+  function shareUrlFor(id){
+  return `${window.location.origin}/entries/${id}/`;
+}
 /* ============== API ============= */
 async function api(path, opts={}) {
   const res = await fetch(`/api${path}`, {
@@ -304,8 +333,35 @@ function renderEntry(e){
 
   const contentNode = $('#entryContent');
   const ct = (e.content_type||'plain_text').toLowerCase();
-  if (ct.includes('markdown')) { marked.setOptions({gfm:true,breaks:true}); contentNode.innerHTML = marked.parse(e.content||''); }
-  else { contentNode.textContent = e.content || ''; }
+
+  if (ct.includes('markdown')) {
+    marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
+    const rawHtml = marked.parse(e.content || '');
+
+    const cleanHtml = DOMPurify.sanitize(rawHtml, {
+      ALLOWED_TAGS: [
+        'p','br','strong','em','s','code','pre','blockquote',
+        'ul','ol','li','h1','h2','h3','h4','h5','h6','hr',
+        'a','img'
+      ],
+      ALLOWED_ATTR: [
+        'href','title','target','rel',               
+        'src','alt','width','height','loading','decoding','referrerpolicy'  
+      ],
+      ALLOW_DATA_ATTR: false,
+      FORBID_TAGS: ['style','svg','math','form','input','button','iframe','script']
+    });
+
+    // keep external links safe
+    const tmp = document.createElement('div');
+    tmp.innerHTML = cleanHtml;
+    tmp.querySelectorAll('a[target="_blank"]').forEach(a => {
+      if (!/noopener|noreferrer/.test(a.rel)) a.rel = 'noopener noreferrer';
+    });
+    contentNode.innerHTML = tmp.innerHTML;
+  } else {
+    contentNode.textContent = e.content || '';
+  }
 
   const img = $('#entryImage');
   if (e.image) { img.src = e.image; img.style.display = 'block'; } else { img.style.display = 'none'; }
@@ -315,6 +371,8 @@ function renderEntry(e){
 
   $('#likeChip').onclick = async ()=>{ try{ await likeEntry(e.serial, $('#likeChip')); }catch(err){ alert(err.message); } };
   $('#commentChip').onclick = ()=> setTab('comments');
+  const copyChip = document.getElementById('copyChip');
+  const copyNote = document.getElementById('copyNote');
 }
 
 function setTab(which){
@@ -329,41 +387,125 @@ function setTab(which){
 function renderRight(e){
   // tabs
   $('#tabComments').onclick = ()=> setTab('comments');
-  $('#tabLikes').onclick = ()=> setTab('likes');
+  $('#tabLikes').onclick    = ()=> setTab('likes');
 
-  // comments
-  const clist = $('#commentsList'); clist.innerHTML = '';
-  (e.comments||[]).forEach(c=>{
+  // ===== COMMENTS =====
+  const clist = $('#commentsList');
+  clist.innerHTML = '';
+
+  const currentUserId = String(localStorage.getItem('user_id') || '');
+
+  (e.comments || []).forEach(c => {
+    const isMine = String(c.author?.id || '') === currentUserId;
+
     const node = el(`
-      <div class="item">
-        <img class="pfp" style="width:36px;height:36px" src="${(c.author && c.author.image) ? c.author.image : DEFAULT_PFP}" alt="">
+      <div class="item" data-id="${c.id}">
+        <img class="pfp" style="width:36px;height:36px"
+             src="${(c.author && c.author.image) ? c.author.image : DEFAULT_PFP}" alt="">
         <div>
-          <div><strong>${esc(c.author?.display_name || c.author?.username || '—')}</strong> <span class="cmeta">${fmtTime(c.created_at)}</span></div>
-          <div>${esc(c.content||'')}</div>
+          <div>
+            <strong>${esc(c.author?.display_name || c.author?.username || '—')}</strong>
+            <span class="cmeta">${fmtTime(c.created_at)}</span>
+          </div>
+          <div class="comment-body" style="white-space:pre-wrap;"></div>
+          <textarea class="comment-edit" style="display:none;width:100%;min-height:64px;"></textarea>
           <div class="cmeta" style="margin-top:6px">${c.like_count ?? 0} likes</div>
         </div>
-        <button class="btn" style="background:#fff;color:#111;border:1px solid var(--line)" title="Like">
-          ${c.user_has_liked_comment ? 
-            `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16.44 3.1001C14.63 3.1001 13.01 3.9801 12 5.3301C10.99 3.9801 9.37 3.1001 7.56 3.1001C4.49 3.1001 2 5.6001 2 8.6901C2 9.8801 2.19 10.9801 2.52 12.0001C4.1 17.0001 8.97 19.9901 11.38 20.8101C11.72 20.9301 12.28 20.9301 12.62 20.8101C15.03 19.9901 19.9 17.0001 21.48 12.0001C21.81 10.9801 22 9.8801 22 8.6901C22 5.6001 19.51 3.1001 16.44 3.1001Z" fill="#292D32"/>
-            </svg>` :
-            `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 21.6501C11.69 21.6501 11.39 21.6101 11.14 21.5201C7.32 20.2101 1.25 15.5601 1.25 8.6901C1.25 5.1901 4.08 2.3501 7.56 2.3501C9.25 2.3501 10.83 3.0101 12 4.1901C13.17 3.0101 14.75 2.3501 16.44 2.3501C19.92 2.3501 22.75 5.2001 22.75 8.6901C22.75 15.5701 16.68 20.2101 12.86 21.5201C12.61 21.6101 12.31 21.6501 12 21.6501ZM7.56 3.8501C4.91 3.8501 2.75 6.0201 2.75 8.6901C2.75 15.5201 9.32 19.3201 11.63 20.1101C11.81 20.1701 12.2 20.1701 12.38 20.1101C14.68 19.3201 21.26 15.5301 21.26 8.6901C21.26 6.0201 19.1 3.8501 16.45 3.8501C14.93 3.8501 13.52 4.5601 12.61 5.7901C12.33 6.1701 11.69 6.1701 11.41 5.7901C10.48 4.5501 9.08 3.8501 7.56 3.8501Z" fill="#292D32"/>
-            </svg>`
-          }
-        </button>
+        <div class="c-actions" style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-like" style="background:#fff;color:#111;border:1px solid var(--line)" title="Like">
+            ${c.user_has_liked_comment
+              ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                   <path d="M16.44 3.1001C14.63 3.1001 13.01 3.9801 12 5.3301C10.99 3.9801 9.37 3.1001 7.56 3.1001C4.49 3.1001 2 5.6001 2 8.6901C2 9.8801 2.19 10.9801 2.52 12.0001C4.1 17.0001 8.97 19.9901 11.38 20.8101C11.72 20.9301 12.28 20.9301 12.62 20.8101C15.03 19.9901 19.9 17.0001 21.48 12.0001C21.81 10.9801 22 9.8801 22 8.6901C22 5.6001 19.51 3.1001 16.44 3.1001Z" fill="#292D32"/></svg>`
+              : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                   <path d="M12 21.6501C11.69 21.6501 11.39 21.6101 11.14 21.5201C7.32 20.2101 1.25 15.5601 1.25 8.6901C1.25 5.1901 4.08 2.3501 7.56 2.3501C9.25 2.3501 10.83 3.0101 12 4.1901C13.17 3.0101 14.75 2.3501 16.44 2.3501C19.92 2.3501 22.75 5.2001 22.75 8.6901C22.75 15.5701 16.68 20.2101 12.86 21.5201C12.61 21.6101 12.31 21.6501 12 21.6501ZM7.56 3.8501C4.91 3.8501 2.75 6.0201 2.75 8.6901C2.75 15.5201 9.32 19.3201 11.63 20.1101C11.81 20.1701 12.2 20.1701 12.38 20.1101C14.68 19.3201 21.26 15.5301 21.26 8.6901C21.26 6.0201 19.1 3.8501 16.45 3.8501C14.93 3.8501 13.52 4.5601 12.61 5.7901C12.33 6.1701 11.69 6.1701 11.41 5.7901C10.48 4.5501 9.08 3.8501 7.56 3.8501Z" fill="#292D32"/></svg>`
+            }
+          </button>
+
+          ${isMine ? `
+            <button class="btn btn-edit"  style="background:#fff;color:#111;border:1px solid var(--line)" title="Edit">Edit</button>
+            <button class="btn btn-save"  style="display:none;background:#111827;color:#fff" title="Save">Save</button>
+            <button class="btn btn-delete" style="background:#ef4444;color:#fff" title="Delete">Delete</button>
+          ` : ``}
+        </div>
       </div>
     `);
-    node.querySelector('button').onclick = async ()=>{ try{ await toggleCommentLike(e.serial, c.serial); await load(); }catch(err){ alert(err.message); } };
+
+    // Fill content safely
+    node.querySelector('.comment-body').textContent = c.content || '';
+    node.querySelector('.comment-edit').value      = c.content || '';
+
+    // Like toggle
+    node.querySelector('.btn-like').onclick = async () => {
+      try { await likeComment(e.id, c.id); await load(); }
+      catch(err){ alert(err.message || 'Failed to like comment'); }
+    };
+
+    if (isMine) {
+      const editBtn = node.querySelector('.btn-edit');
+      const saveBtn = node.querySelector('.btn-save');
+      const delBtn  = node.querySelector('.btn-delete');
+      const bodyEl  = node.querySelector('.comment-body');
+      const editEl  = node.querySelector('.comment-edit');
+
+      // Enter edit mode
+      editBtn.onclick = () => {
+        bodyEl.style.display = 'none';
+        editEl.style.display = '';
+        saveBtn.style.display = '';
+        editBtn.style.display = 'none';
+        editEl.focus();
+      };
+
+      // Save (PATCH) – no confirm dialogs anywhere
+      saveBtn.onclick = async () => {
+        const newTxt = (editEl.value || '').trim();
+        if (!newTxt) { alert('Comment cannot be empty.'); return; }
+        saveBtn.disabled = true;
+        try {
+          await updateComment(e.id, c.id, newTxt);
+          await load();
+        } catch (err) {
+          alert(err.message || 'Failed to update comment');
+        } finally {
+          saveBtn.disabled = false;
+        }
+      };
+
+      // Delete (DELETE) – no confirm dialog
+      delBtn.onclick = async () => {
+        delBtn.disabled = true;
+        try {
+          await deleteComment(e.id, c.id);
+          await load();
+        } catch (err) {
+          alert(err.message || 'Failed to delete comment');
+        } finally {
+          delBtn.disabled = false;
+        }
+      };
+
+      // Optional: Esc cancels edit
+      editEl.addEventListener('keydown', ev => {
+        if (ev.key === 'Escape') {
+          editEl.style.display = 'none';
+          bodyEl.style.display = '';
+          saveBtn.style.display = 'none';
+          editBtn.style.display = '';
+        }
+      });
+    }
+
     clist.append(node);
   });
 
-  // likes
-  const llist = $('#likesList'); llist.innerHTML = '';
-  (e.likes||[]).forEach(l=>{
+  // ===== LIKES TAB =====
+  const llist = $('#likesList');
+  llist.innerHTML = '';
+  (e.likes || []).forEach(l => {
     llist.append(el(`
       <div class="item">
-        <img class="pfp" style="width:36px;height:36px" src="${(l.author && l.author.image) ? l.author.image : DEFAULT_PFP}" alt="">
+        <img class="pfp" style="width:36px;height:36px"
+             src="${(l.author && l.author.image) ? l.author.image : DEFAULT_PFP}" alt="">
         <div>
           <div><strong>${esc(l.author?.display_name || l.author?.username || '—')}</strong></div>
           <div class="cmeta">${fmtTime(l.created_at)}</div>
@@ -373,12 +515,18 @@ function renderRight(e){
     `));
   });
 
-  // add comment
-  $('#postComment').onclick = async ()=>{
+  // Post a new comment
+  $('#postComment').onclick = async () => {
     const val = $('#commentInput').value.trim();
     if (!val) return;
-    try{ await addComment(e.serial, val); $('#commentInput').value=''; await load(); setTab('comments'); }
-    catch(err){ alert(err.message || 'Failed to add comment'); }
+    try {
+      await addComment(e.id, val);
+      $('#commentInput').value = '';
+      await load();
+      setTab('comments');
+    } catch (err) {
+      alert(err.message || 'Failed to add comment');
+    }
   };
 }
 
@@ -389,7 +537,8 @@ async function deleteEntry() {
       headers: getHeaders(),
     });
     if (!res.ok) {
-      throw new Error(data?.detail || `Failed (${res.status})`);
+      const text = await res.text().catch(()=> '');
+      throw new Error(`${res.status} ${res.statusText}${text ? ` – ${text}` : ''}`);
     }
     window.location.href = '/home/';
   }catch(err){ alert(err.message || 'Failed to delete entry'); }
@@ -402,6 +551,7 @@ function editEntry() {
 function navigateToHome(){
   window.location.href = '/home/';
 }
+
 /* ============ START ============ */
 boot();
 </script>

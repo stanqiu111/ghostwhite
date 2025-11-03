@@ -48,6 +48,27 @@ class Entry(models.Model):
     @property
     def like_count(self):
         return self.likes.count()
+    
+    def get_absolute_url(self) -> str:
+        """Canonical reader URL (used by 'Copy link')."""
+        # if you have a named URL, prefer reverse("entry-detail", args=[self.id])
+        return f"/entries/{self.id}/"
+
+    @property
+    def is_shareable(self) -> bool:
+        """Publicly viewable by URL only (public/unlisted)."""
+        return (self.visibility or "").lower() in {"public", "unlisted"}
+
+    def absolute_url(self, request=None) -> str:
+        """
+        Optional: full URL with scheme+host when you have a request.
+        Use in emails, API, etc.
+        """
+        path = self.get_absolute_url()
+        if request is None:
+            return path
+        scheme = "https" if request.is_secure() else "http"
+        return f"{scheme}://{request.get_host()}{path}"
 
 
 

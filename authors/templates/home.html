@@ -370,7 +370,8 @@
               />
             </svg>
           </button>
-          <button class="header-btn" title="Notifications">
+          <button class="header-btn" title="Inbox"
+            onclick="document.getElementById('notifCard').scrollIntoView({behavior:'smooth'})">
             <svg
               width="30"
               height="27"
@@ -457,9 +458,15 @@
           <button class="profile-btn" onclick="navigateToProfile('{{ user.username }}')">My Profile</button>
         </div>
 
-        <div class="card">
-          <div class="card-title">Notification</div>
-          <div class="empty-state">No notifications</div>
+        <div class="card" id="notifCard">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Inbox</span>
+            <span class="badge" id="notifCount"
+                  style="padding:2px 8px;border-radius:999px;background:#f3f4f6;font-size:12px;color:#374151;">0</span>
+          </div>
+          <div id="notifList" class="list">
+            <div class="empty-state">Loading…</div>
+          </div>
         </div>
       </div>
 
@@ -646,6 +653,7 @@
     <script>
       async function api(path, opts={}) {
         const res = await fetch(`/api${path}`, {
+          credentials: 'same-origin',
           ...opts,
           headers: { ...(opts.headers||{}), ...getHeaders() }
         });
@@ -715,7 +723,63 @@
           document.body.removeChild(ta);
         }
       }
-      
+      async function loadFollowingInbox() {
+        const list = document.getElementById('notifList');
+        const badge = document.getElementById('notifCount');
+        try {
+          list.innerHTML = '<div class="empty-state">Loading…</div>';
+          const res = await api('/inbox/following-activity/?limit=20', { method: 'GET' });
+          const items = res.items || [];
+          badge.textContent = String(items.length);
+
+          if (!items.length) {
+            list.innerHTML = '<div class="empty-state">No notifications</div>';
+            return;
+          }
+          list.innerHTML = '';
+
+          items.forEach(n => {
+            const row = document.createElement('div');
+            row.className = 'suggestion-item';
+            row.style.borderBottom = '1px solid #f0f0f0';
+
+            const left = document.createElement('div');
+            left.className = 'suggestion-info';
+            const actorImg = (n.actor && n.actor.image) ? n.actor.image : '{% static "images/default_pfp.png" %}';
+            const actorName = (n.actor && n.actor.display_name) ? n.actor.display_name : 'Someone';
+            left.innerHTML = `
+              <div class="suggestion-avatar">
+                <img src="${actorImg}" alt="${esc(actorName)}"
+                    style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+              </div>
+              <div>
+                <div class="suggestion-name">${esc(actorName)}</div>
+                <div style="font-size:12px;color:#6b7280;">
+                  ${esc(n.verb)} • ${new Date(n.created).toLocaleString()}
+                </div>
+              </div>
+            `;
+
+            const right = document.createElement('div');
+            right.style.display = 'flex'; right.style.gap = '8px';
+            const btn = document.createElement('button');
+            btn.className = 'follow-btn';
+            btn.textContent = 'View';
+            btn.onclick = () => {
+              if (n.object_id) navigateToEntry(n.object_id);
+              else if (n.object_url) window.open(n.object_url, '_blank', 'noopener');
+            };
+            right.appendChild(btn);
+
+            row.appendChild(left);
+            row.appendChild(right);
+            list.appendChild(row);
+          });
+        } catch (e) {
+          list.innerHTML = `<div class="empty-state">Failed to load. ${e.message || e}</div>`;
+        }
+      }
+
       // ---- Follow Requests ----
 
       async function loadFollowRequests() {
@@ -819,7 +883,11 @@
       }
 
       // kick off on load
-      document.addEventListener('DOMContentLoaded', loadFollowRequests);
+      document.addEventListener('DOMContentLoaded', () => {
+        loadFollowRequests();
+        loadFollowingInbox();
+        setInterval(loadFollowingInbox, 30000); // refresh every 30s 
+      });
 
       async function followFromButton(btn) {
         const id = btn.dataset.authorId;

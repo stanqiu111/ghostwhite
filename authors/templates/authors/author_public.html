@@ -358,6 +358,7 @@
 
       async function api(path, opts={}) {
         const res = await fetch(`/api${path}`, {
+          credentials: 'same-origin',
           ...opts,
           headers: { ...(opts.headers||{}), ...getHeaders() }
         });

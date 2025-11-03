@@ -7,6 +7,7 @@ from django.contrib.auth.models import (
 import uuid
 from nodes.models import Node
 from django.utils import timezone
+from django.conf import settings
 import django.db.transaction as transaction
 
 
@@ -132,7 +133,7 @@ class Follow(models.Model):
         return Follow.objects.select_related("follower").filter(
             following=followee, status=Follow.PENDING
         )
-
+      
     @staticmethod
     def get_friends(author):
         """
@@ -158,3 +159,28 @@ class Follow(models.Model):
         )
 
         return friends
+
+class GitHubIntegration(models.Model):
+    """
+    Stores an author's GitHub linkage
+     - github_username: public github usernam to poll
+     - last_synced_at: last time successfully polled events
+    """
+
+    author = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="github_integration",
+    )
+    github_username = models.CharField(max_length=255, help_text="Public github username")
+    access_token = models.CharField(max_length=255, blank=True, null=True, help_text="Optional: GitHub personal access token for higher rate limits")
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "GitHub integration"
+        verbose_name_plural = "GitHub integrations"
+
+    def __str__(self):
+        return f"GitHub Integration for {self.author} ({self.github_username})"

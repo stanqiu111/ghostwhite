@@ -1,8 +1,9 @@
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
-from .views import AuthorListView, AuthorByUsernameView
-from .views import FollowRequestsListView, FollowDecisionView
+from .views import AuthorPublicGetUpdate, AuthorListView, AuthorByUsernameView
+from .views import FollowRequestView, FollowRequestsListView, FollowDecisionView
+from .views import SyncMyGithubReposView
 from django.views.generic import TemplateView
 from entries.views import EntryImageView
 
@@ -20,8 +21,14 @@ urlpatterns = [
     path("<uuid:author_id>/follow/", views.FollowRequestView.as_view(), name="follow-request"),
     path("follow-requests/", FollowRequestsListView.as_view(), name="follow-requests"),
     path("follows/<uuid:pk>/decision/", FollowDecisionView.as_view(), name="follow-decision"),
-    #path("<uuid:author_id>/", AuthorByIdView.as_view(), name="author_by_id"),
+    path("sync-repos/", views.SyncMyGithubReposView.as_view(), name="sync_github_repos"),
+    path("<uuid:author_id>/", AuthorPublicGetUpdate.as_view(), name="author_public"),
+    #path("<uuid:author_id>/entries/", include("entries.urls")),
+    path('<uuid:author_id>/follow/', views.FollowRequestView.as_view(), name='follow-request'),
+    path("follow-requests/", FollowRequestsListView.as_view(), name="follow-requests"),
+    path("follows/<uuid:pk>/decision/", FollowDecisionView.as_view(), name="follow-decision"),
+    # static/explicit routes must come before the catch-all username route
+    path("logout/", views.logout_view, name="logout"),
     path("<str:username>/", AuthorByUsernameView.as_view(), name="author_by_username"),
     path("authors/<str:username>/", TemplateView.as_view(template_name="authors/author_public.html"), name="author_public_page"),
-    path("logout/", views.logout_view, name="logout"),
 ]

@@ -39,6 +39,9 @@
   .button_panel{display:flex;gap:10px;margin-left:auto; }
   .delete_button{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer}
   .edit_button{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer}
+  .meta{margin-top:6px;font-size:13px;color:var(--muted)}
+  .badge{display:inline-block;background:#111827;color:#fff;padding:4px 8px;border-radius:8px;font-size:12px;margin-left:8px}
+  .meta a.source-link{margin-left:8px;color:var(--brand);text-decoration:none;font-weight:600}
   @media (max-width:980px){ .row{grid-template-columns:1fr} .right{order:2} }
   .section .content img {
   width: 320px !important;   
@@ -158,6 +161,19 @@
           <div>
             <div class="name" id="entryAuthorName">—</div>
             <div class="time" id="entryTime">—</div>
+            <p class="meta" id="entryMeta">
+              {% if entry %}
+                Posted {{ entry.created_at }}
+                {% if entry.source == "github" %}
+                  <span class="badge">From GitHub</span>
+                  {% if entry.source_url %}
+                    <a class="source-link" href="{{ entry.source_url }}" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+                  {% endif %}
+                {% endif %}
+              {% else %}
+                <!-- client-rendered metadata will be injected -->
+              {% endif %}
+            </p>
           </div>
           <div id="button_panel" class="button_panel" style="display:none">
             <button class="delete_button" onclick="deleteEntry()">Delete</button>
@@ -361,6 +377,44 @@ function renderEntry(e){
   $('#entryAuthorName').textContent = e.author?.display_name || e.author?.username || '—';
   $('#entryTime').textContent = fmtTime(e.created_at);
 
+  // update metadata area (server-rendered fallback exists in template)
+  try {
+    const meta = document.getElementById('entryMeta');
+    if (meta) {
+      // if template had server-side time, update it to localized formatted time
+      const serverTime = meta.querySelector('#entryCreatedAtServer');
+      if (serverTime) serverTime.textContent = fmtTime(e.created_at);
+
+      // remove any previous badge/link we added earlier
+      const existingBadge = meta.querySelector('.badge');
+      if (existingBadge && e.source !== 'github') existingBadge.remove();
+      const existingLink = meta.querySelector('a.source-link');
+      if (existingLink && (!e.source_url || e.source !== 'github')) existingLink.remove();
+
+      // add badge/link for GitHub-sourced entries
+      if (e.source === 'github') {
+        if (!meta.querySelector('.badge')) {
+          const b = document.createElement('span');
+          b.className = 'badge';
+          b.textContent = 'From GitHub';
+          meta.appendChild(b);
+        }
+        if (e.source_url) {
+          let link = meta.querySelector('a.source-link');
+          if (!link) {
+            link = document.createElement('a');
+            link.className = 'source-link';
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            meta.appendChild(link);
+          }
+          link.href = e.source_url;
+          link.textContent = 'View on GitHub';
+        }
+      }
+    }
+  } catch (err) { console.warn('Failed to update entry meta', err); }
+
   const contentNode = $('#entryContent');
   const contentType = (e.content_type||'plain_text').toLowerCase();
   if (contentType.includes('markdown')) { marked.setOptions({gfm:true,breaks:true}); contentNode.innerHTML = marked.parse(e.content||''); }
@@ -419,8 +473,27 @@ function renderEntry(e){
 
   $('#likeChip').onclick = async ()=>{ try{ await likeEntry(e.serial, $('#likeChip')); }catch(err){ alert(err.message); } };
   $('#commentChip').onclick = ()=> setTab('comments');
+  const canShare = e.visibility === 'public' || e.visibility === 'unlisted';
   const copyChip = document.getElementById('copyChip');
   const copyNote = document.getElementById('copyNote');
+  if (copyChip) copyChip.style.display = canShare ? '' : 'none';
+
+  const entryUrl = window.location.href;
+
+  if (copyChip) {
+    copyChip.onclick = async () => {
+      try {
+        await copyToClipboard(entryUrl);
+        copyNote.style.display = 'inline';
+        copyNote.textContent = '✅ Link copied!';
+        setTimeout(() => (copyNote.style.display = 'none'), 1200);
+      } catch (err) {
+        copyNote.style.display = 'inline';
+        copyNote.textContent = '⚠️ Failed to copy';
+        setTimeout(() => (copyNote.style.display = 'none'), 1600);
+      }
+    };
+  }
 }
 
 function setTab(which){
@@ -602,6 +675,18 @@ function navigateToHome(){
   window.location.href = '/home/';
 }
 
+async function copyToClipboard(text){
+  if (navigator.clipboard && window.isSecureContext !== false) {
+    await navigator.clipboard.writeText(text);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+}
 /* ============ START ============ */
 boot();
 </script>

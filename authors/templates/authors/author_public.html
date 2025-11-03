@@ -593,8 +593,8 @@
       }
 
       async function handleUnfollow(profile, btn) {
-        if (!profile.id) {
-          console.error('Profile ID not available');
+        if (!profile.serial) {
+          console.error('Profile serial not available');
           return;
         }
 
@@ -603,7 +603,7 @@
         btn.textContent = 'Unfollowing...';
 
         try {
-          const res = await API.unfollow(profile.id);
+          const res = await API.unfollow(profile.serial);
 
           if (res.status === 204 || res.status === 200) {
             // Successfully unfollowed

@@ -642,7 +642,7 @@
     </div>
 
     <script defer src="{% static 'js/api.js' %}"></script>
-    <script defer src="{% static 'js/common.js' %}"></script>
+    <script src="{% static 'js/common.js' %}"></script>
     <script>
       async function api(path, opts={}) {
         const res = await fetch(`/api${path}`, {
@@ -886,52 +886,7 @@
         }
       }
 
-    function renderSafeMarkdown(mdText) {
-      // convert markdown -> html and sanitize
-      marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
-      const rawHtml = marked.parse(mdText || '');
-
-      const cleanHtml = DOMPurify.sanitize(rawHtml, {
-        ALLOWED_TAGS: [
-          'p','br','strong','em','s','code','pre','blockquote',
-          'ul','ol','li','h1','h2','h3','h4','h5','h6','hr',
-          'a','img'
-        ],
-        ALLOWED_ATTR: [
-          'href','title','target','rel',                // for <a>
-          'src','alt','width','height','loading','decoding','referrerpolicy' // for <img>
-        ],
-        ALLOW_DATA_ATTR: false,
-        FORBID_TAGS: ['style','svg','math','form','input','button','iframe','script']
-      });
-      // ensure safe links
-      const tmp = document.createElement('div');
-      tmp.innerHTML = cleanHtml;
-      tmp.querySelectorAll('a[target="_blank"]').forEach(a => {
-        if (!/noopener|noreferrer/.test(a.rel)) a.rel = 'noopener noreferrer';
-      });
-      return tmp.innerHTML;
-    }
-    // Apply it to all .entry-content elements on the page
-    document.querySelectorAll('.entry-content').forEach(node => {
-      const type = String(node.dataset.ctype || 'plain_text').toLowerCase();
-
-      // If this entry represents an image (base64 or `image/*`), do NOT echo the raw content.
-      // The <img> element below will display it instead.
-      if (type.includes('base64') || type.startsWith('image/')) {
-        node.textContent = '';
-        return;
-      }
-
-      // Markdown -> safe HTML
-      if (type.includes('markdown')) {
-        const md = node.textContent; // raw markdown text
-        node.innerHTML = renderSafeMarkdown(md);
-        return;
-      }
-
-      // Otherwise (plain_text etc.) leave as-is.
-    });
+    initMarkdownRendering();
 
     async function syncGithubActivity() {
       try {

@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'authors/author_public.css' %}">
+    <script src="{% static 'js/marked.min.js' %}"></script>
+    <script src="{% static 'js/purify.min.js' %}"></script>
   </head>
   <body>
     <!-- Header -->
@@ -689,6 +691,8 @@
 
       // Clean up interval when leaving the page
       window.addEventListener('beforeunload', stopStatusPolling);
+      
+      initMarkdownRendering();
     </script>
   </body>
 </html>

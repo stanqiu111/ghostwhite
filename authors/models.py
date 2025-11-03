@@ -25,10 +25,16 @@ class AuthorManager(BaseUserManager):
     def create_superuser(self, username, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_active", True)
+        extra_fields.setdefault("approved", True)  
 
         if "node" not in extra_fields or extra_fields["node"] is None:
-            local_node, _ = Node.objects.get_or_create(is_local=True, defaults={"host": "http://127.0.0.1:8000/"})
+            local_node, _ = Node.objects.get_or_create(
+                is_local=True,
+                defaults={"host_url": "http://127.0.0.1:8000/"},
+            )
             extra_fields["node"] = local_node
+            
             
         return self.create_user(username, password, **extra_fields)
 
@@ -50,9 +56,10 @@ class Author(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="authors")
+    approved = models.BooleanField(default=False)
 
     # required by Django Admin
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
 
     USERNAME_FIELD = "username"

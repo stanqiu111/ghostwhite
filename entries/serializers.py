@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Entry, Comment, CommentLike, EntryLike
 from authors.serializers import AuthorSerializer
 from nodes.serializers import NodeSerializer
+from django.urls import reverse
 from utils.serializers import UrlBuildingMixin
 class CommentLikeSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     id = serializers.SerializerMethodField()
@@ -80,6 +81,11 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     comments = CommentSerializer(many=True)
     likes = EntryLikeSerializer(many=True, read_only=True)
     like_count = serializers.IntegerField(read_only=True)
+    is_image = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+    image = serializers.ImageField(read_only=True)
+    visibility = serializers.SerializerMethodField()
+
     id = serializers.SerializerMethodField()
     serial = serializers.SerializerMethodField()
 
@@ -92,13 +98,16 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
             "content",
             "content_type",
             "visibility",
-            "image",
             "created_at",
             "updated_at",
             "deleted_at",
             "node",
             "like_count", 
             "likes",
+            "comments",
+            "image",
+            "is_image",
+            "image_url",    
             "comments",    
             "source",
             "source_url",
@@ -152,6 +161,45 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     def get_serial(self, obj):
         return str(obj.id)
 
+    def get_is_image(self, obj):
+        """
+        Need to determine if this entry is an image since entries store images either as uploaded files (entry.image)
+        or as base64-encoded str in entry.content
+        """
+        if getattr(obj, "image", None):
+            return True
+
+        ctype = (getattr(obj, "content_type", "") or "").lower()
+        if "base64" in ctype or ctype.startswith("image/"):
+            return True
+
+        if hasattr(obj, "is_image_entry") and callable(obj.is_image_entry):
+            try:
+                return bool(obj.is_image_entry())
+            except Exception:
+                pass
+
+        return False
+
+
+    def get_image_url(self, obj):
+        # Only expose the proxy image URL for base64 image entries
+        if not (getattr(obj, "is_image_entry") and obj.is_image_entry()):
+            return None
+        request = self.context.get("request")
+        url = reverse(
+            "authors:entry-image-by-id",
+            kwargs={"author_id": obj.author.id, "pk": obj.id}
+        )
+        return request.build_absolute_uri(url) if request else url
+
+    def get_visibility(self, obj):
+        request = self.context.get("request")
+        if request and getattr(request.user, "is_staff", False):
+            return obj.visibility
+        if obj.visibility == "DELETED":
+            return "private"
+        return obj.visibility
 
 class EntryCreateSerializer(serializers.ModelSerializer):
     """Having a separate serializer  for creating because we don't need all info for creating an entry"""
@@ -165,6 +213,34 @@ class EntryCreateSerializer(serializers.ModelSerializer):
             "visibility",
             "image",
         ]
+        extra_kwargs = {
+            "content_type": {"required": False},
+            "content": {"required": False, "allow_blank": True},
+            "image": {"required": False},
+        }
+
+    def validate(self, attrs):
+        """
+        Creation: require at least one of content or image
+        Update: allow clearing content if there's an existing image on the instance or a new image in attrs
+        """
+        content = attrs.get("content")
+        image = attrs.get("image")
+
+        if getattr(self, "instance", None) is not None:
+            # If no new image provided and content is empty/None, permit update as long as the instance already has an image
+            has_existing_image = bool(getattr(self.instance, "image", None))
+            content_empty = (content is None) or (isinstance(content, str) and content.strip() == "")
+            if content_empty and not image and not has_existing_image:
+                raise serializers.ValidationError("Either 'content' or 'image' must be provided.")
+            return attrs
+
+        if (content is None or (isinstance(content, str) and content.strip() == "")) and not image:
+            raise serializers.ValidationError("Either 'content' or 'image' must be provided.")
+        return attrs
+
+    def create(self, validated_data):
+        return super().create(validated_data)
 
 class EntrySerializer(serializers.ModelSerializer):
     class Meta:

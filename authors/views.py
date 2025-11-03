@@ -1,35 +1,26 @@
-import os, uuid
 import json
+from django.shortcuts import render, redirect, get_object_or_404
 import re
 from django.shortcuts import render, redirect, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from django.views.decorators.http import require_http_methods
-from rest_framework import generics
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework import generics, status, permissions
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.response import Response
-from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.parsers import MultiPartParser, JSONParser, FormParser
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
-from django.utils import timezone
-from .models import Follow
-from .serializers import FollowRequestSerializer
-from rest_framework import permissions
-from .models import Author
-from .serializers import AuthorSerializer, AuthorRegistrationSerializer
+from .models import Author, Follow
+from .serializers import AuthorSerializer, AuthorRegistrationSerializer, FollowRequestSerializer
 from django.contrib.auth import authenticate, login, logout
-from django.http import JsonResponse
-import json
-from django.views.decorators.csrf import csrf_exempt
 from entries.models import Entry
-from entries.serializers import EntryRetrieveSerializer
 from django.db import IntegrityError
+from .permissions import IsApproved
 from django.contrib.auth.decorators import login_required
 from .models import GitHubIntegration
 from .forms import GitHubIntegrationForm
@@ -54,13 +45,12 @@ class AuthorRegistrationView(generics.CreateAPIView):
         refresh = RefreshToken.for_user(user)  # create refresh token for the user
 
         return Response(
-            {
-                "user": AuthorSerializer(user).data,
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        {
+            "status": "pending",
+            "user": AuthorSerializer(user).data
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 class AuthorRetrieveUpdateView(generics.RetrieveUpdateAPIView):
@@ -76,7 +66,13 @@ def handle_login(request):
     if request.method == "POST":
         data = json.loads(request.body)
         username = data.get("username")
-        password = data.get("password")
+        password = data.get("password")  
+        try:
+            author_obj = Author.objects.get(username=username)
+        except Author.DoesNotExist:
+            author_obj = None
+        if author_obj is not None and not getattr(author_obj, "approved", False):
+            return JsonResponse({"error": "Account pending admin approval."}, status=403)
 
         user = authenticate(request, username=username, password=password)
 
@@ -235,6 +231,11 @@ class AuthorListView(generics.ListAPIView):
     queryset = Author.objects.all().order_by("username")
     serializer_class = AuthorSerializer
     pagination_class = AuthorPagination
+    queryset = (
+        Author.objects
+        .filter(is_active=True, is_staff=False, is_superuser=False)
+        .order_by('username')
+    )
 
     def list(self, request, *args, **kwargs):
          # Apply pagination; if a page exists, return paginated data

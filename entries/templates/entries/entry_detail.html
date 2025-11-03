@@ -53,10 +53,12 @@
   border: 1px solid var(--line);
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="{% static 'js/marked.min.js' %}"></script>
+<script src="{% static 'js/purify.min.js' %}"></script>
+<script src="{% static 'js/api.js' %}"></script>
 <script src="{% static 'js/common.js' %}"></script>
 </head>
+
 <body>
   <div class="header">
     <div class="header-content">
@@ -236,7 +238,6 @@
     </aside>
   </div>
 </div>
-<script src="{% static 'js/api.js' %}"></script>
 <script>
 /* ============ CONFIG ============ */
 const DEFAULT_PFP = "/static/images/default_pfp.png"; // change if your path differs
@@ -246,6 +247,14 @@ const headersAuth = getHeaders();
 const $ = (sel, root=document)=> root.querySelector(sel);
 const el = (html)=>{ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; };
 const fmtTime = iso => { try{return new Date(iso).toLocaleString();}catch{return iso||"";} };
+
+// Add a cache-busting query param to a URL, using a version (timestamp or string)
+const withCacheBust = (u, version) => {
+  if (!u) return u;
+  const sep = u.includes('?') ? '&' : '?';
+  const v = version ? (Date.parse(version) || version) : Date.now();
+  return `${u}${sep}v=${encodeURIComponent(v)}`;
+};
 const esc = s => (s||"").replace(/[&<>'"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[m]));
 const updateComment = (entryId, commentId, newContent) =>
     api(`/entries/${entryId}/comments/${commentId}/`, {
@@ -261,12 +270,33 @@ const updateComment = (entryId, commentId, newContent) =>
   return `${window.location.origin}/entries/${id}/`;
 }
 /* ============== API ============= */
-async function api(path, opts={}) {
-  const res = await fetch(`/api${path}`, {
-    ...opts,
-    headers: { ...(opts.headers||{}), ...headersAuth }
-  });
-  let data = null; try{ data = await res.json(); }catch{}
+async function api(path, opts = {}) {
+  const method = (opts.method || 'GET').toUpperCase();
+
+  async function doFetch(withAuth = true) {
+    const hdrs = { ...(opts.headers || {}) };
+    if (withAuth) Object.assign(hdrs, getHeaders(hdrs));
+    const res = await fetch(`/api${path}`, {
+      ...opts,
+      credentials: 'same-origin',
+      headers: hdrs,
+    });
+    let data = null; try { data = await res.json(); } catch {}
+    return { res, data };
+  }
+
+  let { res, data } = await doFetch(true);
+
+  const detail = String(data?.detail || '').toLowerCase();
+  if (method === 'GET' && res.status === 401 && detail.includes('token')) {
+    try {
+      localStorage.removeItem('access');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh');
+    } catch {}
+    ({ res, data } = await doFetch(false));
+  }
+
   if (!res.ok) throw new Error(data?.detail || `${res.status} ${res.statusText}`);
   return data;
 }
@@ -386,39 +416,57 @@ function renderEntry(e){
   } catch (err) { console.warn('Failed to update entry meta', err); }
 
   const contentNode = $('#entryContent');
-  const ct = (e.content_type||'plain_text').toLowerCase();
-
-  if (ct.includes('markdown')) {
-    marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
-    const rawHtml = marked.parse(e.content || '');
-
-    const cleanHtml = DOMPurify.sanitize(rawHtml, {
-      ALLOWED_TAGS: [
-        'p','br','strong','em','s','code','pre','blockquote',
-        'ul','ol','li','h1','h2','h3','h4','h5','h6','hr',
-        'a','img'
-      ],
-      ALLOWED_ATTR: [
-        'href','title','target','rel',               
-        'src','alt','width','height','loading','decoding','referrerpolicy'  
-      ],
-      ALLOW_DATA_ATTR: false,
-      FORBID_TAGS: ['style','svg','math','form','input','button','iframe','script']
-    });
-
-    // keep external links safe
-    const tmp = document.createElement('div');
-    tmp.innerHTML = cleanHtml;
-    tmp.querySelectorAll('a[target="_blank"]').forEach(a => {
-      if (!/noopener|noreferrer/.test(a.rel)) a.rel = 'noopener noreferrer';
-    });
-    contentNode.innerHTML = tmp.innerHTML;
-  } else {
-    contentNode.textContent = e.content || '';
-  }
+  const contentType = (e.content_type||'plain_text').toLowerCase();
+  if (contentType.includes('markdown')) { marked.setOptions({gfm:true,breaks:true}); contentNode.innerHTML = marked.parse(e.content||''); }
+  else { contentNode.textContent = e.content || ''; }
 
   const img = $('#entryImage');
-  if (e.image) { img.src = e.image; img.style.display = 'block'; } else { img.style.display = 'none'; }
+
+  // Consider image entries when any of these is true:
+  // 1. backend exposes a direct URL (image_url)
+  // 2. backend exposes a stored file URL/path (image)
+  // 3. content_type : image/* or *base64
+  const isImage = Boolean(e.image_url || e.image || contentType.startsWith('image/') || contentType.includes('base64'));
+
+  if (isImage) {
+    const src = e.image_url || e.image || '';
+    if (src) {
+      const version = e.updated_at || e.created_at || e.id;
+      img.src = withCacheBust(src, version);
+      img.style.display = 'block';
+    } else {
+      img.style.display = 'none';
+    }
+    // For pure image entries encoded as base64/image types, do not echo raw content
+    if (contentType.includes('base64') || contentType.startsWith('image/')) {
+      contentNode.innerHTML = '';
+    } else {
+      // Otherwise render text as usual
+      if (contentType.includes('markdown')) {
+        if (window.marked) {
+          marked.setOptions({ gfm: true, breaks: true });
+          contentNode.innerHTML = marked.parse(e.content || '');
+        } else {
+          contentNode.textContent = e.content || '';
+        }
+      } else {
+        contentNode.textContent = e.content || '';
+      }
+    }
+  } else {
+    // Non-image: render text/markdown, hide image
+    img.style.display = 'none';
+    if (contentType.includes('markdown')) {
+      if (window.marked) {
+        marked.setOptions({ gfm: true, breaks: true });
+        contentNode.innerHTML = marked.parse(e.content || '');
+      } else {
+        contentNode.textContent = e.content || '';
+      }
+    } else {
+      contentNode.textContent = e.content || '';
+    }
+  }
 
   $('#likeCount').textContent = (e.like_count ?? e.likes?.length ?? 0);
   $('#commentCount').textContent = (e.comments?.length ?? 0);
@@ -604,17 +652,19 @@ function renderRight(e){
 }
 
 async function deleteEntry() {
+  if (!confirm('Delete this entry?')) return;
   try{
     const res = await fetch(`/api/entries/${ENTRY_SERIAL}/delete/`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
     if (!res.ok) {
-      const text = await res.text().catch(()=> '');
-      throw new Error(`${res.status} ${res.statusText}${text ? ` – ${text}` : ''}`);
+      throw new Error(data?.detail || `Failed (${res.status})`);
     }
     window.location.href = '/home/';
-  }catch(err){ alert(err.message || 'Failed to delete entry'); }
+  }catch(err){
+    alert(err.message || 'Failed to delete entry');
+  }
 }
 
 function editEntry() {

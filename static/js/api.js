@@ -1,7 +1,12 @@
+function getCSRFToken() {
+  const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
 function getHeaders() {
   const token = localStorage.getItem("access_token");
   return {
-
+    "X-CSRFToken": getCSRFToken(),
+    "X-Requested-With": "XMLHttpRequest",
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
   };

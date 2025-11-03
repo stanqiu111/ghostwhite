@@ -5,6 +5,7 @@ from .views import AuthorPublicGetUpdate, AuthorListView, AuthorByUsernameView
 from .views import FollowRequestView, FollowRequestsListView, FollowDecisionView
 from .views import SyncMyGithubReposView
 from django.views.generic import TemplateView
+from entries.views import EntryImageView
 
 
 app_name = "authors"
@@ -15,6 +16,11 @@ urlpatterns = [
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("register/", views.AuthorRegistrationView.as_view(), name="register"),
     path("author_profile/", views.AuthorRetrieveUpdateView.as_view(), name="profile"),
+    #path("<uuid:author_id>/entries/", include(("entries.urls", "entries"), namespace="authors_entries")),
+    path("<uuid:author_id>/entries/<uuid:pk>/image/", EntryImageView.as_view(), name="entry-image-by-id"),
+    path("<uuid:author_id>/follow/", views.FollowRequestView.as_view(), name="follow-request"),
+    path("follow-requests/", FollowRequestsListView.as_view(), name="follow-requests"),
+    path("follows/<uuid:pk>/decision/", FollowDecisionView.as_view(), name="follow-decision"),
     path("sync-repos/", views.SyncMyGithubReposView.as_view(), name="sync_github_repos"),
     path("<uuid:author_id>/", AuthorPublicGetUpdate.as_view(), name="author_public"),
     #path("<uuid:author_id>/entries/", include("entries.urls")),

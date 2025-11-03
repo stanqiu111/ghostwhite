@@ -365,10 +365,19 @@
             headers: getHeaders(),
             body: JSON.stringify(data),
           })
-            .then((response) => response.json())
-            .then((data) => {
+            .then(async (response) => {
+              const status = response.status;
+              const data = await response.json().catch(() => ({}));
               console.log(data);
-              if (data.access) {
+              
+              // Pending approval: backend returns 403 with {"error": "..."}
+              if (status === 403) {
+                showError(data.error || "Your account is pending admin approval.");
+                return;
+              }
+
+              // Successful login
+              if (response.ok && data.access) {
                 showSuccess("Login successful");
                 // Store tokens and redirect
                 localStorage.setItem("access_token", data.access);
@@ -417,19 +426,18 @@
             headers: getHeaders(),
             body: JSON.stringify(data),
           })
-            .then((response) => response.json())
-            .then((data) => {
+            .then(async (response) => {
+              const status = response.status;
+              const data = await response.json().catch(() => ({}));
               console.log(data);
-              if (data.access) {
-                showSuccess("Signup successful");
-                // Store tokens and redirect
-                localStorage.setItem("access_token", data.access);
-                localStorage.setItem("refresh_token", data.refresh);
-                localStorage.setItem("user_id", data.user_id);
-                setTimeout(() => {
-                  window.location.href = "/home/";
-                }, 1500);
-              } else {
+              if (status === 201 && data.status === "pending") {
+                showSuccess("Signup submitted. Please wait for admin approval before logging in.");
+                document.getElementById("password1").value = "";
+                document.getElementById("password2").value = "";
+                return;
+              }
+                
+              else {
                 // Handle validation errors
                 let errorMessage = "Registration failed. ";
                 if (data.password) {

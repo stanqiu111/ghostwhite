@@ -1,6 +1,5 @@
 from django.urls import path
 from . import views
-from django.views.generic import TemplateView
 
 app_name = "entries"
 urlpatterns = [
@@ -10,7 +9,7 @@ urlpatterns = [
 
     path("entries/<uuid:pk>/update/", views.EntryUpdateView.as_view(), name="entry-update"),
     path("entries/<uuid:pk>/delete/", views.EntryDeleteView.as_view(), name="entry-delete"),
-    
+    #path("<uuid:pk>/image/", views.EntryImageView.as_view(), name="entry-image-by-id"),
     path("entries/<uuid:pk>/addcomments/", views.CommentCreateView.as_view(), name="add_comment"),
     path("entries/<uuid:pk>/comments/<int:comment_id>/", views.CommentUpdateDeleteView.as_view(),name="comment_update_delete"),
 

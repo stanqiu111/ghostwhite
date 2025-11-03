@@ -1,6 +1,5 @@
 from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponseRedirect
-from django.urls import reverse
+from django.http import HttpResponse, Http404
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
@@ -10,12 +9,15 @@ from authors.models import Follow
 from .models import Entry, Comment, EntryLike, CommentLike
 from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.http import http_date
+from django.utils.timezone import now
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404, render
 from django.db.models import Q, Exists, OuterRef
 from authors.models import Follow
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 
 
 def with_follow_flags(qs, user):
@@ -78,8 +80,65 @@ def visible_comments_queryset_for(user):
         is_following_me=Exists(author_follows_me),
     )
 
+class EntryImageView(APIView):
+    """
+    GET /api/authors/<uuid:author_id>/entries/<uuid:pk>/image/
+    Returns raw image bytes for an image entry after visibility checks
+    """
+    permission_classes = [AllowAny]  
+
+    def verify_entry_access(self, user, entry):
+        vis = entry.visibility or ""
+        if vis in ("public", "unlisted"):
+            return True
+
+        if not getattr(user, "is_authenticated", False):
+            return False
+
+        if getattr(user, "is_staff", False):
+            return True
+
+        if getattr(entry, "author_id", None) == getattr(user, "id", None):
+            return True
+
+        if vis == "friends_only":
+            return hasattr(user, "is_friend_with") and user.is_friend_with(entry.author)
+
+        return False
+
+    def get(self, request, author_id, pk, *args, **kwargs):
+        entry = get_object_or_404(Entry, pk=pk, author_id=author_id)
+
+        # hide soft-deleted content from non-staff
+        if getattr(entry, "deleted_at", None) and not (
+            request.user.is_authenticated and getattr(request.user, "is_staff", False)
+        ):
+            raise Http404()
+        
+        if not self.verify_entry_access(request.user, entry):
+            raise Http404()
+
+        # must be an image/*;base64 payload per spec
+        ct = (entry.content_type or "").lower()
+        if not (ct.startswith("image/") and ct.endswith(";base64")):
+            raise Http404()
+
+        # decode base64 body
+        import base64
+        try:
+            raw = base64.b64decode(entry.content or "")
+        except Exception:
+            raise Http404()
+
+        mime = ct.split(";")[0] or "application/octet-stream"
+        resp = HttpResponse(raw, content_type=mime)
+        resp["Cache-Control"] = "private, max-age=3600"
+        resp["Last-Modified"] = http_date(now().timestamp())
+        return resp
+
 class EntryListView(generics.ListAPIView):
     serializer_class = EntryRetrieveSerializer
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -101,18 +160,13 @@ class EntryListView(generics.ListAPIView):
             "comments__likes",
         )
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['request'] = self.request
-        return context
-
 
 class EntryRetrieveView(generics.RetrieveAPIView):
     """Retrieve a single entry by ID"""
 
     serializer_class = EntryRetrieveSerializer
     permission_classes = [IsAuthenticated]
-
+    
     def get_queryset(self):
         user = self.request.user
         base = Entry.objects.filter(deleted_at__isnull=True).select_related("author", "node")
@@ -133,17 +187,12 @@ class EntryRetrieveView(generics.RetrieveAPIView):
             | Q(visibility='unlisted')  # link-based access for retrieve
             | (Q(visibility='friends_only') & Q(is_from_following=True) & Q(is_following_me=True))
         )
-
+        
         return qs.filter(visibility_filter).prefetch_related(
             Prefetch("comments", queryset=visible_comments_queryset_for(user)),
             "likes",
             "comments__likes",
         )
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['request'] = self.request
-        return context
 
 
 class EntryCreateView(generics.CreateAPIView):

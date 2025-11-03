@@ -15,7 +15,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404, render
-from django.db.models import Q, Exists, OuterRef
+from django.db.models import Q, Exists, OuterRef, Prefetch
 from authors.models import Follow
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 

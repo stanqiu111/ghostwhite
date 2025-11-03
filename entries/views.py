@@ -222,6 +222,14 @@ class EntryDeleteView(generics.DestroyAPIView):
         instance.soft_delete()
 
 
+def _are_friends(a, b) -> bool:
+    return (
+        Follow.objects.filter(follower=a, following=b).filter(Q(status=Follow.ACCEPTED) | Q(approved=True)).exists()
+        and
+        Follow.objects.filter(follower=b, following=a).filter(Q(status=Follow.ACCEPTED) | Q(approved=True)).exists()
+    )
+
+
 def entry_detail_page(request, pk):
     entry = get_object_or_404(Entry, pk=pk)
     user_has_liked = EntryLike.objects.filter(entry=entry, author=request.user).exists()

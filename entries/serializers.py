@@ -224,7 +224,6 @@ class EntryCreateSerializer(serializers.ModelSerializer):
         content = attrs.get("content")
         image = attrs.get("image")
 
-        # Update case: self.instance is present
         if getattr(self, "instance", None) is not None:
             # If no new image provided and content is empty/None, permit update as long as the instance already has an image
             has_existing_image = bool(getattr(self.instance, "image", None))
@@ -233,7 +232,6 @@ class EntryCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Either 'content' or 'image' must be provided.")
             return attrs
 
-        # Create case
         if (content is None or (isinstance(content, str) and content.strip() == "")) and not image:
             raise serializers.ValidationError("Either 'content' or 'image' must be provided.")
         return attrs

@@ -232,3 +232,87 @@ class SignupApprovalTests(APITestCase):
         url = reverse("authors:follow-request", args=[followee.id])
         res = self.client.post(url, data={}, format="json")
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class SignupExtraApprovalTests(APITestCase):
+    """
+    Additional non-intrusive tests for US 8.3.1.
+    These complement existing SignupApprovalTests without replacing them.
+    """
+
+    def setUp(self):
+        # Ensure a local node exists if Author requires node FK.
+        self.node, _ = Node.objects.get_or_create(
+            is_local=True, defaults={"host_url": "http://testserver"}
+        )
+
+    def test_signup_creates_pending_author_row(self):
+        payload = {
+            "username": "pending_user_extra",
+            "display_name": "Pending User Extra",
+            "password": "Aa123456!",
+            "password2": "Aa123456!",
+            "node": self.node.id,
+        }
+        url = "/api/authors/register/"
+        res = self.client.post(url, data=payload, format="json")
+        self.assertIn(res.status_code, (status.HTTP_201_CREATED, status.HTTP_200_OK))
+        # status should be "pending" and no tokens
+        self.assertEqual(res.data.get("status"), "pending")
+        self.assertNotIn("access", res.data)
+        self.assertNotIn("refresh", res.data)
+        # row exists and is unapproved
+        u = User.objects.get(username="pending_user_extra")
+        self.assertFalse(getattr(u, "approved", False))
+
+    def test_login_rejects_unapproved_403(self):
+        u = User.objects.create_user(
+            username="u_pending_extra", password="Aa123456!", node=self.node
+        )
+        self.assertFalse(getattr(u, "approved", False))
+
+        res = self.client.post(
+            "/api/authors/login/",
+            data={"username": "u_pending_extra", "password": "Aa123456!"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        # body mentions pending
+        try:
+            body = res.json()
+        except Exception:
+            body = {}
+        self.assertIn("pending", str(body.get("error", "")).lower())
+
+    def test_login_approved_returns_tokens_json_format(self):
+        u = User.objects.create_user(username="u_ok_extra", password="temp", node=self.node)
+        u.set_password("Aa123456!")
+        u.is_active = True
+        u.approved = True
+        u.save(update_fields=["password", "is_active", "approved"])
+
+        res = self.client.post(
+            "/api/authors/login/",
+            data={"username": "u_ok_extra", "password": "Aa123456!"},
+            format="json",  # avoid DRF Invalid format issue seen earlier
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        body = res.json() if hasattr(res, "json") else {}
+        self.assertIn("access", body)
+        self.assertIn("refresh", body)
+
+    def test_unapproved_blocked_on_follow_api(self):
+        follower = User.objects.create_user(
+            username="follower_extra", password="Aa123456!", node=self.node
+        )
+        followee = User.objects.create_user(
+            username="followee_extra", password="Aa123456!", node=self.node
+        )
+        followee.approved = True
+        followee.save(update_fields=["approved"])
+
+        # simulate auth without granting approval
+        self.client.force_authenticate(follower)
+        url = reverse("authors:follow-request", args=[followee.id])
+        res = self.client.post(url, data={}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)

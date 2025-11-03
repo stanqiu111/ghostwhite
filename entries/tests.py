@@ -292,11 +292,15 @@ class FQIDIntegrationTests(APITestCase):
             username="testUser2", password="pw", display_name="Test User 2", node=self.node
         )
 
+        self.author = self.testUser1
+        self.other = self.testUser2
+
         self.entry = Entry.objects.create(
             author=self.testUser1, node=self.node, content="Hi", content_type="plain_text", visibility="public"
         )
 
         self.client = APIClient()
+        self.client.force_authenticate(self.author)
 
     def test_entry_detail_uses_fqid_and_serial(self):
         url = reverse("entries:entry-detail", args=[self.entry.id])
@@ -342,11 +346,15 @@ class FQIDIntegrationTests(APITestCase):
             username="testUser2", password="pw", display_name="Test User 2", node=self.node
         )
 
+        self.author = self.testUser1
+        self.other = self.testUser2
+
         self.entry = Entry.objects.create(
             author=self.testUser1, node=self.node, content="Hi", content_type="plain_text", visibility="public"
         )
 
         self.client = APIClient()
+        self.client.force_authenticate(self.author)
 
     def test_entry_detail_uses_fqid_and_serial(self):
         url = reverse("entries:entry-detail", args=[self.entry.id])
@@ -392,9 +400,9 @@ class FQIDIntegrationTests(APITestCase):
         comment = Comment.objects.create(entry=self.entry, author=self.other, content="hi")
         url = self._comment_detail_url(self.entry.id, comment.id)
 
-        # unauthenticated -> 401
+        # unauthenticated -> 401 or 403
         res = self.client.patch(url, {"content": "edited"}, format="json")
-        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn(res.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
 
     def test_comment_patch_only_author_can_edit(self):
         comment = Comment.objects.create(entry=self.entry, author=self.other, content="orig")

@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from entries.models import Entry, EntryLike
 from authors.models import Author, Follow
+from entries.views import with_follow_flags
+from django.db.models import Q
 
 
 def home_view(request):
@@ -13,8 +15,16 @@ def home_view(request):
 
     user = request.user
     entry_count = Entry.objects.filter(author=user, deleted_at__isnull=True).count()
-    entries = Entry.objects.filter(deleted_at__isnull=True).order_by('-created_at')
-
+    base_qs = Entry.objects.filter(deleted_at__isnull=True).select_related("author", "node")
+    qs = with_follow_flags(base_qs, user)
+    entries = qs.filter(
+        Q(author=user) |
+        Q(visibility="public") |
+        (Q(visibility="unlisted") & Q(is_from_following=True)) |
+        (Q(visibility="friends_only") & Q(is_from_following=True) & Q(is_following_me=True))
+    ).order_by("-created_at")
+    
+    
     for entry in entries:
         entry.user_has_liked = EntryLike.objects.filter(entry=entry, author=user).exists()
         

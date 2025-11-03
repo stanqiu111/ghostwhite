@@ -114,8 +114,8 @@ class Follow(models.Model):
         if not self.can_be_decided_by(actor_author):
             raise PermissionError("Not yours to decide or not pending.")
         self.status = self.ACCEPTED
-        self.decided_at = timezone.now()
-        self.save(update_fields=["status", "decided_at"])
+        self.approved = True
+        self.save(update_fields=["status", "approved"])
         return self
 
     @transaction.atomic
@@ -123,8 +123,8 @@ class Follow(models.Model):
         if not self.can_be_decided_by(actor_author):
             raise PermissionError("Not yours to decide or not pending.")
         self.status = self.DENIED
-        self.decided_at = timezone.now()
-        self.save(update_fields=["status", "decided_at"])
+        self.approved = False
+        self.save(update_fields=["status", "approved"])
         return self
 
     @staticmethod
@@ -132,3 +132,29 @@ class Follow(models.Model):
         return Follow.objects.select_related("follower").filter(
             following=followee, status=Follow.PENDING
         )
+
+    @staticmethod
+    def get_friends(author):
+        """
+        Get all friends (mutual followers) of an author.
+        A friend is someone where:
+        - Author follows them (status='accepted')
+        - They follow author back (status='accepted')
+        """
+        # Get all authors that the given author follows (and are accepted)
+        following_ids = Follow.objects.filter(
+            follower=author,
+            status=Follow.ACCEPTED
+        ).values_list('following_id', flat=True)
+
+        # Get all authors that follow the given author back (and are accepted)
+        # Filter to only those who are also in following_ids (mutual)
+        friends = Author.objects.filter(
+            id__in=Follow.objects.filter(
+                follower_id__in=following_ids,
+                following=author,
+                status=Follow.ACCEPTED
+            ).values_list('follower_id', flat=True)
+        )
+
+        return friends

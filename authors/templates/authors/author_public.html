@@ -531,10 +531,10 @@
           btn.classList.add('unfollow');
           btn.onclick = () => handleUnfollow(profile, btn);
         } else if (followStatus === 'pending') {
-          // Request pending - show Requested button (can unfollow to cancel)
           btn.textContent = 'Requested';
           btn.classList.add('requested');
-          btn.onclick = () => handleUnfollow(profile, btn);
+          btn.disabled = true;
+          btn.onclick = null;
         } else {
           // Not following - show Follow button
           btn.textContent = 'Follow';
@@ -560,8 +560,8 @@
             btn.textContent = 'Requested';
             btn.classList.remove('following');
             btn.classList.add('requested');
-            btn.disabled = false;
-            btn.onclick = () => handleUnfollow(profile, btn);
+            btn.disabled = true;
+            btn.onclick = null;
             // Update the profile's follow_status
             currentProfile.follow_status = 'pending';
             console.log('Follow request sent successfully');
@@ -569,8 +569,8 @@
             // Already exists - treat as requested
             btn.textContent = 'Requested';
             btn.classList.add('requested');
-            btn.disabled = false;
-            btn.onclick = () => handleUnfollow(profile, btn);
+            btn.disabled = true;
+            btn.onclick = null;
             currentProfile.follow_status = 'pending';
           } else if (res.status === 401) {
             // Not authenticated

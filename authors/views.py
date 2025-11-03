@@ -357,6 +357,10 @@ class SyncMyGithubReposView(APIView):
         except GitHubIntegration.DoesNotExist:
             return Response({"detail": "No GitHub integration configured."}, status=400)
 
+        # Check if github_username is empty or blank - if yes we wont call
+        if not gi.github_username or not gi.github_username.strip():
+            return Response({"created": 0}) 
+
         created = sync_repos_for_author(request.user, gi.github_username, access_token=gi.access_token)
         # update last_synced_at
         gi.last_synced_at = timezone.now()

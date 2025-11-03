@@ -4,6 +4,7 @@ from django.urls import reverse
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.views import APIView
 
 from authors.models import Follow
 from .models import Entry, Comment, EntryLike, CommentLike
@@ -15,6 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404, render
 from django.db.models import Q, Exists, OuterRef
 from authors.models import Follow
+
 
 def with_follow_flags(qs, user):
     i_follow_author = Follow.objects.filter(

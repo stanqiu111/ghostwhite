@@ -151,6 +151,24 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
 
 
     def get_image_url(self, obj):
+        # Only expose the proxy image URL for base64 image entries
+        if not (getattr(obj, "is_image_entry") and obj.is_image_entry()):
+            return None
+        request = self.context.get("request")
+        url = reverse(
+            "authors:entry-image-by-id",
+            kwargs={"author_id": obj.author.id, "pk": obj.id}
+        )
+        return request.build_absolute_uri(url) if request else url
+
+    def get_visibility(self, obj):
+        request = self.context.get("request")
+        if request and getattr(request.user, "is_staff", False):
+            return obj.visibility
+        if obj.visibility == "DELETED":
+            return "private"
+        return obj.visibility
+
 class EntryCreateSerializer(serializers.ModelSerializer):
     """Having a separate serializer for creating because we don't need all info for creating an entry"""
 

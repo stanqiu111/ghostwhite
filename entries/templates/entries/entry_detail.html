@@ -557,7 +557,7 @@ function renderRight(e){
 
     // Like toggle
     node.querySelector('.btn-like').onclick = async () => {
-      try { await likeComment(e.id, c.id); await load(); }
+      try { await toggleCommentLike(e.serial, c.serial); await load(); }
       catch(err){ alert(err.message || 'Failed to like comment'); }
     };
 
@@ -583,7 +583,7 @@ function renderRight(e){
         if (!newTxt) { alert('Comment cannot be empty.'); return; }
         saveBtn.disabled = true;
         try {
-          await updateComment(e.id, c.id, newTxt);
+          await updateComment(e.serial, c.serial, newTxt);
           await load();
         } catch (err) {
           alert(err.message || 'Failed to update comment');
@@ -596,7 +596,7 @@ function renderRight(e){
       delBtn.onclick = async () => {
         delBtn.disabled = true;
         try {
-          await deleteComment(e.id, c.id);
+          await deleteComment(e.serial, c.serial);
           await load();
         } catch (err) {
           alert(err.message || 'Failed to delete comment');
@@ -641,7 +641,7 @@ function renderRight(e){
     const val = $('#commentInput').value.trim();
     if (!val) return;
     try {
-      await addComment(e.id, val);
+      await addComment(e.serial, val);
       $('#commentInput').value = '';
       await load();
       setTab('comments');

@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'authors/author_public.css' %}">
+    <script src="{% static 'js/marked.min.js' %}"></script>
+    <script src="{% static 'js/purify.min.js' %}"></script>
   </head>
   <body>
     <!-- Header -->
@@ -529,10 +531,10 @@
           btn.classList.add('unfollow');
           btn.onclick = () => handleUnfollow(profile, btn);
         } else if (followStatus === 'pending') {
-          // Request pending - show Requested button (can unfollow to cancel)
           btn.textContent = 'Requested';
           btn.classList.add('requested');
-          btn.onclick = () => handleUnfollow(profile, btn);
+          btn.disabled = true;
+          btn.onclick = null;
         } else {
           // Not following - show Follow button
           btn.textContent = 'Follow';
@@ -558,8 +560,8 @@
             btn.textContent = 'Requested';
             btn.classList.remove('following');
             btn.classList.add('requested');
-            btn.disabled = false;
-            btn.onclick = () => handleUnfollow(profile, btn);
+            btn.disabled = true;
+            btn.onclick = null;
             // Update the profile's follow_status
             currentProfile.follow_status = 'pending';
             console.log('Follow request sent successfully');
@@ -567,8 +569,8 @@
             // Already exists - treat as requested
             btn.textContent = 'Requested';
             btn.classList.add('requested');
-            btn.disabled = false;
-            btn.onclick = () => handleUnfollow(profile, btn);
+            btn.disabled = true;
+            btn.onclick = null;
             currentProfile.follow_status = 'pending';
           } else if (res.status === 401) {
             // Not authenticated
@@ -591,8 +593,8 @@
       }
 
       async function handleUnfollow(profile, btn) {
-        if (!profile.id) {
-          console.error('Profile ID not available');
+        if (!profile.serial) {
+          console.error('Profile serial not available');
           return;
         }
 
@@ -601,7 +603,7 @@
         btn.textContent = 'Unfollowing...';
 
         try {
-          const res = await API.unfollow(profile.id);
+          const res = await API.unfollow(profile.serial);
 
           if (res.status === 204 || res.status === 200) {
             // Successfully unfollowed
@@ -689,6 +691,8 @@
 
       // Clean up interval when leaving the page
       window.addEventListener('beforeunload', stopStatusPolling);
+      
+      initMarkdownRendering();
     </script>
   </body>
 </html>

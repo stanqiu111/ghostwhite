@@ -29,7 +29,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .github import sync_repos_for_author
 from django.utils import timezone
-
+ 
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
     authentication_classes = []  # disable SessionAuthentication -> no CSRF required
@@ -115,9 +115,16 @@ def author_profile_page(request, username):
     top_5_entries = entries[:5]
     entry_count = entries.count()
     
-    request_user_entry_count = Entry.objects.filter(author=request.user.id, deleted_at__isnull=True).count()
-    request_user_follower_count = Follow.objects.filter(following=request.user.id, approved=True).count()
-    request_user_following_count = Follow.objects.filter(follower=request.user.id, approved=True).count()
+    request_user_entry_count = 0
+    request_user_follower_count = 0
+    request_user_following_count = 0
+    request_user_friends = []
+    
+    if request.user.is_authenticated:
+        request_user_entry_count = Entry.objects.filter(author=request.user.id, deleted_at__isnull=True).count()
+        request_user_follower_count = Follow.objects.filter(following=request.user.id, approved=True).count()
+        request_user_following_count = Follow.objects.filter(follower=request.user.id, approved=True).count()
+        request_user_friends = Follow.get_friends(request.user)[:5]
     
     author_follower_count = Follow.objects.filter(following=author.id, approved=True).count()
     author_following_count = Follow.objects.filter(follower=author.id, approved=True).count()
@@ -133,7 +140,6 @@ def author_profile_page(request, username):
 
     # Get friends (mutual followers) - limit to 5 for display
     author_friends = Follow.get_friends(author)[:5]
-    request_user_friends = Follow.get_friends(request.user)[:5]
 
     if request.path.endswith('/settings/'):
         # this we dont have to show the full list of entries, only return top 5
@@ -272,15 +278,22 @@ class FollowRequestView(APIView):
         if follower.id == followee.id:
             return Response({"detail": "Cannot follow yourself."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 2) if already exists, return 409
-        if Follow.objects.filter(follower=follower, following=followee).exists():
+        # 2) Check existing - allow retry if denied
+        existing = Follow.objects.filter(follower=follower, following=followee).first()
+        if existing:
+            if existing.status == Follow.DENIED:
+                existing.status = Follow.PENDING
+                existing.approved = False
+                existing.save(update_fields=['status', 'approved'])
+                data = {"id": str(existing.id), "follower": str(existing.follower_id), 
+                       "following": str(existing.following_id), "approved": existing.approved}
+                return Response(data, status=status.HTTP_200_OK)
             return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
 
         # 3) create pending request (approved=False, status='pending')
         try:
             f = Follow.objects.create(follower=follower, following=followee, approved=False, status=Follow.PENDING)
         except IntegrityError:
-            # race-safe fallback
             return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
 
         # serialize minimal response (id is enough for tests)
@@ -359,7 +372,7 @@ class FollowDecisionView(APIView):
     this endpoint a model—it's a custom action (“approve” or “deny” a pending follow). 
 
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
         """

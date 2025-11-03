@@ -178,20 +178,6 @@ class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
             raise PermissionDenied("You can only update your own profile")
         serializer.save()
     
-class AuthorByIdView(generics.RetrieveUpdateAPIView):
-    queryset = Author.objects.all()
-    serializer_class = AuthorSerializer
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [SessionAuthentication, BasicAuthentication]
-    lookup_field = "id"  
-    lookup_url_kwarg = "author_id"
-        
-    def perform_update(self, serializer):
-        author = self.get_object()     
-        user = self.request.user
-        if not (user == author or user.is_staff):
-            raise PermissionDenied("You can only update your own profile")
-        serializer.save()
 
 class AuthorPagination(PageNumberPagination):
     # Custom pagination for authors list:

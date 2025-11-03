@@ -3,8 +3,11 @@ try:
 except Exception:
     requests = None
 
+import logging
 from django.utils import timezone
 from entries.models import Entry
+
+logger = logging.getLogger(__name__)
 
 GITHUB_API_USER_REPOS = "https://api.github.com/users/{username}/repos"
 
@@ -22,7 +25,7 @@ def fetch_user_repos(github_username, access_token=None):
 
     headers = {"Accept": "application/vnd.github+json"}
     if access_token:
-        headers["Authorization"] = f"token {access_token}"
+        headers["Authorization"] = f"Bearer {access_token}"
     url = GITHUB_API_USER_REPOS.format(username=github_username)
     resp = requests.get(url, headers=headers, params={"per_page": 100}, timeout=10)
     resp.raise_for_status()
@@ -36,8 +39,7 @@ def sync_repos_for_author(author, github_username, access_token=None):
     try:
         repos = fetch_user_repos(github_username, access_token=access_token)
     except Exception as e:
-        # Log or handle in production; for now just return 0
-        print("Failed to fetch repos for", github_username, e)
+        logger.error(f"Failed to fetch repos for {github_username}: {e}", exc_info=True)
         return 0
 
     for repo in repos:

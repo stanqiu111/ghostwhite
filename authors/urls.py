@@ -3,6 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
 from .views import AuthorPublicGetUpdate, AuthorListView, AuthorByUsernameView
 from .views import FollowRequestView, FollowRequestsListView, FollowDecisionView
+from .views import SyncMyGithubReposView
 from django.views.generic import TemplateView
 
 
@@ -22,7 +23,6 @@ urlpatterns = [
     path("follows/<uuid:pk>/decision/", FollowDecisionView.as_view(), name="follow-decision"),
     # static/explicit routes must come before the catch-all username route
     path("logout/", views.logout_view, name="logout"),
-    path("link_github/", views.link_github_view, name="link_github"),
     path("<str:username>/", AuthorByUsernameView.as_view(), name="author_by_username"),
     path("authors/<str:username>/", TemplateView.as_view(template_name="authors/author_public.html"), name="author_public_page"),
 ]

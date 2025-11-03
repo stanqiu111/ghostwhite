@@ -28,17 +28,13 @@ class Entry(models.Model):
     )
     image = models.ImageField(upload_to="entry_images/", null=True, blank=True)
     # Source metadata (for third-party origins such as GitHub)
-    source = models.CharField(max_length=50, blank=True, null=True)
-    source_url = models.URLField(blank=True, null=True)
+    source = models.CharField(max_length=50, default="manual", db_index=True, blank=True, null=True)
+    source_id = models.CharField(max_length=255, null=True, blank=True)
+    source_url = models.CharField(max_length=512, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)  # for soft delete
     node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="entries")
-
-    # fields for github integration
-    source = models.CharField(max_length=50, default="manual", db_index=True)
-    source_id = models.CharField(max_length=255, null=True, blank=True)
-    source_url = models.CharField(max_length=512, null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

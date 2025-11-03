@@ -1,5 +1,6 @@
 import os, uuid
 import json
+import re
 from django.shortcuts import render, redirect, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
@@ -29,7 +30,6 @@ from django.views.decorators.csrf import csrf_exempt
 from entries.models import Entry
 from entries.serializers import EntryRetrieveSerializer
 from django.db import IntegrityError
-
 from django.contrib.auth.decorators import login_required
 from .models import GitHubIntegration
 from .forms import GitHubIntegrationForm
@@ -143,7 +143,26 @@ class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
         user = self.request.user
         if not (user == author or user.is_staff):
             raise PermissionDenied("You can only update your own profile")
+        
+        # Create github intergration if github_url is provided
+        github_url = self.request.data.get('github_url', None)
         serializer.save()
+        if github_url:
+            github_username = github_url
+            if github_url.startswith('http'):
+                match = re.search(r'github\.com/([^/?#]+)', github_url, re.IGNORECASE)
+                if match:
+                    github_username = match.group(1)
+            
+            # Update or create GitHubIntegration
+            integration, created = GitHubIntegration.objects.get_or_create(
+                author=author,
+                defaults={'github_username': github_username}
+            )
+            if not created:
+                # Update existing integration
+                integration.github_username = github_username
+                integration.save()
 
 
 

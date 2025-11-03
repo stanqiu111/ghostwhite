@@ -90,5 +90,5 @@ class EntryCreateSerializer(serializers.ModelSerializer):
 class EntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Entry
-        fields = ["id", "title", "body", "author", "created_at", "public", "source", "source_url"]
+        fields = ["id", "content", "author", "created_at", "visibility", "source", "source_url"]
         read_only_fields = ["source", "source_id", "source_url"]

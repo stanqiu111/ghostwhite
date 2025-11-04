@@ -41,6 +41,7 @@ urlpatterns = [
     path("", include(("entries.page_urls", "entries_pages"), namespace="entries_pages")),
     path("authors/", include(("authors.page_urls", "authors"), namespace="authors_pages")),
     path("api/inbox/", include("inbox.urls", namespace="inbox")),
+    # path("inbox/", include("inbox.page_urls", namespace="inbox_pages")),
 
     # API schema and docs
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

@@ -63,7 +63,8 @@
   <div class="header">
     <div class="header-content">
       <div class="logo" onclick="navigateToHome()">ÉTHÉRÉ</div>
-      <div class="search-bar">
+        {% if request.user.is_authenticated %}
+        <div class="search-bar">
         <input type="text" class="search-input" placeholder="Search..." />
         <button class="search-clear">
           <svg
@@ -146,6 +147,11 @@
           </svg>
         </button>
         <button class="logout-btn" onclick="logout()">Log out</button>
+        {% else %}
+        <div class="search-bar"></div>
+        <div class="header-actions"></div>
+        <button class="login-btn" onclick="window.location.href='/authors/auth/'">Log in</button>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -184,6 +190,7 @@
         <div id="entryContent" class="content"></div>
         <img id="entryImage" class="hero" alt="Entry image">
 
+        {% if request.user.is_authenticated %}
         <div class="actions">
           <span class="chip" id="likeChip"> 
             {% if user_has_liked %}
@@ -213,6 +220,7 @@
           </span>
           <span id="copyNote" class="muted" style="display:none; margin-left:8px;">Copied!</span>
         </div>
+        {% endif %}
       </div>
     </main>
 
@@ -226,6 +234,7 @@
       <div id="commentsList" class="list"></div>
       <div id="likesList" class="list" style="display:none"></div>
 
+      {% if user.is_authenticated %}
       <div class="field" id="commentField">
         {% if user.image %}
           <img class="small" src="{{ user.image.url }}" alt="me">
@@ -235,6 +244,7 @@
         <input id="commentInput" class="input" placeholder="Add a comment…">
         <button id="postComment" class="btn">Post</button>
       </div>
+      {% endif %}
     </aside>
   </div>
 </div>
@@ -242,6 +252,7 @@
 /* ============ CONFIG ============ */
 const DEFAULT_PFP = "/static/images/default_pfp.png"; // change if your path differs
 const headersAuth = getHeaders();
+const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};
 
 /* ============ HELPERS =========== */
 const $ = (sel, root=document)=> root.querySelector(sel);
@@ -468,11 +479,23 @@ function renderEntry(e){
     }
   }
 
-  $('#likeCount').textContent = (e.like_count ?? e.likes?.length ?? 0);
-  $('#commentCount').textContent = (e.comments?.length ?? 0);
+  const likeCountEl = $('#likeCount');
+  if (likeCountEl) likeCountEl.textContent = (e.like_count ?? e.likes?.length ?? 0);
+  const commentCountEl = $('#commentCount');
+  if (commentCountEl) commentCountEl.textContent = (e.comments?.length ?? 0);
 
-  $('#likeChip').onclick = async ()=>{ try{ await likeEntry(e.serial, $('#likeChip')); }catch(err){ alert(err.message); } };
-  $('#commentChip').onclick = ()=> setTab('comments');
+  const likeChipEl = $('#likeChip');
+  if (likeChipEl && IS_AUTHENTICATED) {
+    likeChipEl.onclick = async ()=>{ try{ await likeEntry(e.serial, likeChipEl); }catch(err){ alert(err.message); } };
+  } else if (likeChipEl) {
+    likeChipEl.onclick = null;
+  }
+  const commentChipEl = $('#commentChip');
+  if (commentChipEl && IS_AUTHENTICATED) {
+    commentChipEl.onclick = ()=> setTab('comments');
+  } else if (commentChipEl) {
+    commentChipEl.onclick = null;
+  }
   const canShare = e.visibility === 'public' || e.visibility === 'unlisted';
   const copyChip = document.getElementById('copyChip');
   const copyNote = document.getElementById('copyNote');
@@ -502,7 +525,8 @@ function setTab(which){
   $('#tabLikes').classList.toggle('active', !isComments);
   $('#commentsList').style.display = isComments ? '' : 'none';
   $('#likesList').style.display = isComments ? 'none' : '';
-  $('#commentField').style.display = isComments ? '' : 'none';
+  const commentField = $('#commentField');
+  if (commentField) commentField.style.display = isComments ? '' : 'none';
 }
 
 function renderRight(e){
@@ -637,18 +661,22 @@ function renderRight(e){
   });
 
   // Post a new comment
-  $('#postComment').onclick = async () => {
-    const val = $('#commentInput').value.trim();
-    if (!val) return;
-    try {
-      await addComment(e.serial, val);
-      $('#commentInput').value = '';
-      await load();
-      setTab('comments');
-    } catch (err) {
-      alert(err.message || 'Failed to add comment');
-    }
-  };
+  const postBtn = document.getElementById('postComment');
+  if (postBtn && IS_AUTHENTICATED) {
+    postBtn.onclick = async () => {
+      const input = document.getElementById('commentInput');
+      const val = (input?.value || '').trim();
+      if (!val) return;
+      try {
+        await addComment(e.serial, val);
+        if (input) input.value = '';
+        await load();
+        setTab('comments');
+      } catch (err) {
+        alert(err.message || 'Failed to add comment');
+      }
+    };
+  }
 }
 
 async function deleteEntry() {

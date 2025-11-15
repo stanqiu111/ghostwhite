@@ -165,10 +165,15 @@ class EntryRetrieveView(generics.RetrieveAPIView):
     """Retrieve a single entry by ID"""
 
     serializer_class = EntryRetrieveSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def get_queryset(self):
         user = self.request.user
+        
+        # if user is anonymouse - when user clicks on public link , we should still show the entry
+        if not user.is_authenticated:
+            return Entry.objects.filter(visibility='public').select_related("author", "node")
+
         base = Entry.objects.filter(deleted_at__isnull=True).select_related("author", "node")
 
         if user.is_staff:
@@ -239,7 +244,11 @@ def _are_friends(a, b) -> bool:
 
 def entry_detail_page(request, pk):
     entry = get_object_or_404(Entry, pk=pk)
-    user_has_liked = EntryLike.objects.filter(entry=entry, author=request.user).exists()
+    if request.user.is_authenticated:
+        user_has_liked = EntryLike.objects.filter(entry=entry, author=request.user).exists()
+    else:
+        user_has_liked = False
+        
     return render(request, "entries/entry_detail.html", {"entry_id": pk, "user_has_liked": user_has_liked, "user": request.user})
 
 

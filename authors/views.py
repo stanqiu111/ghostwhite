@@ -27,9 +27,8 @@ from .forms import GitHubIntegrationForm
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .github import sync_repos_for_author
+from .github import sync_github_events
 from django.utils import timezone
- 
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
     authentication_classes = []  # disable SessionAuthentication -> no CSRF required
@@ -411,10 +410,8 @@ class FollowDecisionView(APIView):
         return Response({"detail": "Invalid decision."}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
 class SyncMyGithubReposView(APIView):
-    """POST: trigger a sync of the logged-in user's GitHub repos and create Entry objects."""
+    """POST: trigger a sync of the logged-in user's GitHub activity and create Entry objects."""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -427,8 +424,21 @@ class SyncMyGithubReposView(APIView):
         if not gi.github_username or not gi.github_username.strip():
             return Response({"created": 0}) 
 
-        created = sync_repos_for_author(request.user, gi.github_username, access_token=gi.access_token)
-        # update last_synced_at
+        try:
+            activity_result = sync_github_events(
+                request.user,
+                gi.github_username,
+                access_token=gi.access_token,
+            )
+        except RuntimeError as exc:
+            return Response({"detail": str(exc)}, status=500)
+        except Exception as exc:
+            return Response({"detail": "Failed to sync GitHub activity."}, status=502)
+
         gi.last_synced_at = timezone.now()
         gi.save(update_fields=['last_synced_at'])
-        return Response({"created": created})
+
+        return Response({
+            "created": activity_result["created"],
+            "processed_events": activity_result["processed"],
+        })

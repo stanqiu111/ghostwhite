@@ -689,7 +689,7 @@ class SyncGitHubEventsTests(TestCase):
 
     @patch("authors.github.requests.get")
     def test_handles_request_errors(self, mock_get):
-        mock_get.side_effect = requests.exceptions.RequestException("boom")
+        mock_get.side_effect = requests.exceptions.RequestException("Failed to fetch events")
 
         result = sync_github_events(self.author, "octocat")
 

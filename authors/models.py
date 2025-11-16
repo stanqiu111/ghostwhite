@@ -70,6 +70,18 @@ class Author(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.username
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["approved", "is_active"],
+                name="author_approved_active_idx",
+            ),
+            models.Index(
+                fields=["is_active", "is_staff", "is_superuser"],
+                name="author_active_flags_idx",
+            ),
+        ]
+
 
 class Follow(models.Model):
     """
@@ -95,6 +107,11 @@ class Follow(models.Model):
 
     class Meta:
         unique_together = ('follower', 'following') #Prevent duplicate follow requests
+        indexes = [
+            models.Index(fields=['following', 'approved'], name='follow_following_approved_idx'),
+            models.Index(fields=['follower', 'approved'], name='follow_follower_approved_idx'),
+            models.Index(fields=['follower', 'status'], name='follow_follower_status_idx'),
+        ]
 
     def __str__(self):
         return f"{self.follower} follows {self.following}"

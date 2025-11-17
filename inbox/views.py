@@ -12,6 +12,7 @@ from django.shortcuts import render
 from nodes.authentication import NodeBasicAuthentication
 from nodes.models import Node
 from utils.node_communication import get_or_create_remote_author
+import logging
 
 
 def _with_follow_flags(qs, user):
@@ -174,6 +175,15 @@ class InboxPostView(APIView):
     """POST /api/authors/{author_id}/inbox - Receive from remote nodes"""
     authentication_classes = [NodeBasicAuthentication]
     permission_classes = [IsAuthenticated]
+    
+    def dispatch(self, request, *args, **kwargs):
+        logger = logging.getLogger(__name__)
+        logger.info(f"InboxPostView.dispatch: {request.method} {request.path}, auth={request.META.get('HTTP_AUTHORIZATION', 'None')[:20]}")
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"InboxPostView.dispatch error: {e}", exc_info=True)
+            raise
     
     def post(self, request, author_id):
         try:

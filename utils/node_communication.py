@@ -216,12 +216,17 @@ def send_like_to_remote_node(like, entry):
     if not remote_node.username:
         return
     
+    if entry.source_url:
+        object_url = entry.source_url
+    else:
+        object_url = build_fqid("", author_id=entry.author.id, entry_id=entry.id)
+    
     payload = {
         "type": "like",
         "author": serialize_author(like.author),
         "published": like.created_at.isoformat(),
         "id": f"{build_fqid('', author_id=like.author.id)}/liked/{like.id}",
-        "object": build_fqid("", author_id=entry.author.id, entry_id=entry.id),
+        "object": object_url,
     }
     
     remote_url = f"{remote_node.host_url.rstrip('/')}/api/authors/{entry.author.id}"
@@ -241,6 +246,11 @@ def send_comment_to_remote_node(comment, entry):
     if not remote_node.username:
         return
     
+    if entry.source_url:
+        entry_url = entry.source_url
+    else:
+        entry_url = build_fqid("", author_id=entry.author.id, entry_id=entry.id)
+    
     payload = {
         "type": "comment",
         "author": serialize_author(comment.author),
@@ -248,7 +258,7 @@ def send_comment_to_remote_node(comment, entry):
         "contentType": getattr(comment, 'content_type', 'text/plain'),  # Comment model doesn't have content_type, default to text/plain
         "published": comment.created_at.isoformat(),
         "id": f"{build_fqid('', author_id=comment.author.id)}/commented/{comment.id}",
-        "entry": build_fqid("", author_id=entry.author.id, entry_id=entry.id),
+        "entry": entry_url,
     }
     
     remote_url = f"{remote_node.host_url.rstrip('/')}/api/authors/{entry.author.id}"

@@ -185,6 +185,8 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
 
 
     def get_image_url(self, obj):
+        if obj.remote_image_url:
+            return obj.remote_image_url
         # Only expose the proxy image URL for base64 image entries
         if not (getattr(obj, "is_image_entry") and obj.is_image_entry()):
             return None

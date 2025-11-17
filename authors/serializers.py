@@ -77,7 +77,6 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
 
 
 class AuthorRegistrationSerializer(serializers.ModelSerializer):
-    # why we need password2? because we need to confirm the password and it matches with django createuser
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True)
 

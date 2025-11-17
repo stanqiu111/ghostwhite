@@ -26,6 +26,7 @@
      - `password`: YOUR node's password (from step 1)
 
 ---
+Run: `heroku run python manage.py shell`
 
 ---
 
@@ -106,8 +107,6 @@ Remoter Author from
 ```
 
 ## Send Follow Request
-
-Run: `heroku run python manage.py shell`
 
 Then copy-paste this entire block:
 

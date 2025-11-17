@@ -66,6 +66,19 @@ class Entry(models.Model):
             "image/jpeg;base64",
             "application/base64",
         )
+    
+    @property
+    def remote_image_url(self):
+        """Remote image URL for remote entries."""
+        if self.source == "remote" and self.source_id:
+            return self.source_id
+        return None
+    
+    @remote_image_url.setter
+    def remote_image_url(self, value):
+        """Set remote image URL."""
+        if self.source == "remote":
+            self.source_id = value
     @property
     def image_mime(self):
         """Return MIME type part (e.g. image/png)"""

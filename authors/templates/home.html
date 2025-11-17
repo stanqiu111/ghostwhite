@@ -544,6 +544,8 @@
             
             {% if entry.image %}
               <img src="{{ entry.image.url }}" alt="Entry image" class="entry-image" loading="lazy" decoding="async">
+            {% elif entry.remote_image_url %}
+              <img src="{{ entry.remote_image_url }}" alt="Entry image" class="entry-image" loading="lazy" decoding="async">
             {% elif entry.content_type == 'application/base64' or entry.content_type == 'image/png;base64' or entry.content_type == 'image/jpeg;base64' %}
               <img src="/api/entries/{{ entry.id }}/image/" alt="Entry image" class="entry-image" loading="lazy" decoding="async">
             {% endif %}

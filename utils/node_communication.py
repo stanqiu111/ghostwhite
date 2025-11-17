@@ -49,6 +49,48 @@ def parse_author_fqid(author_fqid):
         raise ValueError(f"Invalid author FQID format: {author_fqid}") from e
 
 
+def parse_entry_fqid(entry_fqid):
+    """
+    Parse entry FQID to extract entry UUID, author UUID, and node URL.
+    
+    Args:
+        entry_fqid: Full URL like "https://node.com/api/authors/author-uuid/entries/entry-uuid"
+    
+    Returns:
+        tuple: (entry_uuid, author_uuid, node_url) or raises ValueError
+    """
+    if not entry_fqid:
+        raise ValueError("Entry FQID is required")
+    
+    try:
+        # Remove trailing slash
+        url = entry_fqid.rstrip('/')
+        # Split by /entries/ to separate the base URL from entry ID
+        if '/entries/' not in url:
+            raise ValueError(f"Invalid entry FQID format: {entry_fqid}")
+        
+        parts = url.split('/entries/')
+        if len(parts) != 2:
+            raise ValueError(f"Invalid entry FQID format: {entry_fqid}")
+        
+        base_url = parts[0]  # e.g., "https://node.com/api/authors/author-uuid"
+        entry_uuid_str = parts[1]
+        entry_uuid = uuid.UUID(entry_uuid_str)
+        
+        # Extract author UUID and node URL from base URL
+        author_parts = base_url.split('/api/authors/')
+        if len(author_parts) != 2:
+            raise ValueError(f"Invalid entry FQID format: {entry_fqid}")
+        
+        node_url = author_parts[0] + '/'
+        author_uuid_str = author_parts[1]
+        author_uuid = uuid.UUID(author_uuid_str)
+        
+        return entry_uuid, author_uuid, node_url
+    except (ValueError, IndexError) as e:
+        raise ValueError(f"Invalid entry FQID format: {entry_fqid}") from e
+
+
 def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
     """
     Get or create a remote author from FQID and data.

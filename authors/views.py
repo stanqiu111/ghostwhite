@@ -30,7 +30,7 @@ from rest_framework.response import Response
 from .github import sync_github_events
 from django.utils import timezone
 import logging
-from utils.node_communication import send_follow_to_remote_node
+from utils.node_communication import send_follow_request_to_remote_node, send_follow_decision_to_remote_node
 
 logger = logging.getLogger(__name__)
 
@@ -357,7 +357,7 @@ class FollowRequestView(APIView):
         except IntegrityError:
             return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
 
-        send_follow_to_remote_node(f)
+        send_follow_request_to_remote_node(f)
 
         # serialize minimal response (id is enough for tests)
         data = {"id": str(f.id), "follower": str(f.follower_id), "following": str(f.following_id), "approved": f.approved}
@@ -484,13 +484,13 @@ class FollowDecisionView(APIView):
                 fr.refresh_from_db()
                 print(f"[DEBUG] After refresh - Status: {fr.status}, Approved: {fr.approved}")
                 logger.info(f"Sending follow acceptance to follower {fr.follower_id}")
-                send_follow_to_remote_node(fr, state=Follow.ACCEPTED, target="follower")
+                send_follow_decision_to_remote_node(fr, Follow.ACCEPTED)
                 return Response({"detail": "Follow request accepted.", "status": fr.status, "approved": fr.approved}, status=status.HTTP_200_OK)
 
             if decision == "deny":
                 fr.deny(request.user)
                 logger.info(f"Sending follow denial to follower {fr.follower_id}")
-                send_follow_to_remote_node(fr, state=Follow.DENIED, target="follower")
+                send_follow_decision_to_remote_node(fr, Follow.DENIED)
                 fr.delete()
                 return Response({"detail": "Follow request denied."}, status=status.HTTP_204_NO_CONTENT)
         except PermissionError as e:

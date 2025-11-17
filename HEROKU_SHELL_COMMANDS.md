@@ -118,8 +118,8 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # Replace these with actual values
-your_author_id = "YOUR_AUTHOR_UUID"  # Your local author's UUID
-remote_author_fqid = "https://external-node.com/api/authors/REMOTE_AUTHOR_UUID/"  # Remote author's full URL
+your_author_id = "YOUR_AUTHOR_UUID"  # Your local author's UUID from step List Local Authors above
+remote_author_fqid = "https://external-node.com/api/authors/REMOTE_AUTHOR_UUID/"  # Remote author's full URL from step List Remote Authors above
 
 # Get your author
 your_author = Author.objects.get(id=your_author_id)
@@ -152,5 +152,5 @@ print(f"Follow request {'created' if created else 'already exists'} (status: {fo
 
 # Send follow request to remote node
 send_follow_request_to_remote_node(follow)
-print("✓ Follow request sent! Check the remote node to see if it was received.")
+print("Follow request sent! Check the remote node to see if it was received.")
 ```

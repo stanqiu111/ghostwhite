@@ -9,6 +9,10 @@ from entries.models import Entry, EntryLike, Comment
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.shortcuts import render
+from nodes.authentication import NodeBasicAuthentication
+from nodes.models import Node
+from utils.node_communication import get_or_create_remote_author
+
 
 def _with_follow_flags(qs, user):
     # 내가 그 글쓴이를 팔로우?
@@ -166,6 +170,116 @@ class MyNotificationsView(APIView):
         return Response({"type": "notifications", "items": items})
     
 
-@login_required
-def inbox_page(request):
-    return render(request, "inbox/inbox.html")
+class InboxPostView(APIView):
+    """POST /api/authors/{author_id}/inbox - Receive from remote nodes"""
+    authentication_classes = [NodeBasicAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, author_id):
+        try:
+            author = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            return Response({"detail": "Author not found"}, status=404)
+        
+        obj_type = request.data.get("type", "").lower()
+        
+        if obj_type == "entry":
+            return self._handle_entry(author, request.data)
+        elif obj_type == "follow":
+            return self._handle_follow(author, request.data)
+        elif obj_type == "like":
+            return self._handle_like(author, request.data)
+        elif obj_type == "comment":
+            return self._handle_comment(author, request.data)
+        return Response({"detail": f"Unknown type: {obj_type}"}, status=400)
+    
+    def _handle_entry(self, author, data):
+        entry_fqid = data.get("id")
+        author_data = data.get("author", {})
+        
+        author_fqid = author_data.get("id", "")
+        if not author_fqid:
+            return Response({"detail": "Author ID missing"}, status=400)
+        
+        try:
+            remote_author, _ = get_or_create_remote_author(author_fqid, author_data)
+            remote_node = remote_author.node  # Get node from the author
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=400)
+        
+        Entry.objects.get_or_create(
+            source_url=entry_fqid,
+            defaults={
+                "author": remote_author,
+                "content": data.get("content", ""),
+                "content_type": data.get("contentType", "text/plain"),
+                "visibility": data.get("visibility", "PUBLIC").lower(),
+                "node": remote_node,  # Use remote author's node
+                "source": "remote",
+            }
+        )
+        return Response({"detail": "Entry received"}, status=200)
+    
+    def _handle_follow(self, author, data):
+        actor_data = data.get("actor", {})
+        
+        actor_fqid = actor_data.get("id", "")
+        if not actor_fqid:
+            return Response({"detail": "Actor ID missing"}, status=400)
+        
+        try:
+            remote_author, _ = get_or_create_remote_author(actor_fqid, actor_data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=400)
+        
+        Follow.objects.get_or_create(
+            follower=remote_author,
+            following=author,
+            defaults={"approved": False, "status": Follow.PENDING}
+        )
+        return Response({"detail": "Follow received"}, status=200)
+    
+    def _handle_like(self, author, data):
+        actor_data = data.get("author", {})
+        object_url = data.get("object")
+        
+        author_fqid = actor_data.get("id", "")
+        if not author_fqid:
+            return Response({"detail": "Author ID missing"}, status=400)
+        
+        try:
+            remote_author, _ = get_or_create_remote_author(author_fqid, actor_data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=400)
+        
+        try:
+            entry = Entry.objects.get(source_url=object_url)
+            EntryLike.objects.get_or_create(entry=entry, author=remote_author)
+        except Entry.DoesNotExist:
+            return Response({"detail": "Entry not found"}, status=404)
+        return Response({"detail": "Like received"}, status=200)
+    
+    def _handle_comment(self, author, data):
+        actor_data = data.get("author", {})
+        entry_url = data.get("entry")
+        
+        author_fqid = actor_data.get("id", "")
+        if not author_fqid:
+            return Response({"detail": "Author ID missing"}, status=400)
+        
+        try:
+            remote_author, _ = get_or_create_remote_author(author_fqid, actor_data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=400)
+        
+        try:
+            entry = Entry.objects.get(source_url=entry_url)
+            Comment.objects.create(
+                entry=entry,
+                author=remote_author,
+                content=data.get("comment", ""),
+                content_type=data.get("contentType", "text/plain"),
+            )
+        except Entry.DoesNotExist:
+            return Response({"detail": "Entry not found"}, status=404)
+        return Response({"detail": "Comment received"}, status=201)

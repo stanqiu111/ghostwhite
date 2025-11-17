@@ -18,6 +18,8 @@ from django.shortcuts import get_object_or_404, render
 from django.db.models import Q, Exists, OuterRef, Prefetch
 from authors.models import Follow
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from utils.node_communication import send_entry_to_remote_nodes, send_comment_to_remote_node, send_like_to_remote_node
+
 
 
 def with_follow_flags(qs, user):
@@ -205,7 +207,8 @@ class EntryCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user, node=self.request.user.node)
+        entry = serializer.save(author=self.request.user, node=self.request.user.node)
+        send_entry_to_remote_nodes(entry)
 
 
 class EntryUpdateView(generics.UpdateAPIView):
@@ -281,7 +284,8 @@ class CommentCreateView(generics.CreateAPIView):
         if not content:
             return Response({"detail": "Content is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        Comment.objects.create(entry=entry, author=author, content=content)
+        comment = Comment.objects.create(entry=entry, author=author, content=content)
+        send_comment_to_remote_node(comment, entry)
         return Response({"detail": "Comment added."}, status=status.HTTP_201_CREATED)
 
 
@@ -299,6 +303,7 @@ class EntryLikeToggleView(generics.DestroyAPIView):
         if not created:
             like.delete()
             return Response({"detail": "Like removed."}, status=status.HTTP_200_OK)
+        send_like_to_remote_node(like, entry)
         return Response({"detail": "Like added."}, status=status.HTTP_201_CREATED)
 
 

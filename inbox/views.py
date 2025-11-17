@@ -262,33 +262,52 @@ class InboxPostView(APIView):
         else:
             desired_status = Follow.PENDING
 
-        follow, created = Follow.objects.get_or_create(
+        follow1, created1 = Follow.objects.get_or_create(
             follower=remote_author,
             following=author,
             defaults={"approved": False, "status": Follow.PENDING}
         )
-
+        
+        follow2, created2 = Follow.objects.get_or_create(
+            follower=author,
+            following=remote_author,
+            defaults={"approved": False, "status": Follow.PENDING}
+        )
+        
         if desired_status == Follow.ACCEPTED:
-            if follow.status != Follow.ACCEPTED or not follow.approved:
-                follow.status = Follow.ACCEPTED
-                follow.approved = True
-                follow.save(update_fields=["status", "approved"])
-            logger.info(f"Follow accepted for {remote_author.display_name} -> {author.display_name}")
+            if follow1.status != Follow.ACCEPTED or not follow1.approved:
+                follow1.status = Follow.ACCEPTED
+                follow1.approved = True
+                follow1.save(update_fields=["status", "approved"])
+            if follow2.status != Follow.ACCEPTED or not follow2.approved:
+                follow2.status = Follow.ACCEPTED
+                follow2.approved = True
+                follow2.save(update_fields=["status", "approved"])
+            logger.info(f"Follow accepted: {remote_author.display_name} <-> {author.display_name}")
             return Response({"detail": "Follow accepted"}, status=200)
 
         if desired_status == Follow.DENIED:
-            if follow.status != Follow.DENIED or follow.approved:
-                follow.status = Follow.DENIED
-                follow.approved = False
-                follow.save(update_fields=["status", "approved"])
-            logger.info(f"Follow denied for {remote_author.display_name} -> {author.display_name}")
+            # Update relationship 1 (remote -> local) if needed
+            if follow1.status != Follow.DENIED or follow1.approved:
+                follow1.status = Follow.DENIED
+                follow1.approved = False
+                follow1.save(update_fields=["status", "approved"])
+            # Update relationship 2 (local -> remote) if needed
+            if follow2.status != Follow.DENIED or follow2.approved:
+                follow2.status = Follow.DENIED
+                follow2.approved = False
+                follow2.save(update_fields=["status", "approved"])
+            logger.info(f"Follow denied: {remote_author.display_name} <-> {author.display_name}")
             return Response({"detail": "Follow denied"}, status=200)
 
-        # If it already existed but was denied, reset it to pending
-        if not created and follow.status == Follow.DENIED:
-            follow.status = Follow.PENDING
-            follow.approved = False
-            follow.save(update_fields=["status", "approved"])
+        if not created1 and follow1.status == Follow.DENIED and desired_status == Follow.PENDING:
+            follow1.status = Follow.PENDING
+            follow1.approved = False
+            follow1.save(update_fields=["status", "approved"])
+        if not created2 and follow2.status == Follow.DENIED and desired_status == Follow.PENDING:
+            follow2.status = Follow.PENDING
+            follow2.approved = False
+            follow2.save(update_fields=["status", "approved"])
 
         logger.info(f"Follow request received from {remote_author.display_name} to {author.display_name}")
         return Response({"detail": "Follow received"}, status=200)

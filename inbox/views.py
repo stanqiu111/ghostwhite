@@ -9,6 +9,8 @@ from entries.models import Entry, EntryLike, Comment
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.shortcuts import render
+from nodes.authentication import NodeBasicAuthentication
+import uuid
 
 def _with_follow_flags(qs, user):
     # 내가 그 글쓴이를 팔로우?
@@ -166,6 +168,123 @@ class MyNotificationsView(APIView):
         return Response({"type": "notifications", "items": items})
     
 
-@login_required
-def inbox_page(request):
-    return render(request, "inbox/inbox.html")
+class InboxPostView(APIView):
+    """POST /api/authors/{author_id}/inbox - Receive from remote nodes"""
+    authentication_classes = [NodeBasicAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, author_id):
+        try:
+            author = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            return Response({"detail": "Author not found"}, status=404)
+        
+        obj_type = request.data.get("type", "").lower()
+        
+        if obj_type == "entry":
+            return self._handle_entry(author, request.data)
+        elif obj_type == "follow":
+            return self._handle_follow(author, request.data)
+        elif obj_type == "like":
+            return self._handle_like(author, request.data)
+        elif obj_type == "comment":
+            return self._handle_comment(author, request.data)
+        return Response({"detail": f"Unknown type: {obj_type}"}, status=400)
+    
+    def _handle_entry(self, author, data):
+        entry_fqid = data.get("id")
+        author_data = data.get("author", {})
+        
+        remote_author, _ = Author.objects.get_or_create(
+            id=uuid.uuid4(),
+            defaults={
+                "username": author_data.get("displayName", "").lower().replace(" ", "_")[:150],
+                "display_name": author_data.get("displayName", ""),
+                "node": author.node,
+                "is_active": True,
+                "approved": True
+            }
+        )
+        
+        Entry.objects.get_or_create(
+            source_url=entry_fqid,
+            defaults={
+                "author": remote_author,
+                "content": data.get("content", ""),
+                "content_type": data.get("contentType", "text/plain"),
+                "visibility": data.get("visibility", "PUBLIC").lower(),
+                "node": author.node,
+                "source": "remote",
+            }
+        )
+        return Response({"detail": "Entry received"}, status=200)
+    
+    def _handle_follow(self, author, data):
+        actor_data = data.get("actor", {})
+        
+        remote_author, _ = Author.objects.get_or_create(
+            id=uuid.uuid4(),
+            defaults={
+                "username": actor_data.get("displayName", "").lower().replace(" ", "_")[:150],
+                "display_name": actor_data.get("displayName", ""),
+                "node": author.node,
+                "is_active": True,
+                "approved": True
+            }
+        )
+        
+        Follow.objects.get_or_create(
+            follower=remote_author,
+            following=author,
+            defaults={"approved": False, "status": Follow.PENDING}
+        )
+        return Response({"detail": "Follow received"}, status=200)
+    
+    def _handle_like(self, author, data):
+        actor_data = data.get("author", {})
+        object_url = data.get("object")
+        
+        remote_author, _ = Author.objects.get_or_create(
+            id=uuid.uuid4(),
+            defaults={
+                "username": actor_data.get("displayName", "").lower().replace(" ", "_")[:150],
+                "display_name": actor_data.get("displayName", ""),
+                "node": author.node,
+                "is_active": True,
+                "approved": True
+            }
+        )
+        
+        try:
+            entry = Entry.objects.get(source_url=object_url)
+            EntryLike.objects.get_or_create(entry=entry, author=remote_author)
+        except Entry.DoesNotExist:
+            return Response({"detail": "Entry not found"}, status=404)
+        return Response({"detail": "Like received"}, status=200)
+    
+    def _handle_comment(self, author, data):
+        actor_data = data.get("author", {})
+        entry_url = data.get("entry")
+        
+        remote_author, _ = Author.objects.get_or_create(
+            id=uuid.uuid4(),
+            defaults={
+                "username": actor_data.get("displayName", "").lower().replace(" ", "_")[:150],
+                "display_name": actor_data.get("displayName", ""),
+                "node": author.node,
+                "is_active": True,
+                "approved": True
+            }
+        )
+        
+        try:
+            entry = Entry.objects.get(source_url=entry_url)
+            Comment.objects.create(
+                entry=entry,
+                author=remote_author,
+                content=data.get("comment", ""),
+                content_type=data.get("contentType", "text/plain"),
+            )
+        except Entry.DoesNotExist:
+            return Response({"detail": "Entry not found"}, status=404)
+        return Response({"detail": "Comment received"}, status=201)

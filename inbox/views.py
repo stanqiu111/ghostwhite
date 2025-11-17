@@ -10,7 +10,9 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.shortcuts import render
 from nodes.authentication import NodeBasicAuthentication
-import uuid
+from nodes.models import Node
+from utils.node_communication import get_or_create_remote_author
+
 
 def _with_follow_flags(qs, user):
     # 내가 그 글쓴이를 팔로우?
@@ -195,16 +197,15 @@ class InboxPostView(APIView):
         entry_fqid = data.get("id")
         author_data = data.get("author", {})
         
-        remote_author, _ = Author.objects.get_or_create(
-            id=uuid.uuid4(),
-            defaults={
-                "username": author_data.get("displayName", "").lower().replace(" ", "_")[:150],
-                "display_name": author_data.get("displayName", ""),
-                "node": author.node,
-                "is_active": True,
-                "approved": True
-            }
-        )
+        author_fqid = author_data.get("id", "")
+        if not author_fqid:
+            return Response({"detail": "Author ID missing"}, status=400)
+        
+        try:
+            remote_author, _ = get_or_create_remote_author(author_fqid, author_data)
+            remote_node = remote_author.node  # Get node from the author
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=400)
         
         Entry.objects.get_or_create(
             source_url=entry_fqid,
@@ -213,7 +214,7 @@ class InboxPostView(APIView):
                 "content": data.get("content", ""),
                 "content_type": data.get("contentType", "text/plain"),
                 "visibility": data.get("visibility", "PUBLIC").lower(),
-                "node": author.node,
+                "node": remote_node,  # Use remote author's node
                 "source": "remote",
             }
         )
@@ -222,16 +223,14 @@ class InboxPostView(APIView):
     def _handle_follow(self, author, data):
         actor_data = data.get("actor", {})
         
-        remote_author, _ = Author.objects.get_or_create(
-            id=uuid.uuid4(),
-            defaults={
-                "username": actor_data.get("displayName", "").lower().replace(" ", "_")[:150],
-                "display_name": actor_data.get("displayName", ""),
-                "node": author.node,
-                "is_active": True,
-                "approved": True
-            }
-        )
+        actor_fqid = actor_data.get("id", "")
+        if not actor_fqid:
+            return Response({"detail": "Actor ID missing"}, status=400)
+        
+        try:
+            remote_author, _ = get_or_create_remote_author(actor_fqid, actor_data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=400)
         
         Follow.objects.get_or_create(
             follower=remote_author,
@@ -244,16 +243,14 @@ class InboxPostView(APIView):
         actor_data = data.get("author", {})
         object_url = data.get("object")
         
-        remote_author, _ = Author.objects.get_or_create(
-            id=uuid.uuid4(),
-            defaults={
-                "username": actor_data.get("displayName", "").lower().replace(" ", "_")[:150],
-                "display_name": actor_data.get("displayName", ""),
-                "node": author.node,
-                "is_active": True,
-                "approved": True
-            }
-        )
+        author_fqid = actor_data.get("id", "")
+        if not author_fqid:
+            return Response({"detail": "Author ID missing"}, status=400)
+        
+        try:
+            remote_author, _ = get_or_create_remote_author(author_fqid, actor_data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=400)
         
         try:
             entry = Entry.objects.get(source_url=object_url)
@@ -266,16 +263,14 @@ class InboxPostView(APIView):
         actor_data = data.get("author", {})
         entry_url = data.get("entry")
         
-        remote_author, _ = Author.objects.get_or_create(
-            id=uuid.uuid4(),
-            defaults={
-                "username": actor_data.get("displayName", "").lower().replace(" ", "_")[:150],
-                "display_name": actor_data.get("displayName", ""),
-                "node": author.node,
-                "is_active": True,
-                "approved": True
-            }
-        )
+        author_fqid = actor_data.get("id", "")
+        if not author_fqid:
+            return Response({"detail": "Author ID missing"}, status=400)
+        
+        try:
+            remote_author, _ = get_or_create_remote_author(author_fqid, actor_data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=400)
         
         try:
             entry = Entry.objects.get(source_url=entry_url)

@@ -5,14 +5,16 @@ from nodes.models import Node
 from authors.models import Author, Follow
 from entries.models import Entry, EntryLike, Comment
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
 
 def build_fqid(path, author_id=None, entry_id=None):
     """Build Fully Qualified ID"""
-    local_node = Node.objects.get(is_local=True)
-    if not local_node:
+    try:
+        local_node = Node.objects.get(is_local=True)
+    except Node.DoesNotExist:
         return None
     host_url = local_node.host_url.rstrip('/') + '/'
     if entry_id:
@@ -22,10 +24,76 @@ def build_fqid(path, author_id=None, entry_id=None):
     return f"{host_url}{path}"
 
 
+def parse_author_fqid(author_fqid):
+    """
+    Parse author FQID to extract UUID and node URL.
+    
+    Args:
+        author_fqid: Full URL like "https://node.com/api/authors/uuid"
+    
+    Returns:
+        tuple: (author_uuid, node_url) or raises ValueError
+    """
+    if not author_fqid:
+        raise ValueError("Author FQID is required")
+    
+    try:
+        parts = author_fqid.rstrip('/').split('/api/authors/')
+        if len(parts) != 2:
+            raise ValueError(f"Invalid author FQID format: {author_fqid}")
+        node_url = parts[0] + '/'
+        author_uuid_str = parts[1]
+        author_uuid = uuid.UUID(author_uuid_str)
+        return author_uuid, node_url
+    except (ValueError, IndexError) as e:
+        raise ValueError(f"Invalid author FQID format: {author_fqid}") from e
+
+
+def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
+    """
+    Get or create a remote author from FQID and data.
+    
+    Args:
+        author_fqid: Full URL like "https://node.com/api/authors/uuid"
+        author_data: Dict with author info (displayName, github, etc.)
+        remote_node: Optional Node object. If None, will be looked up from FQID.
+    
+    Returns:
+        tuple: (author, created) - Author object and whether it was created
+    """
+    author_uuid, node_url = parse_author_fqid(author_fqid)
+    author_uuid_str = str(author_uuid)
+    
+    # Get remote node if not provided
+    if remote_node is None:
+        try:
+            remote_node = Node.objects.get(host_url=node_url, is_local=False)
+        except Node.DoesNotExist:
+            raise ValueError(f"Remote node not found: {node_url}")
+    
+    # Get or create the author
+    author, created = Author.objects.get_or_create(
+        id=author_uuid,
+        defaults={
+            "username": f"remote_{author_uuid_str[:8]}",
+            "display_name": author_data.get("displayName", ""),
+            "node": remote_node,
+            "is_active": True,
+            "approved": True,
+            "github_url": author_data.get("github", "")
+        }
+    )
+    
+    return author, created
+
+
 def serialize_author(author):
     """Serialize author for API"""
-    local_node = Node.objects.get(is_local=True)
-    host_url = local_node.host_url.rstrip('/') + '/' if local_node else ""
+    try:
+        local_node = Node.objects.get(is_local=True)
+        host_url = local_node.host_url.rstrip('/') + '/'
+    except Node.DoesNotExist:
+        host_url = ""
     
     # Get profile image URL
     profile_image = ""
@@ -64,8 +132,9 @@ def send_to_inbox(remote_author_url, payload, remote_node):
 
 def send_entry_to_remote_nodes(entry):
     """Send entry notification to remote followers' inboxes"""
-    local_node = Node.objects.get(is_local=True)
-    if not local_node:
+    try:
+        local_node = Node.objects.get(is_local=True)
+    except Node.DoesNotExist:
         return
     
     if entry.visibility == "friends_only":
@@ -103,8 +172,11 @@ def send_entry_to_remote_nodes(entry):
 
 def send_like_to_remote_node(like, entry):
     """Send like notification to entry author's inbox (if remote)"""
-    local_node = Node.objects.get(is_local=True)
-    if not local_node or entry.author.node == local_node:
+    try:
+        local_node = Node.objects.get(is_local=True)
+    except Node.DoesNotExist:
+        return
+    if entry.author.node == local_node:
         return
     
     remote_node = entry.author.node
@@ -125,8 +197,11 @@ def send_like_to_remote_node(like, entry):
 
 def send_comment_to_remote_node(comment, entry):
     """Send comment notification to entry author's inbox (if remote)"""
-    local_node = Node.objects.get(is_local=True)
-    if not local_node or entry.author.node == local_node:
+    try:
+        local_node = Node.objects.get(is_local=True)
+    except Node.DoesNotExist:
+        return
+    if entry.author.node == local_node:
         return
     
     remote_node = entry.author.node
@@ -149,8 +224,11 @@ def send_comment_to_remote_node(comment, entry):
 
 def send_follow_to_remote_node(follow):
     """Send follow request notification to target author's inbox (if remote)"""
-    local_node = Node.objects.get(is_local=True)
-    if not local_node or follow.following.node == local_node:
+    try:
+        local_node = Node.objects.get(is_local=True)
+    except Node.DoesNotExist:
+        return
+    if follow.following.node == local_node:
         return
     
     remote_node = follow.following.node
@@ -166,4 +244,57 @@ def send_follow_to_remote_node(follow):
     
     remote_url = f"{remote_node.host_url.rstrip('/')}/api/authors/{follow.following.id}"
     send_to_inbox(remote_url, payload, remote_node)
+
+
+# def fetch_and_create_remote_author(author_fqid):
+#     """
+#     Fetch author from remote node API and create locally.
+    
+#     Args:
+#         author_fqid: Full URL like "https://remote-node.com/api/authors/uuid"
+    
+#     Returns:
+#         Author: The created or existing remote author
+#     """
+#     # Parse FQID to get UUID and node URL
+#     try:
+#         author_uuid, node_url = parse_author_fqid(author_fqid)
+#     except ValueError as e:
+#         raise ValueError(f"Invalid author FQID: {e}")
+    
+#     # Check if author already exists
+#     try:
+#         existing_author = Author.objects.get(id=author_uuid)
+#         logger.info(f"Author {author_uuid} already exists")
+#         return existing_author
+#     except Author.DoesNotExist:
+#         pass
+    
+#     # Find the remote node
+#     try:
+#         remote_node = Node.objects.get(host_url=node_url, is_local=False)
+#     except Node.DoesNotExist:
+#         raise ValueError(f"Remote node not found: {node_url}. Add it first via Django admin or shell.")
+    
+#     if not remote_node.username or not remote_node.password:
+#         raise ValueError(f"Remote node credentials not set for {node_url}")
+    
+#     # Fetch author from remote API
+#     try:
+#         response = requests.get(
+#             author_fqid,
+#             auth=HTTPBasicAuth(remote_node.username, remote_node.password),
+#             headers={"Content-Type": "application/json"},
+#             timeout=10
+#         )
+#         response.raise_for_status()
+#         author_data = response.json()
+#     except requests.RequestException as e:
+#         raise ValueError(f"Failed to fetch author from {author_fqid}: {e}")
+    
+#     # Create the author locally using the utility function
+#     author, created = get_or_create_remote_author(author_fqid, author_data, remote_node)
+    
+#     logger.info(f"Created remote author: {author.display_name} (ID: {author.id})")
+#     return author
 

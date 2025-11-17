@@ -29,7 +29,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .github import sync_github_events
 from django.utils import timezone
+import logging
 from utils.node_communication import send_follow_to_remote_node
+
+logger = logging.getLogger(__name__)
 
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
@@ -403,11 +406,13 @@ class FollowDecisionView(APIView):
                 # Refresh from database to confirm the save worked
                 fr.refresh_from_db()
                 print(f"[DEBUG] After refresh - Status: {fr.status}, Approved: {fr.approved}")
+                logger.info(f"Sending follow acceptance to follower {fr.follower_id}")
                 send_follow_to_remote_node(fr, state=Follow.ACCEPTED, target="follower")
                 return Response({"detail": "Follow request accepted.", "status": fr.status, "approved": fr.approved}, status=status.HTTP_200_OK)
 
             if decision == "deny":
                 fr.deny(request.user)
+                logger.info(f"Sending follow denial to follower {fr.follower_id}")
                 send_follow_to_remote_node(fr, state=Follow.DENIED, target="follower")
                 fr.delete()
                 return Response({"detail": "Follow request denied."}, status=status.HTTP_204_NO_CONTENT)

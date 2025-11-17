@@ -232,6 +232,7 @@ class InboxPostView(APIView):
             return Response({"detail": str(e)}, status=400)
 
         state_str = (data.get("state") or Follow.PENDING).lower()
+        logger.info(f"Inbox follow payload state={state_str} from {remote_author.id} -> {author.id}")
         if state_str in {"requesting", "pending"}:
             desired_status = Follow.PENDING
         elif state_str in {"accepted", "accept"}:

@@ -969,6 +969,10 @@
           if (!wrap.children.length) {
             wrap.innerHTML = '<div class="empty-state">No follow requests</div>';
           }
+          
+          if (decision === 'accept') {
+            bootstrapFollowStatusWatchers();
+          }
         } catch (e) {
           rowEl.style.opacity = 1;
           alert(e.message || 'Failed to update request');

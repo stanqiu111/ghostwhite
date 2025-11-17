@@ -200,7 +200,7 @@ class InboxPostView(APIView):
         return Response({"detail": f"Unknown type: {obj_type}"}, status=400)
     
     def _handle_entry(self, author, data):
-        """Handle incoming entry activity"""
+        """Handle incoming entry activity (create, update, or delete)"""
         entry_fqid = data.get("id")
         if not entry_fqid:
             return Response({"detail": "Entry ID missing"}, status=400)
@@ -210,29 +210,55 @@ class InboxPostView(APIView):
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
         
-        Entry.objects.get_or_create(
+        visibility = data.get("visibility", "PUBLIC").upper()
+        
+        # Get or create the entry
+        entry, created = Entry.objects.get_or_create(
             source_url=entry_fqid,
             defaults={
                 "author": remote_author,
                 "content": data.get("content", ""),
                 "content_type": data.get("contentType", "text/plain"),
-                "visibility": data.get("visibility", "PUBLIC").lower(),
+                "visibility": visibility.lower(),
                 "node": remote_author.node,
                 "source": "remote",
             }
         )
-        logger.info(f"Entry received from {remote_author.display_name}")
-        return Response({"detail": "Entry received"}, status=200)
+        
+        # Update existing entry if it was already received
+        if not created:
+            entry.content = data.get("content", entry.content)
+            entry.content_type = data.get("contentType", entry.content_type)
+            entry.visibility = visibility.lower()
+            
+            # Handle deletion
+            if visibility == "DELETED":
+                from django.utils import timezone
+                entry.deleted_at = timezone.now()
+            else:
+                entry.deleted_at = None
+            
+            entry.save()
+        
+        action = "created" if created else "updated" if visibility != "DELETED" else "deleted"
+        logger.info(f"Entry {action} from {remote_author.display_name}")
+        return Response({"detail": f"Entry {action}"}, status=200)
     
     def _handle_follow(self, author, data):
         """Handle incoming follow activity"""
+        logger.info(f"[INBOX FOLLOW] Received follow activity for author_id={author.id} ({author.display_name})")
+        logger.info(f"[INBOX FOLLOW] Payload: {data}")
+        
         try:
             remote_author = self._get_remote_author(data.get("actor", {}))
+            logger.info(f"[INBOX FOLLOW] Remote author resolved: id={remote_author.id}, display_name={remote_author.display_name}, node={remote_author.node.host_url if remote_author.node else 'None'}")
         except ValueError as e:
+            logger.error(f"[INBOX FOLLOW] Failed to get remote author: {e}")
             return Response({"detail": str(e)}, status=400)
 
         state_str = (data.get("state") or Follow.PENDING).lower()
-        logger.info(f"Inbox follow payload state={state_str} from {remote_author.id} -> {author.id}")
+        logger.info(f"[INBOX FOLLOW] Parsed state: '{state_str}' from payload")
+        
         if state_str in {"requesting", "pending"}:
             desired_status = Follow.PENDING
         elif state_str in {"accepted", "accept"}:
@@ -241,36 +267,99 @@ class InboxPostView(APIView):
             desired_status = Follow.DENIED
         else:
             desired_status = Follow.PENDING
+        
+        logger.info(f"[INBOX FOLLOW] Desired status: {desired_status}")
 
-        follow, created = Follow.objects.get_or_create(
-            follower=remote_author,
-            following=author,
-            defaults={"approved": False, "status": Follow.PENDING}
-        )
+        object_data = data.get("object", {})
+        is_decision = False
+        logger.info(f"[INBOX FOLLOW] Checking object field: {object_data}")
+        
+        if object_data and isinstance(object_data, dict):
+            try:
+                object_author = self._get_remote_author(object_data)
+                logger.info(f"[INBOX FOLLOW] Object author resolved: id={object_author.id}, matches local author={object_author.id == author.id}")
+                if object_author.id == author.id and desired_status in (Follow.ACCEPTED, Follow.DENIED):
+                    is_decision = True
+                    logger.info(f"[INBOX FOLLOW] Detected as DECISION notification (object matches author + status is ACCEPTED/DENIED)")
+            except (ValueError, KeyError) as e:
+                logger.warning(f"[INBOX FOLLOW] Could not resolve object author: {e}")
+        
+        if is_decision:
+            # Decision notification: Update where author (local user) follows remote_author
+            logger.info(f"[INBOX FOLLOW] Processing as DECISION: Updating relationship where author (local) follows remote_author")
+            logger.info(f"[INBOX FOLLOW] Looking for: follower={author.id} ({author.display_name}), following={remote_author.id} ({remote_author.display_name})")
+            
+            follow, created = Follow.objects.get_or_create(
+                follower=author,
+                following=remote_author,
+                defaults={"approved": False, "status": Follow.PENDING}
+            )
+            logger.info(f"[INBOX FOLLOW] Relationship {'CREATED' if created else 'FOUND'}: id={follow.id}, current status={follow.status}, approved={follow.approved}")
+        else:
+            # Request notification: Update where remote_author follows author (local user)
+            logger.info(f"[INBOX FOLLOW] Processing as REQUEST: Updating relationship where remote_author follows author (local)")
+            logger.info(f"[INBOX FOLLOW] Looking for: follower={remote_author.id} ({remote_author.display_name}), following={author.id} ({author.display_name})")
+            
+            follow, created = Follow.objects.get_or_create(
+                follower=remote_author,
+                following=author,
+                defaults={"approved": False, "status": Follow.PENDING}
+            )
+            logger.info(f"[INBOX FOLLOW] Relationship {'CREATED' if created else 'FOUND'}: id={follow.id}, current status={follow.status}, approved={follow.approved}")
 
         if desired_status == Follow.ACCEPTED:
+            logger.info(f"[INBOX FOLLOW] Updating to ACCEPTED: current status={follow.status}, approved={follow.approved}")
             if follow.status != Follow.ACCEPTED or not follow.approved:
                 follow.status = Follow.ACCEPTED
                 follow.approved = True
                 follow.save(update_fields=["status", "approved"])
-            logger.info(f"Follow accepted for {remote_author.display_name} -> {author.display_name}")
+                logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
+            else:
+                logger.info(f"[INBOX FOLLOW] Already ACCEPTED, no update needed")
+            logger.info(f"[INBOX FOLLOW] Follow accepted: {follow.follower.display_name} -> {follow.following.display_name}")
             return Response({"detail": "Follow accepted"}, status=200)
 
         if desired_status == Follow.DENIED:
+            logger.info(f"[INBOX FOLLOW] Updating to DENIED: current status={follow.status}, approved={follow.approved}")
             if follow.status != Follow.DENIED or follow.approved:
                 follow.status = Follow.DENIED
                 follow.approved = False
                 follow.save(update_fields=["status", "approved"])
-            logger.info(f"Follow denied for {remote_author.display_name} -> {author.display_name}")
+                logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
+            else:
+                logger.info(f"[INBOX FOLLOW] Already DENIED, no update needed")
+            logger.info(f"[INBOX FOLLOW] Follow denied: {follow.follower.display_name} -> {follow.following.display_name}")
             return Response({"detail": "Follow denied"}, status=200)
 
-        # If it already existed but was denied, reset it to pending
-        if not created and follow.status == Follow.DENIED:
-            follow.status = Follow.PENDING
-            follow.approved = False
-            follow.save(update_fields=["status", "approved"])
+        # For pending requests:
+        # - If it was previously denied, reset to pending (allows retry after denial)
+        # - If it was previously accepted but we're receiving a new request, reset to pending
+        #   (this handles the case where user unfollowed and followed again)
+        if not created and desired_status == Follow.PENDING:
+            if follow.status == Follow.DENIED:
+                logger.info(f"[INBOX FOLLOW] Resetting from DENIED to PENDING (retry after denial)")
+                follow.status = Follow.PENDING
+                follow.approved = False
+                follow.save(update_fields=["status", "approved"])
+                logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
+            elif follow.status == Follow.ACCEPTED:
+                logger.info(f"[INBOX FOLLOW] Resetting from ACCEPTED to PENDING (new request after unfollow)")
+                follow.status = Follow.PENDING
+                follow.approved = False
+                follow.save(update_fields=["status", "approved"])
+                logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
+            elif follow.status != Follow.PENDING:
+                # If status is something else, ensure it's set to PENDING
+                logger.info(f"[INBOX FOLLOW] Updating status from {follow.status} to PENDING")
+                follow.status = Follow.PENDING
+                follow.approved = False
+                follow.save(update_fields=["status", "approved"])
+                logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
+        elif created:
+            # New follow request created
+            logger.info(f"[INBOX FOLLOW] New follow request created: {follow.follower.display_name} -> {follow.following.display_name}")
 
-        logger.info(f"Follow request received from {remote_author.display_name} to {author.display_name}")
+        logger.info(f"[INBOX FOLLOW] Follow request processed: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}, approved={follow.approved}")
         return Response({"detail": "Follow received"}, status=200)
     
     def _find_entry_by_url(self, entry_url):

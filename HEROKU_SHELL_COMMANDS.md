@@ -12,7 +12,7 @@
    - Go to Django Admin → Nodes
    - Click "Add Node"
    - Set:
-     - `host_url`: The external node's URL (e.g., `https://ghostwhite-ximeng-c739441113d7.herokuapp.com/`)
+     - `host_url`: The external node's URL (e.g., `https://ghostwhite-evelyn-node-f268ea95378e.herokuapp.com/`)
      - `is_local`: False
      - `username`: The external node's username (for you to authenticate with them)
      - `password`: The external node's password
@@ -46,6 +46,9 @@ for author in Author.objects.filter(node__is_local=True):
 Local Authors:
   evelyn_local_node (Evelyn)
     ID: a3ab10db-bba4-402a-bc05-e9b60a78f7ac
+
+  evelyn_evelyn_second_node (evelyn_evelyn_second_node)
+    ID: b0dcc4d7-0e8f-456f-9108-2a037a58c053
 ```
 
 ---
@@ -58,7 +61,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # Replace with your external node URL
-node_url = "https://ghostwhite-ximeng-c739441113d7.herokuapp.com/"
+node_url = "https://ghostwhite-evelyn-node-f268ea95378e.herokuapp.com/"
 node = Node.objects.get(host_url=node_url, is_local=False)
 
 response = requests.get(
@@ -86,6 +89,20 @@ for author in authors:
 Remote Authors from https://ghostwhite-ximeng-c739441113d7.herokuapp.com/:
   Ximeng
     FQID: https://ghostwhite-ximeng-c739441113d7.herokuapp.com/api/authors/32ebf933-4f67-4987-8f0d-9645cebec63b/
+
+
+Remoter Author from 
+  evelyn_evelyn_node2
+    FQID: https://ghostwhite-evelyn-node-f268ea95378e.herokuapp.com/api/authors/63f1f639-2280-4dd6-8350-f077198cc1f8/
+
+  evelyn_evelyn_node3
+    FQID: https://ghostwhite-evelyn-node-f268ea95378e.herokuapp.com/api/authors/9b696604-5278-4914-925e-bb10e15188f2/
+
+  evelyn_evelyn_node4
+    FQID: https://ghostwhite-evelyn-node-f268ea95378e.herokuapp.com/api/authors/543b2674-ad4d-4615-8767-c3884b1607f3/
+
+  remote_00312aa4
+    FQID: https://ghostwhite-evelyn-node-f268ea95378e.herokuapp.com/api/authors/00312aa4-66a1-42f9-ae68-6bc9b60ee39e/
 ```
 
 ## Send Follow Request
@@ -96,7 +113,7 @@ Then copy-paste this entire block:
 
 ```python
 from authors.models import Author, Follow
-from utils.node_communication import send_follow_to_remote_node, get_or_create_remote_author
+from utils.node_communication import send_follow_request_to_remote_node, get_or_create_remote_author
 from nodes.models import Node
 import requests
 from requests.auth import HTTPBasicAuth
@@ -135,6 +152,6 @@ follow, created = Follow.objects.get_or_create(
 print(f"Follow request {'created' if created else 'already exists'} (status: {follow.status})")
 
 # Send follow request to remote node
-send_follow_to_remote_node(follow)
+send_follow_request_to_remote_node(follow)
 print("✓ Follow request sent! Check the remote node to see if it was received.")
 ```

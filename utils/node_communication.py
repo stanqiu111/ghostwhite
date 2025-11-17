@@ -307,26 +307,27 @@ FOLLOW_STATE_TO_SPEC = {
 }
 
 
-def send_follow_to_remote_node(follow, *, state=None, target="following"):
+def send_follow_request_to_remote_node(follow):
     """
-    Send follow notification/decision to a remote author's inbox.
+    Send a follow request notification to a remote author's inbox.
+    
+    This is used when a local user requests to follow a remote author.
+    The notification is sent to the followee (the person being followed).
     
     Args:
-        follow: Follow model instance
-        state: Optional override for follow status (use Follow constants)
-        target: "following" to notify the followee (default for new requests),
-                "follower" to notify the follower (used when decision is made)
+        follow: Follow model instance with status=PENDING
     """
-    logger.info(f"Sending follow notification to remote node: {follow.id}")
+    logger.info(f"Sending follow request to remote node: follow_id={follow.id}, follower={follow.follower_id}, following={follow.following_id}")
     local_node = get_local_node()
     if not local_node:
-        logger.warning("send_follow_to_remote_node: local node not configured")
+        logger.warning("send_follow_request_to_remote_node: local node not configured")
         return
 
-    target_author = follow.following if target == "following" else follow.follower
+    # Notify the followee (person being followed)
+    target_author = follow.following
     if target_author.node == local_node:
         logger.info(
-            "send_follow_to_remote_node: target author %s is local, skipping",
+            "send_follow_request_to_remote_node: target author %s is local, skipping",
             target_author.id,
         )
         return
@@ -334,29 +335,83 @@ def send_follow_to_remote_node(follow, *, state=None, target="following"):
     remote_node = target_author.node
     if not remote_node.username:
         logger.warning(
-            "send_follow_to_remote_node: remote node %s missing credentials",
+            "send_follow_request_to_remote_node: remote node %s missing credentials",
             remote_node.host_url,
         )
         return
-
-    state_value = (state or follow.status or Follow.PENDING).lower()
-    payload_state = FOLLOW_STATE_TO_SPEC.get(state_value, FOLLOW_STATE_TO_SPEC[Follow.PENDING])
-
-    logger.info(
-        "send_follow_to_remote_node: sending state=%s target=%s follower=%s following=%s to %s",
-        payload_state,
-        target,
-        follow.follower_id,
-        follow.following_id,
-        remote_node.host_url,
-    )
 
     payload = {
         "type": "follow",
         "summary": f"{follow.follower.display_name or follow.follower.username} wants to follow {follow.following.display_name or follow.following.username}",
         "actor": serialize_author(follow.follower),
         "object": serialize_author(follow.following),
+        "state": "requesting",
+    }
+
+    logger.info(
+        "send_follow_request_to_remote_node: sending request from follower=%s to following=%s at node %s",
+        follow.follower_id,
+        follow.following_id,
+        remote_node.host_url,
+    )
+
+    send_to_inbox(payload, remote_node, target_author.id)
+
+
+def send_follow_decision_to_remote_node(follow, decision):
+    """
+    Send a follow decision (accept/deny) notification to a remote author's inbox.
+    
+    This is used when a local user accepts or denies a follow request from a remote user.
+    The notification is sent to the follower (the person who made the request).
+    
+    Args:
+        follow: Follow model instance
+        decision: Either Follow.ACCEPTED or Follow.DENIED constant
+    """
+    if decision not in (Follow.ACCEPTED, Follow.DENIED):
+        logger.error(f"send_follow_decision_to_remote_node: invalid decision {decision}, must be ACCEPTED or DENIED")
+        return
+    
+    logger.info(f"Sending follow decision to remote node: follow_id={follow.id}, decision={decision}, follower={follow.follower_id}, following={follow.following_id}")
+    local_node = get_local_node()
+    if not local_node:
+        logger.warning("send_follow_decision_to_remote_node: local node not configured")
+        return
+
+    # Notify the follower (person who made the request)
+    target_author = follow.follower
+    if target_author.node == local_node:
+        logger.info(
+            "send_follow_decision_to_remote_node: target author %s is local, skipping",
+            target_author.id,
+        )
+        return
+
+    remote_node = target_author.node
+    if not remote_node.username:
+        logger.warning(
+            "send_follow_decision_to_remote_node: remote node %s missing credentials",
+            remote_node.host_url,
+        )
+        return
+
+    payload_state = FOLLOW_STATE_TO_SPEC.get(decision, "requesting")
+    
+    payload = {
+        "type": "follow",
+        "summary": f"{follow.following.display_name or follow.following.username} {'accepted' if decision == Follow.ACCEPTED else 'rejected'} your follow request",
+        "actor": serialize_author(follow.following),
+        "object": serialize_author(follow.follower),
         "state": payload_state,
     }
+
+    logger.info(
+        "send_follow_decision_to_remote_node: sending decision=%s from following=%s to follower=%s at node %s",
+        payload_state,
+        follow.following_id,
+        follow.follower_id,
+        remote_node.host_url,
+    )
 
     send_to_inbox(payload, remote_node, target_author.id)

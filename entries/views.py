@@ -227,7 +227,14 @@ class EntryUpdateView(generics.UpdateAPIView):
     def perform_update(self, serializer):
         if self.request.user != serializer.instance.author:
             raise PermissionDenied("Only the author can update their own entry.")
-        serializer.save()
+        entry = serializer.save()
+        # Notify remote nodes about the entry update
+        try:
+            send_entry_to_remote_nodes(entry)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send entry update to remote nodes: {e}")
 
 
 class EntryDeleteView(generics.DestroyAPIView):
@@ -241,6 +248,15 @@ class EntryDeleteView(generics.DestroyAPIView):
         if not self.request.user.is_staff and self.request.user != instance.author:
             raise PermissionDenied("Only the author can delete their own entry.")
         instance.soft_delete()
+        # Notify remote nodes about the entry deletion
+        # Refresh from DB to get updated visibility
+        instance.refresh_from_db()
+        try:
+            send_entry_to_remote_nodes(instance)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send entry deletion to remote nodes: {e}")
 
 
 def _are_friends(a, b) -> bool:

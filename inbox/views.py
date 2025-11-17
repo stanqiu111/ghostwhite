@@ -200,7 +200,7 @@ class InboxPostView(APIView):
         return Response({"detail": f"Unknown type: {obj_type}"}, status=400)
     
     def _handle_entry(self, author, data):
-        """Handle incoming entry activity"""
+        """Handle incoming entry activity (create, update, or delete)"""
         entry_fqid = data.get("id")
         if not entry_fqid:
             return Response({"detail": "Entry ID missing"}, status=400)
@@ -210,19 +210,39 @@ class InboxPostView(APIView):
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
         
-        Entry.objects.get_or_create(
+        visibility = data.get("visibility", "PUBLIC").upper()
+        
+        # Get or create the entry
+        entry, created = Entry.objects.get_or_create(
             source_url=entry_fqid,
             defaults={
                 "author": remote_author,
                 "content": data.get("content", ""),
                 "content_type": data.get("contentType", "text/plain"),
-                "visibility": data.get("visibility", "PUBLIC").lower(),
+                "visibility": visibility.lower(),
                 "node": remote_author.node,
                 "source": "remote",
             }
         )
-        logger.info(f"Entry received from {remote_author.display_name}")
-        return Response({"detail": "Entry received"}, status=200)
+        
+        # Update existing entry if it was already received
+        if not created:
+            entry.content = data.get("content", entry.content)
+            entry.content_type = data.get("contentType", entry.content_type)
+            entry.visibility = visibility.lower()
+            
+            # Handle deletion
+            if visibility == "DELETED":
+                from django.utils import timezone
+                entry.deleted_at = timezone.now()
+            else:
+                entry.deleted_at = None
+            
+            entry.save()
+        
+        action = "created" if created else "updated" if visibility != "DELETED" else "deleted"
+        logger.info(f"Entry {action} from {remote_author.display_name}")
+        return Response({"detail": f"Entry {action}"}, status=200)
     
     def _handle_follow(self, author, data):
         """Handle incoming follow activity"""

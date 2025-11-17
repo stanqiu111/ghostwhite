@@ -63,7 +63,8 @@
   <div class="header">
     <div class="header-content">
       <div class="logo" onclick="navigateToHome()">ÉTHÉRÉ</div>
-      <div class="search-bar">
+        {% if request.user.is_authenticated %}
+        <div class="search-bar">
         <input type="text" class="search-input" placeholder="Search..." />
         <button class="search-clear">
           <svg
@@ -146,6 +147,11 @@
           </svg>
         </button>
         <button class="logout-btn" onclick="logout()">Log out</button>
+        {% else %}
+        <div class="search-bar"></div>
+        <div class="header-actions"></div>
+        <button class="login-btn" onclick="window.location.href='/authors/auth/'">Log in</button>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -185,6 +191,7 @@
         <img id="entryImage" class="hero" alt="Entry image">
 
         <div class="actions">
+          {% if request.user.is_authenticated %}
           <span class="chip" id="likeChip"> 
             {% if user_has_liked %}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -198,13 +205,10 @@
               <span id="likeCount">0</span></span>
           <span class="chip" id="commentChip">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9.98999 22.78C9.38999 22.78 8.81999 22.48 8.42999 21.95L7.23001 20.35C7.23001 20.36 7.18 20.33 7.16 20.33H6.79001C3.37001 20.33 1.25 19.4 1.25 14.79V10.79C1.25 6.58001 3.82001 5.48001 5.98001 5.29001C6.22001 5.26001 6.50001 5.25 6.79001 5.25H13.19C16.81 5.25 18.73 7.17001 18.73 10.79V14.79C18.73 15.08 18.72 15.36 18.68 15.63C18.5 17.76 17.4 20.33 13.19 20.33H12.79L11.55 21.95C11.16 22.48 10.59 22.78 9.98999 22.78ZM6.79001 6.75C6.56001 6.75 6.34 6.76 6.13 6.78C3.81 6.98 2.75 8.25001 2.75 10.79V14.79C2.75 18.22 3.81001 18.83 6.79001 18.83H7.19C7.64 18.83 8.14999 19.08 8.42999 19.44L9.63 21.05C9.85 21.35 10.13 21.35 10.35 21.05L11.55 19.45C11.84 19.06 12.3 18.83 12.79 18.83H13.19C15.73 18.83 17 17.76 17.19 15.48C17.22 15.24 17.23 15.02 17.23 14.79V10.79C17.23 8.00001 15.98 6.75 13.19 6.75H6.79001V6.75Z" fill="#292D32"/>
-              <path d="M9.99023 14.1899C9.43023 14.1899 8.99023 13.7399 8.99023 13.1899C8.99023 12.6399 9.44023 12.1899 9.99023 12.1899C10.5402 12.1899 10.9902 12.6399 10.9902 13.1899C10.9902 13.7399 10.5502 14.1899 9.99023 14.1899Z" fill="#292D32"/>
-              <path d="M13.1895 14.1899C12.6295 14.1899 12.1895 13.7399 12.1895 13.1899C12.1895 12.6399 12.6395 12.1899 13.1895 12.1899C13.7395 12.1899 14.1895 12.6399 14.1895 13.1899C14.1895 13.7399 13.7395 14.1899 13.1895 14.1899Z" fill="#292D32"/>
-              <path d="M6.7998 14.1899C6.2398 14.1899 5.7998 13.7399 5.7998 13.1899C5.7998 12.6399 6.2498 12.1899 6.7998 12.1899C7.3498 12.1899 7.7998 12.6399 7.7998 13.1899C7.7998 13.7399 7.3498 14.1899 6.7998 14.1899Z" fill="#292D32"/>
-              <path d="M17.9396 16.29C17.7396 16.29 17.5396 16.21 17.3996 16.06C17.2396 15.9 17.1697 15.67 17.1997 15.45C17.2297 15.24 17.2396 15.02 17.2396 14.79V10.79C17.2396 8.00001 15.9897 6.75 13.1997 6.75H6.79963C6.56963 6.75 6.34966 6.76 6.13966 6.78C5.91966 6.81 5.68964 6.72999 5.52964 6.57999C5.36964 6.41999 5.27963 6.20001 5.29963 5.98001C5.47963 3.82001 6.58963 1.25 10.7996 1.25H17.1997C20.8197 1.25 22.7396 3.17001 22.7396 6.79001V10.79C22.7396 15 20.1697 16.1 18.0097 16.29C17.9797 16.29 17.9596 16.29 17.9396 16.29ZM6.91966 5.25H13.1896C16.8096 5.25 18.7297 7.17001 18.7297 10.79V14.66C20.4297 14.24 21.2297 12.99 21.2297 10.79V6.79001C21.2297 4.00001 19.9796 2.75 17.1896 2.75H10.7897C8.58965 2.75 7.34966 3.55 6.91966 5.25Z" fill="#292D32"/>
+              <path d="M9.98999 22.78C9.38999 22.78 8.81999 22.48 8.42999 21.95L7.23001 20.35C7.23001 20.36 7.18 20.33 7.16 20.33H6.79001C3.37001 20.33 1.25 19.4 1.25 14.79V10.79C1.25 6.58001 3.82001 5.48001 5.98001 5.29001C6.22001 5.26001 6.50001 5.25 6.79001 5.25H13.19C16.81 5.25 18.73 7.17001 18.73 10.79V14.79C18.73 15.08 18.72 15.36 18.68 15.63C18.5 17.76 17.4 20.33 13.19 20.33H12.79L11.55 21.95C11.16 22.48 10.59 22.78 9.98999 22.78ZM6.79001 6.75C6.56001 6.75 6.34 6.76 6.13 6.78C3.81 6.98 2.75 8.25001 2.75 10.79V14.79C2.75 18.22 3.81001 18.83 6.79001 18.83H7.19C7.64 18.83 8.14999 19.08 8.42999 19.44L9.63 21.05C9.85 21.35 10.13 21.35 10.35 21.05L11.55 19.45C11.84 19.06 12.3 18.83 12.79 18.83H13.19C15.73 18.83 17 17.76 17.19 15.48C17.22 15.24 17.23 15.02 17.23 14.79V10.79C17.23 8.00001 15.98 6.75 13.19 6.75H6.79963C6.56963 6.75 6.34966 6.76 6.13966 6.78C5.91966 6.81 5.68964 6.72999 5.52964 6.57999C5.36964 6.41999 5.27963 6.20001 5.29963 5.98001C5.47963 3.82001 6.58963 1.25 10.7996 1.25H17.1997C20.8197 1.25 22.7396 3.17001 22.7396 6.79001V10.79C22.7396 15 20.1697 16.1 18.0097 16.29C17.9797 16.29 17.9596 16.29 17.9396 16.29ZM6.91966 5.25H13.1896C16.8096 5.25 18.7297 7.17001 18.7297 10.79V14.66C20.4297 14.24 21.2297 12.99 21.2297 10.79V6.79001C21.2297 4.00001 19.9796 2.75 17.1896 2.75H10.7897C8.58965 2.75 7.34966 3.55 6.91966 5.25Z" fill="#292D32"/>
               </svg>
               <span id="commentCount">0</span></span>
+          {% endif %}
           <span class="chip" id="copyChip" style="display:none; cursor:pointer;">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M8.99005 21.5C7.33005 21.5 5.66005 20.87 4.39005 19.6C1.86005 17.06 1.86005 12.94 4.39005 10.41C4.68005 10.12 5.16005 10.12 5.45005 10.41C5.74005 10.7 5.74005 11.18 5.45005 11.47C3.50005 13.42 3.50005 16.59 5.45005 18.54C7.40005 20.49 10.5701 20.49 12.5201 18.54C13.4601 17.6 13.9801 16.34 13.9801 15C13.9801 13.67 13.4601 12.41 12.5201 11.46C12.2301 11.17 12.2301 10.69 12.5201 10.4C12.8101 10.11 13.2901 10.11 13.5801 10.4C14.8101 11.63 15.4801 13.26 15.4801 15C15.4801 16.74 14.8001 18.37 13.5801 19.6C12.3201 20.87 10.6601 21.5 8.99005 21.5Z" fill="#292D32"/>
@@ -226,6 +230,7 @@
       <div id="commentsList" class="list"></div>
       <div id="likesList" class="list" style="display:none"></div>
 
+      {% if user.is_authenticated %}
       <div class="field" id="commentField">
         {% if user.image %}
           <img class="small" src="{{ user.image.url }}" alt="me">
@@ -235,6 +240,7 @@
         <input id="commentInput" class="input" placeholder="Add a comment…">
         <button id="postComment" class="btn">Post</button>
       </div>
+      {% endif %}
     </aside>
   </div>
 </div>
@@ -242,6 +248,7 @@
 /* ============ CONFIG ============ */
 const DEFAULT_PFP = "/static/images/default_pfp.png"; // change if your path differs
 const headersAuth = getHeaders();
+const IS_AUTHENTICATED = {{ request.user.is_authenticated|yesno:"true,false" }};
 
 /* ============ HELPERS =========== */
 const $ = (sel, root=document)=> root.querySelector(sel);
@@ -468,11 +475,23 @@ function renderEntry(e){
     }
   }
 
-  $('#likeCount').textContent = (e.like_count ?? e.likes?.length ?? 0);
-  $('#commentCount').textContent = (e.comments?.length ?? 0);
+  const likeCountEl = $('#likeCount');
+  if (likeCountEl) likeCountEl.textContent = (e.like_count ?? e.likes?.length ?? 0);
+  const commentCountEl = $('#commentCount');
+  if (commentCountEl) commentCountEl.textContent = (e.comments?.length ?? 0);
 
-  $('#likeChip').onclick = async ()=>{ try{ await likeEntry(e.serial, $('#likeChip')); }catch(err){ alert(err.message); } };
-  $('#commentChip').onclick = ()=> setTab('comments');
+  const likeChipEl = $('#likeChip');
+  if (likeChipEl && IS_AUTHENTICATED) {
+    likeChipEl.onclick = async ()=>{ try{ await likeEntry(e.serial, likeChipEl); }catch(err){ alert(err.message); } };
+  } else if (likeChipEl) {
+    likeChipEl.onclick = null;
+  }
+  const commentChipEl = $('#commentChip');
+  if (commentChipEl && IS_AUTHENTICATED) {
+    commentChipEl.onclick = ()=> setTab('comments');
+  } else if (commentChipEl) {
+    commentChipEl.onclick = null;
+  }
   const canShare = e.visibility === 'public' || e.visibility === 'unlisted';
   const copyChip = document.getElementById('copyChip');
   const copyNote = document.getElementById('copyNote');
@@ -502,7 +521,8 @@ function setTab(which){
   $('#tabLikes').classList.toggle('active', !isComments);
   $('#commentsList').style.display = isComments ? '' : 'none';
   $('#likesList').style.display = isComments ? 'none' : '';
-  $('#commentField').style.display = isComments ? '' : 'none';
+  const commentField = $('#commentField');
+  if (commentField) commentField.style.display = isComments ? '' : 'none';
 }
 
 function renderRight(e){
@@ -533,6 +553,7 @@ function renderRight(e){
           <div class="cmeta" style="margin-top:6px">${c.like_count ?? 0} likes</div>
         </div>
         <div class="c-actions" style="display:flex;gap:8px;align-items:center">
+          ${IS_AUTHENTICATED ? `
           <button class="btn btn-like" style="background:#fff;color:#111;border:1px solid var(--line)" title="Like">
             ${c.user_has_liked_comment
               ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -541,7 +562,7 @@ function renderRight(e){
                    <path d="M12 21.6501C11.69 21.6501 11.39 21.6101 11.14 21.5201C7.32 20.2101 1.25 15.5601 1.25 8.6901C1.25 5.1901 4.08 2.3501 7.56 2.3501C9.25 2.3501 10.83 3.0101 12 4.1901C13.17 3.0101 14.75 2.3501 16.44 2.3501C19.92 2.3501 22.75 5.2001 22.75 8.6901C22.75 15.5701 16.68 20.2101 12.86 21.5201C12.61 21.6101 12.31 21.6501 12 21.6501ZM7.56 3.8501C4.91 3.8501 2.75 6.0201 2.75 8.6901C2.75 15.5201 9.32 19.3201 11.63 20.1101C11.81 20.1701 12.2 20.1701 12.38 20.1101C14.68 19.3201 21.26 15.5301 21.26 8.6901C21.26 6.0201 19.1 3.8501 16.45 3.8501C14.93 3.8501 13.52 4.5601 12.61 5.7901C12.33 6.1701 11.69 6.1701 11.41 5.7901C10.48 4.5501 9.08 3.8501 7.56 3.8501Z" fill="#292D32"/></svg>`
             }
           </button>
-
+          ` : ``}
           ${isMine ? `
             <button class="btn btn-edit"  style="background:#fff;color:#111;border:1px solid var(--line)" title="Edit">Edit</button>
             <button class="btn btn-save"  style="display:none;background:#111827;color:#fff" title="Save">Save</button>
@@ -555,11 +576,14 @@ function renderRight(e){
     node.querySelector('.comment-body').textContent = c.content || '';
     node.querySelector('.comment-edit').value      = c.content || '';
 
-    // Like toggle
-    node.querySelector('.btn-like').onclick = async () => {
-      try { await toggleCommentLike(e.serial, c.serial); await load(); }
-      catch(err){ alert(err.message || 'Failed to like comment'); }
-    };
+    // Like toggle (only if button rendered - it is not rendered if not authenticated)
+    const likeBtn = node.querySelector('.btn-like');
+    if (likeBtn) {
+      likeBtn.onclick = async () => {
+        try { await toggleCommentLike(e.serial, c.serial); await load(); }
+        catch(err){ alert(err.message || 'Failed to like comment'); }
+      };
+    }
 
     if (isMine) {
       const editBtn = node.querySelector('.btn-edit');
@@ -637,18 +661,22 @@ function renderRight(e){
   });
 
   // Post a new comment
-  $('#postComment').onclick = async () => {
-    const val = $('#commentInput').value.trim();
-    if (!val) return;
-    try {
-      await addComment(e.serial, val);
-      $('#commentInput').value = '';
-      await load();
-      setTab('comments');
-    } catch (err) {
-      alert(err.message || 'Failed to add comment');
-    }
-  };
+  const postBtn = document.getElementById('postComment');
+  if (postBtn && IS_AUTHENTICATED) {
+    postBtn.onclick = async () => {
+      const input = document.getElementById('commentInput');
+      const val = (input?.value || '').trim();
+      if (!val) return;
+      try {
+        await addComment(e.serial, val);
+        if (input) input.value = '';
+        await load();
+        setTab('comments');
+      } catch (err) {
+        alert(err.message || 'Failed to add comment');
+      }
+    };
+  }
 }
 
 async function deleteEntry() {

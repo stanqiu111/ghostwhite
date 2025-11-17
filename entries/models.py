@@ -48,6 +48,16 @@ class Entry(models.Model):
                 name="unique_source_sourceid"
             )
         ]
+        indexes = [
+            models.Index(
+                fields=["author", "deleted_at"],
+                name="entry_author_deleted_idx",
+            ),
+            models.Index(
+                fields=["visibility", "created_at"],
+                name="entry_visibility_created_idx",
+            ),
+        ]
 
     def is_image_entry(self):
         """Return True if this entry represents a base64 image"""
@@ -136,14 +146,50 @@ class Comment(models.Model):
     def like_count(self):
         return self.likes.count()
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["entry", "created_at"],
+                name="comment_entry_created_idx",
+            )
+        ]
+
 
 class EntryLike(models.Model):
     entry = models.ForeignKey(Entry, on_delete=models.CASCADE, related_name="likes")
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="entrylikes")
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["entry", "author"],
+                name="unique_entry_author_like",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["author", "created_at"],
+                name="entrylike_author_created_idx",
+            )
+        ]
+
 
 class CommentLike(models.Model):
     comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="likes")
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="commentlikes")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["comment", "author"],
+                name="unique_comment_author_like",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["author", "created_at"],
+                name="commentlike_author_created_idx",
+            )
+        ]

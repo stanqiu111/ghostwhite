@@ -18,6 +18,8 @@ from django.shortcuts import get_object_or_404, render
 from django.db.models import Q, Exists, OuterRef, Prefetch
 from authors.models import Follow
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from utils.node_communication import send_entry_to_remote_nodes, send_comment_to_remote_node, send_like_to_remote_node
+
 
 
 def with_follow_flags(qs, user):
@@ -165,10 +167,15 @@ class EntryRetrieveView(generics.RetrieveAPIView):
     """Retrieve a single entry by ID"""
 
     serializer_class = EntryRetrieveSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def get_queryset(self):
         user = self.request.user
+        
+        # if user is anonymouse - when user clicks on public link , we should still show the entry
+        if not user.is_authenticated:
+            return Entry.objects.filter(visibility='public').select_related("author", "node")
+
         base = Entry.objects.filter(deleted_at__isnull=True).select_related("author", "node")
 
         if user.is_staff:
@@ -200,7 +207,8 @@ class EntryCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user, node=self.request.user.node)
+        entry = serializer.save(author=self.request.user, node=self.request.user.node)
+        send_entry_to_remote_nodes(entry)
 
 
 class EntryUpdateView(generics.UpdateAPIView):
@@ -239,7 +247,11 @@ def _are_friends(a, b) -> bool:
 
 def entry_detail_page(request, pk):
     entry = get_object_or_404(Entry, pk=pk)
-    user_has_liked = EntryLike.objects.filter(entry=entry, author=request.user).exists()
+    if request.user.is_authenticated:
+        user_has_liked = EntryLike.objects.filter(entry=entry, author=request.user).exists()
+    else:
+        user_has_liked = False
+        
     return render(request, "entries/entry_detail.html", {"entry_id": pk, "user_has_liked": user_has_liked, "user": request.user})
 
 
@@ -272,7 +284,8 @@ class CommentCreateView(generics.CreateAPIView):
         if not content:
             return Response({"detail": "Content is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        Comment.objects.create(entry=entry, author=author, content=content)
+        comment = Comment.objects.create(entry=entry, author=author, content=content)
+        send_comment_to_remote_node(comment, entry)
         return Response({"detail": "Comment added."}, status=status.HTTP_201_CREATED)
 
 
@@ -290,6 +303,7 @@ class EntryLikeToggleView(generics.DestroyAPIView):
         if not created:
             like.delete()
             return Response({"detail": "Like removed."}, status=status.HTTP_200_OK)
+        send_like_to_remote_node(like, entry)
         return Response({"detail": "Like added."}, status=status.HTTP_201_CREATED)
 
 

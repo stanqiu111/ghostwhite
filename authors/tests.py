@@ -1,12 +1,17 @@
-from django.urls import reverse
-from django.test import override_settings
-from django.contrib.auth import get_user_model
-from rest_framework import status
-from rest_framework.test import APITestCase, APIClient
 import json
+from unittest.mock import Mock, patch
 
+import requests
+from django.contrib.auth import get_user_model
+from django.test import TestCase, override_settings
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APIClient, APITestCase
+
+from authors.github import sync_github_events
+from authors.models import Author, Follow
+from entries.models import Entry
 from nodes.models import Node
-from authors.models import Follow
 
 User = get_user_model()
 
@@ -607,3 +612,87 @@ class UnfollowAPITests(APITestCase):
         # Second unfollow returns 404
         res2 = self.client.delete(url)
         self.assertEqual(res2.status_code, status.HTTP_404_NOT_FOUND)
+
+
+
+
+class SyncGitHubEventsTests(TestCase):
+    def setUp(self):
+        self.node, _ = Node.objects.get_or_create(
+            is_local=True, defaults={"host_url": "http://test.example/"}
+        )
+        self.author = Author.objects.create_user(
+            username="octocat",
+            password="password",
+            display_name="Mona",
+            approved=True,
+            is_active=True,
+            node=self.node,
+        )
+
+    def _mock_response(self, payload):
+        response = Mock()
+        response.status_code = 200
+        response.json.return_value = payload
+        response.raise_for_status.return_value = None
+        return response
+
+    @patch("authors.github.requests.get")
+    def test_creates_entries_from_push_event(self, mock_get):
+        event = {
+            "id": "evt123",
+            "type": "PushEvent",
+            "repo": {"name": "octocat/Hello-World"},
+            "actor": {"login": "octocat"},
+            "created_at": "2024-11-15T00:00:00Z",
+            "payload": {
+                "commits": [
+                    {"sha": "abcdef1", "message": "First"},
+                    {"sha": "abcdef2", "message": "Second"},
+                ]
+            },
+        }
+        mock_get.return_value = self._mock_response([event])
+
+        result = sync_github_events(self.author, "octocat")
+
+        self.assertEqual(result["created"], 1)
+        entry = Entry.objects.get(source_id="evt123")
+        self.assertIn("pushed 2 commits", entry.content)
+        self.assertEqual(entry.author, self.author)
+
+    @patch("authors.github.requests.get")
+    def test_skips_existing_event_ids(self, mock_get):
+        Entry.objects.create(
+            author=self.author,
+            content="already there",
+            content_type="markdown",
+            visibility="public",
+            node=self.author.node,
+            source="github",
+            source_id="evt-existing",
+        )
+        event = {
+            "id": "evt-existing",
+            "type": "WatchEvent",
+            "repo": {"name": "octocat/Hello-World"},
+            "actor": {"login": "octocat"},
+            "created_at": "2024-11-15T00:00:00Z",
+            "payload": {},
+        }
+        mock_get.return_value = self._mock_response([event])
+
+        result = sync_github_events(self.author, "octocat")
+
+        self.assertEqual(result["created"], 0)
+        self.assertEqual(Entry.objects.filter(source_id="evt-existing").count(), 1)
+
+    @patch("authors.github.requests.get")
+    def test_handles_request_errors(self, mock_get):
+        mock_get.side_effect = requests.exceptions.RequestException("Failed to fetch events")
+
+        result = sync_github_events(self.author, "octocat")
+
+        self.assertTrue(result["errors"])
+        self.assertEqual(result["created"], 0)
+

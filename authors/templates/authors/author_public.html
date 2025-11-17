@@ -358,6 +358,7 @@
 
       async function api(path, opts={}) {
         const res = await fetch(`/api${path}`, {
+          credentials: 'same-origin',
           ...opts,
           headers: { ...(opts.headers||{}), ...getHeaders() }
         });
@@ -597,6 +598,11 @@
           console.error('Profile serial not available');
           return;
         }
+
+        // Show confirmation dialog
+        const authorName = profile.username || profile.display_name || 'this author';
+        const confirmed = confirm(`Are you sure you want to unfollow ${authorName}?`);
+        if (!confirmed) return;
 
         btn.disabled = true;
         const originalText = btn.textContent;

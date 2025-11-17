@@ -251,7 +251,7 @@ class InboxPostView(APIView):
         return Response({"detail": f"Entry {action}"}, status=200)
     
     def _is_decision_notification(self, data, author, desired_status):
-        """Check if this is a decision notification (object matches local author and status is ACCEPTED/DENIED)."""
+        """Check if this is a decision notification."""
         object_data = data.get("object", {})
         if not object_data or not isinstance(object_data, dict):
             return False

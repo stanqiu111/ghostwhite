@@ -69,14 +69,14 @@ class Entry(models.Model):
     
     @property
     def remote_image_url(self):
-        """Get remote image URL from source_id for remote entries"""
+        """Remote image URL for remote entries."""
         if self.source == "remote" and self.source_id:
             return self.source_id
         return None
     
     @remote_image_url.setter
     def remote_image_url(self, value):
-        """Set remote image URL in source_id for remote entries"""
+        """Set remote image URL."""
         if self.source == "remote":
             self.source_id = value
     @property

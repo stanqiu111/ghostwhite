@@ -81,9 +81,47 @@ Follows:
 - Request: create `Follow(status=PENDING)`, send to followee
 - Accept: update to `ACCEPTED`, send to follower
 - Deny: update to `DENIED`, delete locally, send to follower
-- Unfollow: delete locally (no notification)
+- Unfollow: delete locally, send notification to followee
 
 When denying, we delete the relationship locally so when they send a new request, it wont conflict with what we have in the database. The requester's side keeps it as `DENIED` so they know they were rejected.
+
+## Like Flow
+
+**Entry Like:**
+- **Local → Remote:** Create `EntryLike` via [EntryLikeToggleView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L320). If like exists (toggle), delete locally and send with `removed=True`; otherwise send to entry author's inbox via `send_like_to_remote_node()`.
+- **Remote → Local:** Receive in `_handle_like()` in [inbox/views.py](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/inbox/views.py#L332), find entry by `object` URL. If `removed=True`, delete `EntryLike`; otherwise create `EntryLike(entry, remote_author)`.
+
+**Comment Like:**
+- **Local → Remote:** Create `CommentLike` via [CommentLikeToggleView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L347). If like exists, delete locally and send with `removed=True`; otherwise send to comment author's inbox via `send_comment_like_to_remote_node()`.
+- **Remote → Local:** Receive in `_handle_like()`, try entry first, then find comment by `object` URL. If `removed=True`, delete `CommentLike`; otherwise create `CommentLike(comment, remote_author)`.
+
+## Comment Flow
+
+**Create:**
+- **Local → Remote:** Create `Comment(entry, author, content)` via [CommentCreateView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L294), send to entry author's inbox via `send_comment_to_remote_node()`.
+- **Remote → Local:** Receive in `_handle_comment()` in [inbox/views.py](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/inbox/views.py#L383), find entry by `entry` URL, create `Comment(entry, remote_author, content, source_url)`.
+
+**Update:** we are jusr updating the commment content not the entire objecy
+- **Local → Remote:** Update `Comment.content` via [CommentUpdateDeleteView.patch()](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L377), send with `state="updated"`.
+- **Remote → Local:** Receive with `state="updated"`, find comment by `id` URL (FQID), update `Comment.content`.
+
+**Delete:**
+- **Local → Remote:** Delete `Comment` locally via [CommentUpdateDeleteView.delete()](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L395), send with `state="deleted"`.
+- **Remote → Local:** Receive with `state="deleted"`, find comment by `id` URL, delete `Comment` (hard delete).
+
+## Entry Flow
+
+**Create:**
+- **Local → Remote:** Create `Entry(author, content, visibility)` via [EntryCreateView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L210), send to remote followers via `send_entry_to_remote_nodes()` (based on visibility).
+- **Remote → Local:** Receive in `_handle_entry()` in [inbox/views.py](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/inbox/views.py#L203), create `Entry(author=remote_author, source="remote", source_url=entry_fqid)`.
+
+**Update:**
+- **Local → Remote:** Update `Entry` fields via [EntryUpdateView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L220), send to remote followers.
+- **Remote → Local:** Receive, find entry by `source_url` (FQID), update `Entry.content`, `Entry.content_type`, `Entry.visibility`.
+
+**Delete:**
+- **Local → Remote:** Soft delete via [EntryDeleteView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L240) (set `visibility="DELETED"`, `deleted_at=now()`), send to remote followers.
+- **Remote → Local:** Receive with `visibility="DELETED"`, find entry by `source_url`, set `Entry.deleted_at=now()` (soft delete, filtered by `deleted_at__isnull=True`).
 
 ## Follow Request Flow
 
@@ -134,9 +172,9 @@ Likes/Comments: always sent to the author (if remote)
 
 Follows: requests → sent to followee, decisions → sent to follower
 
-## Example
+## Examples
 
-Remote user comments on your post:
+### Example 1: Remote User Comments on Your Post
 1. Remote user comments (on their node)
 2. Their node builds payload with comment data
 3. Their node POSTs to your inbox with HTTP Basic Auth

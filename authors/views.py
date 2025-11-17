@@ -323,10 +323,12 @@ class FollowRequestsListView(generics.ListAPIView):
     serializer_class = FollowRequestSerializer
 
     def get_queryset(self):
-        # pending for ME (I am the followee), approved == False
+        # pending for ME (I am the followee), approved == False and status == PENDING
         return Follow.objects.select_related("follower").filter(
-            following=self.request.user, approved=False
-        )
+            following=self.request.user, 
+            approved=False,
+            status=Follow.PENDING
+        ).order_by("-created_at")
 
 class FollowRequestsListViewwww(APIView):
     permission_classes = [IsAuthenticated]
@@ -401,10 +403,12 @@ class FollowDecisionView(APIView):
                 # Refresh from database to confirm the save worked
                 fr.refresh_from_db()
                 print(f"[DEBUG] After refresh - Status: {fr.status}, Approved: {fr.approved}")
+                send_follow_to_remote_node(fr, state=Follow.ACCEPTED, target="follower")
                 return Response({"detail": "Follow request accepted.", "status": fr.status, "approved": fr.approved}, status=status.HTTP_200_OK)
 
             if decision == "deny":
                 fr.deny(request.user)
+                send_follow_to_remote_node(fr, state=Follow.DENIED, target="follower")
                 fr.delete()
                 return Response({"detail": "Follow request denied."}, status=status.HTTP_204_NO_CONTENT)
         except PermissionError as e:

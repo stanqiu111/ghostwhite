@@ -29,6 +29,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .github import sync_github_events
 from django.utils import timezone
+from utils.node_communication import send_follow_to_remote_node
+
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
     authentication_classes = []  # disable SessionAuthentication -> no CSRF required
@@ -294,6 +296,8 @@ class FollowRequestView(APIView):
             f = Follow.objects.create(follower=follower, following=followee, approved=False, status=Follow.PENDING)
         except IntegrityError:
             return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
+
+        send_follow_to_remote_node(f)
 
         # serialize minimal response (id is enough for tests)
         data = {"id": str(f.id), "follower": str(f.follower_id), "following": str(f.following_id), "approved": f.approved}

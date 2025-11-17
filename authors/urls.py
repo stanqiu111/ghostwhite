@@ -6,6 +6,7 @@ from .views import FollowRequestView, FollowRequestsListView, FollowDecisionView
 from .views import SyncMyGithubReposView
 from django.views.generic import TemplateView
 from entries.views import EntryImageView
+from inbox.views import InboxPostView
 
 
 app_name = "authors"
@@ -18,6 +19,7 @@ urlpatterns = [
     path("author_profile/", views.AuthorRetrieveUpdateView.as_view(), name="profile"),
     #path("<uuid:author_id>/entries/", include(("entries.urls", "entries"), namespace="authors_entries")),
     path("<uuid:author_id>/entries/<uuid:pk>/image/", EntryImageView.as_view(), name="entry-image-by-id"),
+    path("<uuid:author_id>/inbox/", InboxPostView.as_view(), name="inbox"),
     path("<uuid:author_id>/follow/", views.FollowRequestView.as_view(), name="follow-request"),
     path("follow-requests/", FollowRequestsListView.as_view(), name="follow-requests"),
     path("follows/<uuid:pk>/decision/", FollowDecisionView.as_view(), name="follow-decision"),

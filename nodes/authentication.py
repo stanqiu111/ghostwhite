@@ -35,7 +35,6 @@ class NodeBasicAuthentication(authentication.BaseAuthentication):
         
         try:
             node = Node.objects.get(username=username, password=password)
-            node.is_authenticated = True
             return (node, None)
         except Node.DoesNotExist:
             raise exceptions.AuthenticationFailed('Invalid node credentials')
@@ -46,8 +45,7 @@ class NodeAuthenticated(permissions.BasePermission):
     
     def has_permission(self, request, view):
         return (
-            request.user and 
-            hasattr(request.user, 'is_authenticated') and 
-            request.user.is_authenticated
+            request.user is not None and 
+            isinstance(request.user, Node)
         )
 

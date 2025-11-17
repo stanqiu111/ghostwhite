@@ -511,13 +511,21 @@
                 <button class="unfollow-btn"
                         data-author-id="{{ entry.author.id }}"
                         data-author-name="{{ entry.author.username }}"
+                        data-follow-status="accepted"
                         onclick="unfollowFromButton(this)">Unfollow</button>
               {% elif entry.follow_status == 'pending' %}
-                <button class="follow-btn" disabled>Requested</button>
+                <button class="follow-btn"
+                        data-author-id="{{ entry.author.id }}"
+                        data-author-name="{{ entry.author.username }}"
+                        data-author-username="{{ entry.author.username }}"
+                        data-follow-status="pending"
+                        disabled>Requested</button>
               {% else %}
                 <button class="follow-btn"
                         data-author-id="{{ entry.author.id }}"
+                        data-author-name="{{ entry.author.username }}"
                         data-author-username="{{ entry.author.username }}"
+                        data-follow-status=""
                         onclick="followFromButton(this)">Follow</button>
               {% endif %}
             {% endif %}
@@ -632,13 +640,21 @@
               <button class="unfollow-btn"
                       data-author-id="{{ suggestion.id }}"
                       data-author-name="{{ suggestion.username }}"
+                      data-follow-status="accepted"
                       onclick="unfollowFromButton(this)">Unfollow</button>
             {% elif suggestion.follow_status == 'pending' %}
-              <button class="follow-btn" disabled>Requested</button>
+              <button class="follow-btn"
+                      data-author-id="{{ suggestion.id }}"
+                      data-author-name="{{ suggestion.username }}"
+                      data-author-username="{{ suggestion.username }}"
+                      data-follow-status="pending"
+                      disabled>Requested</button>
             {% else %}
               <button class="follow-btn"
                       data-author-id="{{ suggestion.id }}"
+                      data-author-name="{{ suggestion.username }}"
                       data-author-username="{{ suggestion.username }}"
+                      data-follow-status=""
                       onclick="followFromButton(this)">Follow</button>
             {% endif %}
 
@@ -664,6 +680,84 @@
         return data;
       }
       
+      const followStatusPollers = new Map();
+
+      function updateButtonsForAuthor(authorId, status) {
+        if (!authorId) return;
+        const buttons = document.querySelectorAll(`[data-author-id="${authorId}"]`);
+        buttons.forEach(btn => applyFollowStateToButton(btn, status));
+      }
+
+      function applyFollowStateToButton(btn, status) {
+        if (!btn) return;
+        const nextStatus = status || '';
+        btn.dataset.followStatus = nextStatus;
+
+        if (nextStatus === 'accepted') {
+          btn.className = 'unfollow-btn';
+          btn.disabled = false;
+          btn.textContent = 'Unfollow';
+          btn.onclick = () => unfollowFromButton(btn);
+        } else if (nextStatus === 'pending') {
+          btn.className = 'follow-btn';
+          btn.disabled = true;
+          btn.textContent = 'Requested';
+          btn.onclick = null;
+        } else {
+          btn.className = 'follow-btn';
+          btn.disabled = false;
+          btn.textContent = 'Follow';
+          btn.onclick = () => followFromButton(btn);
+        }
+      }
+
+      async function fetchFollowStatus(authorId) {
+        if (!authorId) return null;
+        try {
+          const profile = await api(`/authors/${authorId}/`);
+          return profile?.follow_status || null;
+        } catch (err) {
+          console.warn('Failed to refresh follow status', err);
+          return null;
+        }
+      }
+
+      function startFollowStatusWatcher(authorId) {
+        if (!authorId || followStatusPollers.has(authorId)) return;
+
+        const poll = async () => {
+          const status = await fetchFollowStatus(authorId);
+          if (status !== null) {
+            updateButtonsForAuthor(authorId, status);
+          }
+          if (status !== 'pending') {
+            stopFollowStatusWatcher(authorId);
+          }
+        };
+
+        poll();
+        const handle = setInterval(poll, 5000);
+        followStatusPollers.set(authorId, handle);
+      }
+
+      function stopFollowStatusWatcher(authorId) {
+        const handle = followStatusPollers.get(authorId);
+        if (handle) {
+          clearInterval(handle);
+          followStatusPollers.delete(authorId);
+        }
+      }
+
+      function bootstrapFollowStatusWatchers() {
+        const pendingAuthors = new Set();
+        document.querySelectorAll('[data-author-id]').forEach(btn => {
+          if (btn.dataset.followStatus === 'pending') {
+            pendingAuthors.add(btn.dataset.authorId);
+          }
+        });
+        pendingAuthors.forEach(startFollowStatusWatcher);
+      }
+
       async function likeEntry(entrySerial, buttonElement) {
         try {
           const response = await api(`/entries/${entrySerial}/like/`, { method: 'POST' });
@@ -890,6 +984,7 @@
       document.addEventListener('DOMContentLoaded', () => {
         loadFollowRequests();
         loadFollowingInbox();
+        bootstrapFollowStatusWatchers();
       });
 
       async function followFromButton(btn) {
@@ -906,8 +1001,8 @@
             body: '{}'   // keep body to satisfy DRF parsers if needed
           });
 
-          // Success (201) or 400 duplicate -> show as requested
-          btn.textContent = 'Requested';
+          updateButtonsForAuthor(id, 'pending');
+          startFollowStatusWatcher(id);
         } catch (e) {
           console.error(e);
           btn.disabled = false;
@@ -924,13 +1019,6 @@
         const authorName = btn.dataset.authorName || 'this author';
         const confirmed = confirm(`Are you sure you want to unfollow ${authorName}?`);
         if (!confirmed) return;
-
-        const toFollowState = () => {
-          btn.className = 'follow-btn';
-          btn.textContent = 'Follow';
-          btn.disabled = false;
-          btn.onclick = () => followFromButton(btn);
-        };
 
         const original = btn.textContent;
         btn.disabled = true;
@@ -950,8 +1038,7 @@
             }
           }
 
-          // Swap button to "Follow"
-          toFollowState();
+          updateButtonsForAuthor(id, null);
 
           // (Optional) if you render counts client-side, you could also decrement following_count here.
           // document.querySelector('.stat-number-for-following')…

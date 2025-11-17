@@ -84,6 +84,27 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
         }
     )
     
+    # Update existing author with fresh data (in case display name or other info changed)
+    if not created:
+        updated = False
+        new_display_name = author_data.get("displayName", "")
+        if new_display_name and author.display_name != new_display_name:
+            author.display_name = new_display_name
+            updated = True
+        
+        new_github = author_data.get("github", "")
+        if new_github and author.github_url != new_github:
+            author.github_url = new_github
+            updated = True
+        
+        # Update node reference if it changed
+        if author.node != remote_node:
+            author.node = remote_node
+            updated = True
+        
+        if updated:
+            author.save(update_fields=['display_name', 'github_url', 'node'])
+    
     return author, created
 
 
@@ -224,7 +245,7 @@ def send_comment_to_remote_node(comment, entry):
         "type": "comment",
         "author": serialize_author(comment.author),
         "comment": comment.content,
-        "contentType": comment.content_type,
+        "contentType": getattr(comment, 'content_type', 'text/plain'),  # Comment model doesn't have content_type, default to text/plain
         "published": comment.created_at.isoformat(),
         "id": f"{build_fqid('', author_id=comment.author.id)}/commented/{comment.id}",
         "entry": build_fqid("", author_id=entry.author.id, entry_id=entry.id),

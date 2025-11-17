@@ -283,3 +283,8 @@ class InboxPostView(APIView):
         except Entry.DoesNotExist:
             return Response({"detail": "Entry not found"}, status=404)
         return Response({"detail": "Comment received"}, status=201)
+    
+@login_required
+def inbox_page(request):
+    """Simple inbox page view"""
+    return render(request, "inbox/inbox.html", {})

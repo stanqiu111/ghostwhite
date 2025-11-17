@@ -285,7 +285,6 @@ class InboxPostView(APIView):
                 entry=entry,
                 author=remote_author,
                 content=data.get("comment", ""),
-                content_type=data.get("contentType", "text/plain"),
             )
         except Entry.DoesNotExist:
             return Response({"detail": "Entry not found"}, status=404)

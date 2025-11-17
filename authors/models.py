@@ -133,10 +133,7 @@ class Follow(models.Model):
             raise PermissionError("Not yours to decide or not pending.")
         self.status = self.ACCEPTED
         self.approved = True
-        self.save()
-        self.refresh_from_db()
-        if self.status != self.ACCEPTED or not self.approved:
-            raise ValueError(f"Failed to save follow approval: status={self.status}, approved={self.approved}")
+        self.save(update_fields=["status", "approved"])
         return self
 
     @transaction.atomic

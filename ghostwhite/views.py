@@ -36,8 +36,8 @@ def home_view(request):
     follower_count = Follow.objects.filter(following=user, approved=True).count()
     following_count = Follow.objects.filter(follower=user, approved=True).count()
 
-    already_following = Follow.objects.filter(follower=user, approved=True).values_list('following', flat=True)
-    suggestions = Author.objects.exclude(id=user.id).exclude(id__in=already_following)[:5]
+    excluded_ids = Follow.objects.filter(follower=user).values_list('following', flat=True)
+    suggestions = Author.objects.exclude(id=user.id).exclude(id__in=excluded_ids)[:5]
     
     for suggestion in suggestions:
         follow_relation = Follow.objects.filter(follower=user, following=suggestion).first()

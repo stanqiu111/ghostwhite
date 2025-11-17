@@ -18,7 +18,13 @@ from django.shortcuts import get_object_or_404, render
 from django.db.models import Q, Exists, OuterRef, Prefetch
 from authors.models import Follow
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
-from utils.node_communication import send_entry_to_remote_nodes, send_comment_to_remote_node, send_like_to_remote_node
+from utils.node_communication import (
+    send_entry_to_remote_nodes,
+    send_comment_to_remote_node,
+    send_like_to_remote_node,
+    send_comment_like_to_remote_node,
+)
+from utils.fqid import build_comment_url
 import logging
 
 
@@ -221,7 +227,14 @@ class EntryUpdateView(generics.UpdateAPIView):
     def perform_update(self, serializer):
         if self.request.user != serializer.instance.author:
             raise PermissionDenied("Only the author can update their own entry.")
-        serializer.save()
+        entry = serializer.save()
+        # Notify remote nodes about the entry update
+        try:
+            send_entry_to_remote_nodes(entry)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send entry update to remote nodes: {e}")
 
 
 class EntryDeleteView(generics.DestroyAPIView):
@@ -235,6 +248,15 @@ class EntryDeleteView(generics.DestroyAPIView):
         if not self.request.user.is_staff and self.request.user != instance.author:
             raise PermissionDenied("Only the author can delete their own entry.")
         instance.soft_delete()
+        # Notify remote nodes about the entry deletion
+        # Refresh from DB to get updated visibility
+        instance.refresh_from_db()
+        try:
+            send_entry_to_remote_nodes(instance)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send entry deletion to remote nodes: {e}")
 
 
 def _are_friends(a, b) -> bool:
@@ -285,6 +307,8 @@ class CommentCreateView(generics.CreateAPIView):
             return Response({"detail": "Content is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         comment = Comment.objects.create(entry=entry, author=author, content=content)
+        comment.source_url = build_comment_url(comment)
+        comment.save(update_fields=["source_url"])
         try:
             send_comment_to_remote_node(comment, entry)
         except Exception as e:
@@ -305,6 +329,11 @@ class EntryLikeToggleView(generics.DestroyAPIView):
         author = request.user
         like, created = EntryLike.objects.get_or_create(entry=entry, author=author)
         if not created:
+            try:
+                send_like_to_remote_node(like, entry, removed=True)
+            except Exception as e:
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send like removal to remote node: {e}")
             like.delete()
             return Response({"detail": "Like removed."}, status=status.HTTP_200_OK)
         try:
@@ -327,8 +356,18 @@ class CommentLikeToggleView(generics.DestroyAPIView):
         author = request.user
         like, created = CommentLike.objects.get_or_create(comment=comment, author=author)
         if not created:
+            try:
+                send_comment_like_to_remote_node(like, removed=True)
+            except Exception as e:
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send comment like removal to remote node: {e}")
             like.delete()
             return Response({"detail": "Comment like removed."}, status=status.HTTP_200_OK)
+        try:
+            send_comment_like_to_remote_node(like)
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send comment like to remote node: {e}")
         return Response({"detail": "Comment like added."}, status=status.HTTP_201_CREATED)
 
 
@@ -346,12 +385,23 @@ class CommentUpdateDeleteView(APIView):
 
         comment.content = new_text
         comment.save(update_fields=["content"])
+        try:
+            send_comment_to_remote_node(comment, comment.entry, state="updated")
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send comment update to remote node: {e}")
         return Response({"detail": "Comment updated.", "id": comment.id}, status=200)
 
     def delete(self, request, pk, comment_id):
         comment = get_object_or_404(Comment, pk=comment_id, entry_id=pk)
         if comment.author_id != request.user.id and not request.user.is_staff:
             raise PermissionDenied("You can only delete your own comment.")
+        entry = comment.entry
+        try:
+            send_comment_to_remote_node(comment, entry, state="deleted")
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send comment deletion to remote node: {e}")
         comment.delete()
         return Response(status=204)
 

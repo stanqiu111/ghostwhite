@@ -7,7 +7,7 @@ References:
 - HTTP Basic Authentication (RFC 7617):
   https://datatracker.ietf.org/doc/html/rfc7617
 """
-from rest_framework import authentication, exceptions
+from rest_framework import authentication, exceptions, permissions
 from nodes.models import Node
 import base64
 
@@ -38,4 +38,14 @@ class NodeBasicAuthentication(authentication.BaseAuthentication):
             return (node, None)
         except Node.DoesNotExist:
             raise exceptions.AuthenticationFailed('Invalid node credentials')
+
+
+class NodeAuthenticated(permissions.BasePermission):
+    """Permission class that allows authenticated nodes"""
+    
+    def has_permission(self, request, view):
+        return (
+            request.user is not None and 
+            isinstance(request.user, Node)
+        )
 

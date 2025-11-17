@@ -31,10 +31,10 @@ The authors claiming copyright, if they wish to be known, can list their names h
 | ------------- | --------------- | --------------- |--------------- |
 | Jueun (Krystal) Kim | https://krystal-7a3d144806fa.herokuapp.com/ | krystal | Test123! |
 | Evelyn Nguyen | https://ghostwhite-evelyn-node-f268ea95378e.herokuapp.com/ | linhn | linhnprod |
-| Stan Qiu      | | | |
+| Stan Qiu      | https://stan-2dd8cc96fa3e.herokuapp.com/ | stan_node | stan1234 |
 | Ximeng Duan   | https://ghostwhite-ximeng-c739441113d7.herokuapp.com/ | ximeng | dxm021108 |
 | Michael Yang  | https://peaceful-garden-43112-3554aa58b634.herokuapp.com/ | MichaelY | MichaelPassword@123 |
-| Shuran Kong   | | | |
+| Shuran Kong   | https://cmput404-app-shuran-d178a18f2c5f.herokuapp.com/ | shuran | shurantest123! |
 
 ## API Documentation
 
@@ -65,3 +65,5 @@ User Stories: https://docs.google.com/spreadsheets/d/1pNFONRS94QShi56lbZggabKdFV
 Figma: https://www.figma.com/design/eOnTTGBQ0kVjNBlamF3RqB/CMPUT404_Project?node-id=0-1&t=z3hQl4rjija8zXbG-1
 
 DataBase Design: https://docs.google.com/document/d/1N5pYmGQqjjYz-mZyWd0076LR-xhAuy6zakLM-ltd8Ug/edit?tab=t.0
+
+External node connection design: https://docs.google.com/document/d/1pWfzVwklOOw3OyrlPQfki7emm3yVROubkzIoKSGH8KE/

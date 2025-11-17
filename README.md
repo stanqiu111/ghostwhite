@@ -36,6 +36,9 @@ The authors claiming copyright, if they wish to be known, can list their names h
 | Michael Yang  | https://peaceful-garden-43112-3554aa58b634.herokuapp.com/ | MichaelY | MichaelPassword@123 |
 | Shuran Kong   | https://cmput404-app-shuran-d178a18f2c5f.herokuapp.com/ | shuran | shurantest123! |
 
+## To run tests, node-to-node communication
+      python manage.py test nodes.tests
+
 ## API Documentation
 
 You can view the automatically generated API documentation using **drf-spectacular (Swagger UI)**.

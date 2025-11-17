@@ -314,6 +314,31 @@ def send_comment_like_to_remote_node(comment_like, *, removed=False):
     send_to_inbox(payload, comment_author_node, comment.author_id)
 
 
+def parse_follow_state_from_payload(state_str):
+    """
+    Parse incoming follow state string from remote node payload to Follow status constant.
+    
+    Maps various state strings (requesting, pending, accepted, accept, rejected, denied, deny)
+    to our internal Follow status constants (PENDING, ACCEPTED, DENIED).
+    
+    Args:
+        state_str: State string from remote node payload
+        
+    Returns:
+        Follow status constant (PENDING, ACCEPTED, or DENIED)
+    """
+    state_map = {
+        "requesting": Follow.PENDING,
+        "pending": Follow.PENDING,
+        "accepted": Follow.ACCEPTED,
+        "accept": Follow.ACCEPTED,
+        "rejected": Follow.DENIED,
+        "denied": Follow.DENIED,
+        "deny": Follow.DENIED,
+    }
+    return state_map.get(state_str.lower() if state_str else "", Follow.PENDING)
+
+
 FOLLOW_STATE_TO_SPEC = {
     Follow.PENDING: "requesting",
     Follow.ACCEPTED: "accepted",
@@ -450,15 +475,17 @@ def send_follow_decision_to_remote_node(follow, decision):
     logger.info(f"[SEND FOLLOW DECISION] Result: {'SUCCESS' if result else 'FAILED'}")
 
 
-def get_remote_author_from_actor_data(actor_data):
+def get_remote_author_from_json_data(remote_author_json_data):
     """
-    Get or create remote author from actor data (used in inbox handlers).
+    Get or create remote author from JSON data (used in inbox handlers).
     
     This is a convenience wrapper around get_or_create_remote_author that
-    extracts the author FQID from the actor data dict.
+    extracts the author FQID from the JSON author data dict.
     
     Args:
-        actor_data: Dict with author info including 'id' field (the FQID)
+        remote_author_json_data: Dict with author info including 'id' field (the FQID).
+                                 This is the JSON representation of a remote author from
+                                 the 'actor' or 'author' field in inbox payloads.
         
     Returns:
         Author object
@@ -466,12 +493,12 @@ def get_remote_author_from_actor_data(actor_data):
     Raises:
         ValueError: If author_fqid is missing or invalid
     """
-    author_fqid = actor_data.get("id", "")
+    author_fqid = remote_author_json_data.get("id", "")
     if not author_fqid:
         raise ValueError("Author ID missing")
     
     try:
-        remote_author, _ = get_or_create_remote_author(author_fqid, actor_data)
+        remote_author, _ = get_or_create_remote_author(author_fqid, remote_author_json_data)
         return remote_author
     except ValueError as e:
         logger.error(f"Failed to get/create remote author: {e}")
@@ -506,3 +533,44 @@ def find_entry_by_url(entry_url):
         return Entry.objects.get(id=entry_uuid, author_id=author_uuid)
     except (ValueError, Entry.DoesNotExist):
         raise Entry.DoesNotExist(f"Entry not found for URL: {entry_url}")
+
+
+def find_comment_by_url(comment_url):
+    """
+    Find a comment by its source URL or by parsing the local FQID.
+    
+    This utility function is used by inbox handlers to resolve remote comment
+    references to local Comment objects.
+    
+    Args:
+        comment_url: Comment URL (either source_url or FQID format)
+        
+    Returns:
+        Comment object
+        
+    Raises:
+        Comment.DoesNotExist: If comment cannot be found
+    """
+    if not comment_url:
+        raise Comment.DoesNotExist("Comment URL missing")
+
+    # Try source_url first (for remote comments)
+    comment = Comment.objects.filter(source_url=comment_url).first()
+    if comment:
+        return comment
+
+    # Fallback: parse comment ID from URL format like /api/authors/{uuid}/commented/{id}
+    url = comment_url.rstrip("/")
+    if "/commented/" in url:
+        base, comment_id_str = url.split("/commented/", 1)
+        try:
+            comment_id = int(comment_id_str)
+        except ValueError as exc:
+            raise Comment.DoesNotExist(f"Invalid comment URL: {comment_url}") from exc
+        try:
+            author_uuid, _ = parse_author_fqid(base + "/")
+        except ValueError as exc:
+            raise Comment.DoesNotExist(f"Invalid comment URL: {comment_url}") from exc
+        return Comment.objects.get(id=comment_id, author_id=author_uuid)
+
+    raise Comment.DoesNotExist(f"Comment not found for URL: {comment_url}")

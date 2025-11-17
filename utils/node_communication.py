@@ -23,6 +23,18 @@ def get_remote_recipients_for_entry(entry, local_node):
     if not local_node:
         return []
 
+    # For deleted entries, send to all followers (they already received it before)
+    if entry.visibility == "DELETED":
+        followers = (
+            Follow.objects.filter(
+                following=entry.author,
+                approved=True,
+                status=Follow.ACCEPTED,
+            )
+            .select_related("follower", "follower__node")
+        )
+        return [follow.follower for follow in followers if follow.follower.node != local_node]
+    
     if entry.visibility == "friends_only":
         friends = Follow.get_friends(entry.author)
         return [friend for friend in friends if friend.node != local_node]

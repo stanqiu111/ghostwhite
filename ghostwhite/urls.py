@@ -18,6 +18,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
+
+from inbox.views import inbox_page
 from .views import home_view
 from django.conf import settings
 from django.conf.urls.static import static 
@@ -40,6 +42,8 @@ urlpatterns = [
     path("api/", include(("entries.urls", "entries"), namespace="entries_api")),
     path("", include(("entries.page_urls", "entries_pages"), namespace="entries_pages")),
     path("authors/", include(("authors.page_urls", "authors"), namespace="authors_pages")),
+    path("api/inbox/", include("inbox.urls", namespace="inbox")),
+    path("inbox/", inbox_page, name="inbox-page"),
 
     # API schema and docs
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

@@ -300,6 +300,11 @@ class InboxPostView(APIView):
             logger.info(f"[INBOX FOLLOW] Processing as REQUEST: Updating relationship where remote_author follows author (local)")
             logger.info(f"[INBOX FOLLOW] Looking for: follower={remote_author.id} ({remote_author.display_name}), following={author.id} ({author.display_name})")
             
+            # Check if relationship exists first to see its current state
+            existing = Follow.objects.filter(follower=remote_author, following=author).first()
+            if existing:
+                logger.info(f"[INBOX FOLLOW] Existing relationship found: id={existing.id}, status={existing.status}, approved={existing.approved}")
+            
             follow, created = Follow.objects.get_or_create(
                 follower=remote_author,
                 following=author,
@@ -335,29 +340,33 @@ class InboxPostView(APIView):
         # - If it was previously denied, reset to pending (allows retry after denial)
         # - If it was previously accepted but we're receiving a new request, reset to pending
         #   (this handles the case where user unfollowed and followed again)
-        if not created and desired_status == Follow.PENDING:
-            if follow.status == Follow.DENIED:
-                logger.info(f"[INBOX FOLLOW] Resetting from DENIED to PENDING (retry after denial)")
-                follow.status = Follow.PENDING
-                follow.approved = False
-                follow.save(update_fields=["status", "approved"])
-                logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
-            elif follow.status == Follow.ACCEPTED:
-                logger.info(f"[INBOX FOLLOW] Resetting from ACCEPTED to PENDING (new request after unfollow)")
-                follow.status = Follow.PENDING
-                follow.approved = False
-                follow.save(update_fields=["status", "approved"])
-                logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
-            elif follow.status != Follow.PENDING:
-                # If status is something else, ensure it's set to PENDING
-                logger.info(f"[INBOX FOLLOW] Updating status from {follow.status} to PENDING")
-                follow.status = Follow.PENDING
-                follow.approved = False
-                follow.save(update_fields=["status", "approved"])
-                logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
-        elif created:
-            # New follow request created
-            logger.info(f"[INBOX FOLLOW] New follow request created: {follow.follower.display_name} -> {follow.following.display_name}")
+        if desired_status == Follow.PENDING:
+            if created:
+                # New follow request created
+                logger.info(f"[INBOX FOLLOW] New follow request created: {follow.follower.display_name} -> {follow.following.display_name}")
+            else:
+                # Relationship already exists - check if we need to reset status
+                if follow.status == Follow.DENIED:
+                    logger.info(f"[INBOX FOLLOW] Resetting from DENIED to PENDING (retry after denial)")
+                    follow.status = Follow.PENDING
+                    follow.approved = False
+                    follow.save(update_fields=["status", "approved"])
+                    logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
+                elif follow.status == Follow.ACCEPTED:
+                    logger.info(f"[INBOX FOLLOW] Resetting from ACCEPTED to PENDING (new request after unfollow)")
+                    follow.status = Follow.PENDING
+                    follow.approved = False
+                    follow.save(update_fields=["status", "approved"])
+                    logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
+                elif follow.status != Follow.PENDING:
+                    # If status is something else, ensure it's set to PENDING
+                    logger.info(f"[INBOX FOLLOW] Updating status from {follow.status} to PENDING")
+                    follow.status = Follow.PENDING
+                    follow.approved = False
+                    follow.save(update_fields=["status", "approved"])
+                    logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
+                else:
+                    logger.info(f"[INBOX FOLLOW] Relationship already PENDING, no update needed")
 
         logger.info(f"[INBOX FOLLOW] Follow request processed: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}, approved={follow.approved}")
         return Response({"detail": "Follow received"}, status=200)

@@ -11,7 +11,7 @@ from django.utils.decorators import method_decorator
 from django.shortcuts import render
 from nodes.authentication import NodeBasicAuthentication, NodeAuthenticated
 from nodes.models import Node
-from utils.node_communication import get_or_create_remote_author
+from utils.node_communication import get_or_create_remote_author, parse_entry_fqid
 import logging
 
 
@@ -269,6 +269,7 @@ class InboxPostView(APIView):
         return Response({"detail": "Follow received"}, status=200)
     
     def _handle_like(self, author, data):
+        logger = logging.getLogger(__name__)
         actor_data = data.get("author", {})
         object_url = data.get("object")
         
@@ -279,16 +280,29 @@ class InboxPostView(APIView):
         try:
             remote_author, _ = get_or_create_remote_author(author_fqid, actor_data)
         except ValueError as e:
+            logger.error(f"_handle_like: Failed to get/create remote author: {e}")
             return Response({"detail": str(e)}, status=400)
         
+        # Try to find entry by source_url first (for remote entries)
         try:
             entry = Entry.objects.get(source_url=object_url)
-            EntryLike.objects.get_or_create(entry=entry, author=remote_author)
+            logger.error(f"_handle_like: Found entry by source_url: {entry.id}")
         except Entry.DoesNotExist:
-            return Response({"detail": "Entry not found"}, status=404)
+            # Fallback: try to parse the entry ID from the URL and find by ID
+            try:
+                entry_uuid, author_uuid, _ = parse_entry_fqid(object_url)
+                entry = Entry.objects.get(id=entry_uuid, author_id=author_uuid)
+                logger.error(f"_handle_like: Found entry by ID: {entry.id}")
+            except (ValueError, Entry.DoesNotExist) as e:
+                logger.error(f"_handle_like: Entry not found. URL: {object_url}, Error: {e}")
+                return Response({"detail": "Entry not found"}, status=404)
+        
+        EntryLike.objects.get_or_create(entry=entry, author=remote_author)
+        logger.error(f"_handle_like: Like created successfully")
         return Response({"detail": "Like received"}, status=200)
     
     def _handle_comment(self, author, data):
+        logger = logging.getLogger(__name__)
         actor_data = data.get("author", {})
         entry_url = data.get("entry")
         
@@ -299,17 +313,29 @@ class InboxPostView(APIView):
         try:
             remote_author, _ = get_or_create_remote_author(author_fqid, actor_data)
         except ValueError as e:
+            logger.error(f"_handle_comment: Failed to get/create remote author: {e}")
             return Response({"detail": str(e)}, status=400)
         
+        # Try to find entry by source_url first (for remote entries)
         try:
             entry = Entry.objects.get(source_url=entry_url)
-            Comment.objects.create(
-                entry=entry,
-                author=remote_author,
-                content=data.get("comment", ""),
-            )
+            logger.error(f"_handle_comment: Found entry by source_url: {entry.id}")
         except Entry.DoesNotExist:
-            return Response({"detail": "Entry not found"}, status=404)
+            # Fallback: try to parse the entry ID from the URL and find by ID
+            try:
+                entry_uuid, author_uuid, _ = parse_entry_fqid(entry_url)
+                entry = Entry.objects.get(id=entry_uuid, author_id=author_uuid)
+                logger.error(f"_handle_comment: Found entry by ID: {entry.id}")
+            except (ValueError, Entry.DoesNotExist) as e:
+                logger.error(f"_handle_comment: Entry not found. URL: {entry_url}, Error: {e}")
+                return Response({"detail": "Entry not found"}, status=404)
+        
+        Comment.objects.create(
+            entry=entry,
+            author=remote_author,
+            content=data.get("comment", ""),
+        )
+        logger.error(f"_handle_comment: Comment created successfully")
         return Response({"detail": "Comment received"}, status=201)
 
 

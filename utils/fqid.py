@@ -39,6 +39,16 @@ def build_entry_url(author_id, entry_id):
     return build_fqid("", author_id=author_id, entry_id=entry_id)
 
 
+def build_comment_url(comment):
+    """
+    Build a fully qualified URL for a comment (api/authors/<author>/commented/<id>).
+    """
+    host_url = _get_local_host_url()
+    if not host_url:
+        return None
+    return f"{host_url}api/authors/{comment.author_id}/commented/{comment.id}"
+
+
 def build_remote_url(host_url, author_id):
     """Build remote author URL for inbox endpoint."""
     return f"{host_url.rstrip('/')}/api/authors/{author_id}"

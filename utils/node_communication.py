@@ -112,13 +112,25 @@ def serialize_author(author):
 
 
 def send_to_inbox(remote_author_url, payload, remote_node):
-    """Send payload to remote author's inbox"""
-    inbox_url = f"{remote_author_url.rstrip('/')}/inbox"
+    """
+    Send payload to remote author's inbox.
+    """
+    inbox_url = f"{remote_author_url.rstrip('/')}/inbox/"
     try:
+        try:
+            local_node = Node.objects.get(is_local=True)
+        except Node.DoesNotExist:
+            logger.error("Local node not found, cannot send to inbox")
+            return False
+        
+        if not local_node.username or not local_node.password:
+            logger.error("Local node credentials not set, cannot send to inbox")
+            return False
+        
         response = requests.post(
             inbox_url,
             json=payload,
-            auth=HTTPBasicAuth(remote_node.username, remote_node.password),
+            auth=HTTPBasicAuth(local_node.username, local_node.password),
             headers={"Content-Type": "application/json"},
             timeout=10
         )
@@ -246,55 +258,55 @@ def send_follow_to_remote_node(follow):
     send_to_inbox(remote_url, payload, remote_node)
 
 
-# def fetch_and_create_remote_author(author_fqid):
-#     """
-#     Fetch author from remote node API and create locally.
+def fetch_and_create_remote_author(author_fqid):
+    """
+    Fetch author from remote node API and create locally.
     
-#     Args:
-#         author_fqid: Full URL like "https://remote-node.com/api/authors/uuid"
+    Args:
+        author_fqid: Full URL like "https://remote-node.com/api/authors/uuid"
     
-#     Returns:
-#         Author: The created or existing remote author
-#     """
-#     # Parse FQID to get UUID and node URL
-#     try:
-#         author_uuid, node_url = parse_author_fqid(author_fqid)
-#     except ValueError as e:
-#         raise ValueError(f"Invalid author FQID: {e}")
+    Returns:
+        Author: The created or existing remote author
+    """
+    # Parse FQID to get UUID and node URL
+    try:
+        author_uuid, node_url = parse_author_fqid(author_fqid)
+    except ValueError as e:
+        raise ValueError(f"Invalid author FQID: {e}")
     
-#     # Check if author already exists
-#     try:
-#         existing_author = Author.objects.get(id=author_uuid)
-#         logger.info(f"Author {author_uuid} already exists")
-#         return existing_author
-#     except Author.DoesNotExist:
-#         pass
+    # Check if author already exists
+    try:
+        existing_author = Author.objects.get(id=author_uuid)
+        logger.info(f"Author {author_uuid} already exists")
+        return existing_author
+    except Author.DoesNotExist:
+        pass
     
-#     # Find the remote node
-#     try:
-#         remote_node = Node.objects.get(host_url=node_url, is_local=False)
-#     except Node.DoesNotExist:
-#         raise ValueError(f"Remote node not found: {node_url}. Add it first via Django admin or shell.")
+    # Find the remote node
+    try:
+        remote_node = Node.objects.get(host_url=node_url, is_local=False)
+    except Node.DoesNotExist:
+        raise ValueError(f"Remote node not found: {node_url}. Add it first via Django admin or shell.")
     
-#     if not remote_node.username or not remote_node.password:
-#         raise ValueError(f"Remote node credentials not set for {node_url}")
+    if not remote_node.username or not remote_node.password:
+        raise ValueError(f"Remote node credentials not set for {node_url}")
     
-#     # Fetch author from remote API
-#     try:
-#         response = requests.get(
-#             author_fqid,
-#             auth=HTTPBasicAuth(remote_node.username, remote_node.password),
-#             headers={"Content-Type": "application/json"},
-#             timeout=10
-#         )
-#         response.raise_for_status()
-#         author_data = response.json()
-#     except requests.RequestException as e:
-#         raise ValueError(f"Failed to fetch author from {author_fqid}: {e}")
+    # Fetch author from remote API
+    try:
+        response = requests.get(
+            author_fqid,
+            auth=HTTPBasicAuth(remote_node.username, remote_node.password),
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        response.raise_for_status()
+        author_data = response.json()
+    except requests.RequestException as e:
+        raise ValueError(f"Failed to fetch author from {author_fqid}: {e}")
     
-#     # Create the author locally using the utility function
-#     author, created = get_or_create_remote_author(author_fqid, author_data, remote_node)
+    # Create the author locally using the utility function
+    author, created = get_or_create_remote_author(author_fqid, author_data, remote_node)
     
-#     logger.info(f"Created remote author: {author.display_name} (ID: {author.id})")
-#     return author
+    logger.info(f"Created remote author: {author.display_name} (ID: {author.id})")
+    return author
 

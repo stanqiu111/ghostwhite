@@ -22,14 +22,20 @@ from utils.serializers import serialize_author_for_node_communication
 logger = logging.getLogger(__name__)
 
 
-def _validate_and_get_remote_node(target_author):
+def _validate_and_get_remote_node(target_author, log_prefix=""):
     """Validate and get remote node for sending notifications."""
     local_node = get_local_node()
-    if not local_node or target_author.node == local_node:
+    if not local_node:
+        logger.warning(f"{log_prefix} Local node not configured, aborting")
+        return None, None
+    
+    if target_author.node == local_node:
+        logger.info(f"{log_prefix} Target author {target_author.id} is local, skipping remote notification")
         return None, None
     
     remote_node = target_author.node
     if not remote_node or not remote_node.username:
+        logger.warning(f"{log_prefix} Remote node missing or missing credentials, aborting")
         return None, None
     
     return local_node, remote_node
@@ -73,7 +79,10 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
     author_uuid_str = str(author_uuid)
     
     if remote_node is None:
-        remote_node = Node.objects.get(host_url=node_url, is_local=False)
+        try:
+            remote_node = Node.objects.get(host_url=node_url, is_local=False)
+        except Node.DoesNotExist:
+            raise ValueError(f"Remote node not found: {node_url}")
     
     author, created = Author.objects.get_or_create(
         id=author_uuid,
@@ -110,15 +119,28 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
 
 
 def send_to_inbox(payload, remote_node, author_id):
-    """Send payload to remote author's inbox."""
-    local_node = get_local_node()
-    if not local_node or not local_node.username or not local_node.password:
-        return False
-    
+    """
+    Send payload to remote author's inbox.
+    """
     remote_author_url = build_remote_url(remote_node.host_url, author_id)
     inbox_url = f"{remote_author_url.rstrip('/')}/inbox/"
     
+    logger.info(f"[SEND TO INBOX] Target: {inbox_url}")
+    logger.info(f"[SEND TO INBOX] Payload type: {payload.get('type', 'unknown')}")
+    
     try:
+        local_node = get_local_node()
+        if not local_node:
+            logger.error("[SEND TO INBOX] Local node not configured")
+            return False
+        
+        if not local_node.username or not local_node.password:
+            logger.error("[SEND TO INBOX] Local node credentials not set")
+            return False
+        
+        logger.info(f"[SEND TO INBOX] Using credentials: username={local_node.username}")
+        logger.info(f"[SEND TO INBOX] Sending POST request...")
+        
         response = requests.post(
             inbox_url,
             json=payload,
@@ -126,9 +148,17 @@ def send_to_inbox(payload, remote_node, author_id):
             headers={"Content-Type": "application/json"},
             timeout=10
         )
+        
+        logger.info(f"[SEND TO INBOX] Response status: {response.status_code}")
+        
         response.raise_for_status()
+        logger.info(f"[SEND TO INBOX] SUCCESS: Sent to {inbox_url}")
         return True
-    except requests.RequestException:
+    except requests.RequestException as e:
+        logger.error(f"[SEND TO INBOX] FAILED: {inbox_url} - {type(e).__name__}: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"[SEND TO INBOX] Response status: {e.response.status_code}")
+            logger.error(f"[SEND TO INBOX] Response body: {e.response.text[:500]}")
         return False
 
 def send_entry_to_remote_nodes(entry):
@@ -199,6 +229,7 @@ def send_comment_to_remote_node(comment, entry, state=None):
     like_count = comment.likes.count()
     comment_id_url = comment.source_url or build_comment_url(comment)
     if not comment_id_url:
+        logger.warning("send_comment_to_remote_node: missing comment ID URL")
         return
     
     payload = {
@@ -235,6 +266,7 @@ def send_comment_like_to_remote_node(comment_like, *, removed=False):
 
     object_url = comment.source_url or build_comment_url(comment)
     if not object_url:
+        logger.warning("send_comment_like_to_remote_node: missing comment URL")
         return
 
     payload = {
@@ -258,8 +290,11 @@ FOLLOW_STATE_TO_SPEC = {
 
 def send_follow_request_to_remote_node(follow):
     """Send follow request to remote author's inbox."""
+    log_prefix = "[SEND FOLLOW REQUEST]"
+    logger.info(f"{log_prefix} Starting: follow_id={follow.id}")
+    
     target_author = follow.following
-    local_node, remote_node = _validate_and_get_remote_node(target_author)
+    local_node, remote_node = _validate_and_get_remote_node(target_author, log_prefix)
     if not remote_node:
         return
 
@@ -271,13 +306,22 @@ def send_follow_request_to_remote_node(follow):
         "state": "requesting",
     }
 
-    send_to_inbox(payload, remote_node, target_author.id)
+    logger.info(f"{log_prefix} Payload: {payload}")
+    result = send_to_inbox(payload, remote_node, target_author.id)
+    logger.info(f"{log_prefix} Result: {'SUCCESS' if result else 'FAILED'}")
 
 
 def send_follow_decision_to_remote_node(follow, decision):
     """Send follow decision (accept/deny) to remote author's inbox."""
+    log_prefix = "[SEND FOLLOW DECISION]"
+    logger.info(f"{log_prefix} Starting: follow_id={follow.id}, decision={decision}")
+    
+    if decision not in (Follow.ACCEPTED, Follow.DENIED):
+        logger.error(f"{log_prefix} Invalid decision {decision}, must be ACCEPTED or DENIED, aborting")
+        return
+
     target_author = follow.follower
-    local_node, remote_node = _validate_and_get_remote_node(target_author)
+    local_node, remote_node = _validate_and_get_remote_node(target_author, log_prefix)
     if not remote_node:
         return
 
@@ -290,13 +334,18 @@ def send_follow_decision_to_remote_node(follow, decision):
         "state": payload_state,
     }
 
-    send_to_inbox(payload, remote_node, target_author.id)
+    logger.info(f"{log_prefix} Payload: {payload}")
+    result = send_to_inbox(payload, remote_node, target_author.id)
+    logger.info(f"{log_prefix} Result: {'SUCCESS' if result else 'FAILED'}")
 
 
 def send_unfollow_to_remote_node(follower, followee):
     """Send unfollow notification to remote author's inbox."""
+    log_prefix = "[SEND UNFOLLOW]"
+    logger.info(f"{log_prefix} Starting: follower={follower.id}, followee={followee.id}")
+    
     target_author = followee
-    local_node, remote_node = _validate_and_get_remote_node(target_author)
+    local_node, remote_node = _validate_and_get_remote_node(target_author, log_prefix)
     if not remote_node:
         return
 
@@ -308,5 +357,7 @@ def send_unfollow_to_remote_node(follower, followee):
         "state": "unfollow",
     }
 
-    send_to_inbox(payload, remote_node, target_author.id)
+    logger.info(f"{log_prefix} Payload: {payload}")
+    result = send_to_inbox(payload, remote_node, target_author.id)
+    logger.info(f"{log_prefix} Result: {'SUCCESS' if result else 'FAILED'}")
 

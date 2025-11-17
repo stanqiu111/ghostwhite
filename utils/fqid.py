@@ -2,6 +2,7 @@ import logging
 import uuid
 
 from nodes.models import Node
+from entries.models import Entry, Comment
 
 logger = logging.getLogger(__name__)
 
@@ -96,4 +97,42 @@ def parse_entry_fqid(entry_fqid):
         return entry_uuid, author_uuid, node_url
     except (ValueError, IndexError) as exc:
         raise ValueError(f"Invalid entry FQID format: {entry_fqid}") from exc
+
+
+def find_entry_by_url(entry_url):
+    """Find entry by URL, trying source_url first, then parsing ID from URL."""
+    try:
+        return Entry.objects.get(source_url=entry_url)
+    except Entry.DoesNotExist:
+        pass
+    
+    try:
+        entry_uuid, author_uuid, _ = parse_entry_fqid(entry_url)
+        return Entry.objects.get(id=entry_uuid, author_id=author_uuid)
+    except (ValueError, Entry.DoesNotExist):
+        raise Entry.DoesNotExist(f"Entry not found for URL: {entry_url}")
+
+
+def find_comment_by_url(comment_url):
+    """Find comment by URL, trying source_url first, then parsing ID from URL."""
+    if not comment_url:
+        raise Comment.DoesNotExist("Comment URL missing")
+
+    comment = Comment.objects.filter(source_url=comment_url).first()
+    if comment:
+        return comment
+    url = comment_url.rstrip("/")
+    if "/commented/" in url:
+        base, comment_id_str = url.split("/commented/", 1)
+        try:
+            comment_id = int(comment_id_str)
+        except ValueError as exc:
+            raise Comment.DoesNotExist(f"Invalid comment URL: {comment_url}") from exc
+        try:
+            author_uuid, _ = parse_author_fqid(base + "/")
+        except ValueError as exc:
+            raise Comment.DoesNotExist(f"Invalid comment URL: {comment_url}") from exc
+        return Comment.objects.get(id=comment_id, author_id=author_uuid)
+
+    raise Comment.DoesNotExist(f"Comment not found for URL: {comment_url}")
 

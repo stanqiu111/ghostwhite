@@ -19,7 +19,7 @@ from django.db.models import Q, Exists, OuterRef, Prefetch
 from authors.models import Follow
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from utils.node_communication import send_entry_to_remote_nodes, send_comment_to_remote_node, send_like_to_remote_node
-
+import logging
 
 
 def with_follow_flags(qs, user):
@@ -285,7 +285,11 @@ class CommentCreateView(generics.CreateAPIView):
             return Response({"detail": "Content is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         comment = Comment.objects.create(entry=entry, author=author, content=content)
-        send_comment_to_remote_node(comment, entry)
+        try:
+            send_comment_to_remote_node(comment, entry)
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send comment to remote node: {e}")
         return Response({"detail": "Comment added."}, status=status.HTTP_201_CREATED)
 
 
@@ -303,7 +307,11 @@ class EntryLikeToggleView(generics.DestroyAPIView):
         if not created:
             like.delete()
             return Response({"detail": "Like removed."}, status=status.HTTP_200_OK)
-        send_like_to_remote_node(like, entry)
+        try:
+            send_like_to_remote_node(like, entry)
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send like to remote node: {e}")
         return Response({"detail": "Like added."}, status=status.HTTP_201_CREATED)
 
 

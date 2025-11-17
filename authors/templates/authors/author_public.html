@@ -140,7 +140,7 @@
             />
             {% endif %}
           </div>
-          <div class="username">{{ author.display_name }}</div>
+          <div class="username">{{ author.display_name|default:author.username }}</div>
           <div class="stats">
             <div class="stat">
               <div class="stat-number">{{ entry_count }}</div>
@@ -216,7 +216,7 @@
                 {% endif %}
               </div>
               <div class="entry-meta" >
-                <div class="entry-username">{{ entry.author.display_name }}</div>
+                <div class="entry-username">{{ entry.author.display_name|default:entry.author.username }}</div>
                 <div class="entry-time">{{ entry.created_at|timesince }} ago</div>
               </div>
             </div>

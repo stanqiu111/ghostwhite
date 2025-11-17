@@ -7,7 +7,7 @@ class Node(models.Model):
     host_url = models.URLField()
     is_local = models.BooleanField(
         default=False,
-        unique=True,
+        # unique=True,
     )  # To differentiate between local and external nodes, for every env we only allow one local node
     username = models.CharField(max_length=255, blank=True)  # For remote node auth
     password = models.CharField(max_length=255, blank=True)  # For remote node auth

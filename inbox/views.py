@@ -230,19 +230,45 @@ class InboxPostView(APIView):
             remote_author = self._get_remote_author(data.get("actor", {}))
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
-        
+
+        state_str = (data.get("state") or Follow.PENDING).lower()
+        if state_str in {"requesting", "pending"}:
+            desired_status = Follow.PENDING
+        elif state_str in {"accepted", "accept"}:
+            desired_status = Follow.ACCEPTED
+        elif state_str in {"rejected", "denied", "deny"}:
+            desired_status = Follow.DENIED
+        else:
+            desired_status = Follow.PENDING
+
         follow, created = Follow.objects.get_or_create(
             follower=remote_author,
             following=author,
             defaults={"approved": False, "status": Follow.PENDING}
         )
-        
+
+        if desired_status == Follow.ACCEPTED:
+            if follow.status != Follow.ACCEPTED or not follow.approved:
+                follow.status = Follow.ACCEPTED
+                follow.approved = True
+                follow.save(update_fields=["status", "approved"])
+            logger.info(f"Follow accepted for {remote_author.display_name} -> {author.display_name}")
+            return Response({"detail": "Follow accepted"}, status=200)
+
+        if desired_status == Follow.DENIED:
+            if follow.status != Follow.DENIED or follow.approved:
+                follow.status = Follow.DENIED
+                follow.approved = False
+                follow.save(update_fields=["status", "approved"])
+            logger.info(f"Follow denied for {remote_author.display_name} -> {author.display_name}")
+            return Response({"detail": "Follow denied"}, status=200)
+
         # If it already existed but was denied, reset it to pending
         if not created and follow.status == Follow.DENIED:
             follow.status = Follow.PENDING
             follow.approved = False
-            follow.save(update_fields=['status', 'approved'])
-        
+            follow.save(update_fields=["status", "approved"])
+
         logger.info(f"Follow request received from {remote_author.display_name} to {author.display_name}")
         return Response({"detail": "Follow received"}, status=200)
     

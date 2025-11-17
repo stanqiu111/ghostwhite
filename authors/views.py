@@ -29,7 +29,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .github import sync_github_events
 from django.utils import timezone
+import logging
 from utils.node_communication import send_follow_to_remote_node
+
+logger = logging.getLogger(__name__)
 
 class AuthorRegistrationView(generics.CreateAPIView):
     queryset = Author.objects.all()
@@ -385,12 +388,32 @@ class FollowDecisionView(APIView):
         decision: "accept" | "deny"
         Only the followee (request.user) can decide.
         """
+        logger.info(f"FollowDecisionView: request={request.data}")
         decision = (request.data or {}).get("decision", "").lower()
+        logger.info(
+            "FollowDecisionView: user=%s follow_id=%s decision=%s payload=%s",
+            getattr(request.user, "id", None),
+            pk,
+            decision,
+            request.data,
+        )
         try:
             fr = Follow.objects.select_related("follower", "following").get(
                 id=pk, following=request.user
             )
+            logger.info(
+                "FollowDecisionView: loaded follow id=%s follower=%s following=%s status=%s",
+                fr.id,
+                fr.follower_id,
+                fr.following_id,
+                fr.status,
+            )
         except Follow.DoesNotExist:
+            logger.warning(
+                "FollowDecisionView: follow id=%s not found for user=%s",
+                pk,
+                getattr(request.user, "id", None),
+            )
             return Response({"detail": "Request not found or already handled."},
                             status=status.HTTP_404_NOT_FOUND)
 
@@ -403,11 +426,13 @@ class FollowDecisionView(APIView):
                 # Refresh from database to confirm the save worked
                 fr.refresh_from_db()
                 print(f"[DEBUG] After refresh - Status: {fr.status}, Approved: {fr.approved}")
+                logger.info(f"Sending follow acceptance to follower {fr.follower_id}")
                 send_follow_to_remote_node(fr, state=Follow.ACCEPTED, target="follower")
                 return Response({"detail": "Follow request accepted.", "status": fr.status, "approved": fr.approved}, status=status.HTTP_200_OK)
 
             if decision == "deny":
                 fr.deny(request.user)
+                logger.info(f"Sending follow denial to follower {fr.follower_id}")
                 send_follow_to_remote_node(fr, state=Follow.DENIED, target="follower")
                 fr.delete()
                 return Response({"detail": "Follow request denied."}, status=status.HTTP_204_NO_CONTENT)

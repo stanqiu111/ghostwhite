@@ -4,7 +4,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 from authors.models import Author, Follow
-from entries.models import Entry, EntryLike, Comment
+from entries.models import Entry, EntryLike, Comment, CommentLike
 from nodes.models import Node
 from utils.fqid import (
     build_entry_url,
@@ -12,6 +12,7 @@ from utils.fqid import (
     build_remote_url,
     get_local_node,
     parse_author_fqid,
+    build_comment_url,
 )
 
 logger = logging.getLogger(__name__)
@@ -179,7 +180,7 @@ def send_entry_to_remote_nodes(entry):
             send_to_inbox(payload, remote_node, recipient.id)
 
 
-def send_like_to_remote_node(like, entry):
+def send_like_to_remote_node(like, entry, *, removed=False):
     """Send like notification to entry author's inbox (if remote)"""
     local_node = get_local_node()
     if not local_node or entry.author.node == local_node:
@@ -198,11 +199,13 @@ def send_like_to_remote_node(like, entry):
         "id": f"{build_fqid('', author_id=like.author.id)}/liked/{like.id}",
         "object": object_url,
     }
+    if removed:
+        payload["removed"] = True
     
     send_to_inbox(payload, remote_node, entry.author.id)
 
 
-def send_comment_to_remote_node(comment, entry):
+def send_comment_to_remote_node(comment, entry, state=None):
     """Send comment notification to entry author's inbox (if remote)
     According to the project description, comments should have the following fields: type, author, comment, contentType, published, id, entry, web, likes
     """
@@ -218,7 +221,10 @@ def send_comment_to_remote_node(comment, entry):
     host_url = local_node.host_url.rstrip('/')
     entry_web_url = f"{host_url}/entries/{entry.id}/"
     like_count = comment.likes.count()
-    comment_id_url = f"{build_fqid('', author_id=comment.author.id)}/commented/{comment.id}"
+    comment_id_url = comment.source_url or build_comment_url(comment)
+    if not comment_id_url:
+        logger.warning("send_comment_to_remote_node: missing comment ID URL")
+        return
     
     payload = {
         "type": "comment",
@@ -239,8 +245,47 @@ def send_comment_to_remote_node(comment, entry):
             "src": [],
         },
     }
+    if state:
+        payload["state"] = state
     
     send_to_inbox(payload, remote_node, entry.author.id)
+
+
+def send_comment_like_to_remote_node(comment_like, *, removed=False):
+    """
+    Send a like on a comment to the comment author's node (if remote).
+    """
+    comment = comment_like.comment
+    local_node = get_local_node()
+    if not local_node:
+        return
+
+    comment_author_node = getattr(comment.author, "node", None)
+    if not comment_author_node or comment_author_node == local_node:
+        return
+
+    if not comment_author_node.username:
+        logger.warning(
+            "send_comment_like_to_remote_node: remote node %s missing credentials",
+            comment_author_node.host_url,
+        )
+        return
+
+    object_url = comment.source_url or build_comment_url(comment)
+    if not object_url:
+        logger.warning("send_comment_like_to_remote_node: missing comment URL")
+        return
+
+    payload = {
+        "type": "like",
+        "summary": f"{comment_like.author.display_name or comment_like.author.username} liked a comment",
+        "author": serialize_author(comment_like.author),
+        "object": object_url,
+    }
+    if removed:
+        payload["removed"] = True
+
+    send_to_inbox(payload, comment_author_node, comment.author_id)
 
 
 FOLLOW_STATE_TO_SPEC = {
@@ -260,20 +305,39 @@ def send_follow_to_remote_node(follow, *, state=None, target="following"):
         target: "following" to notify the followee (default for new requests),
                 "follower" to notify the follower (used when decision is made)
     """
+    logger.info(f"Sending follow notification to remote node: {follow.id}")
     local_node = get_local_node()
     if not local_node:
+        logger.warning("send_follow_to_remote_node: local node not configured")
         return
 
     target_author = follow.following if target == "following" else follow.follower
     if target_author.node == local_node:
+        logger.info(
+            "send_follow_to_remote_node: target author %s is local, skipping",
+            target_author.id,
+        )
         return
 
     remote_node = target_author.node
     if not remote_node.username:
+        logger.warning(
+            "send_follow_to_remote_node: remote node %s missing credentials",
+            remote_node.host_url,
+        )
         return
 
     state_value = (state or follow.status or Follow.PENDING).lower()
     payload_state = FOLLOW_STATE_TO_SPEC.get(state_value, FOLLOW_STATE_TO_SPEC[Follow.PENDING])
+
+    logger.info(
+        "send_follow_to_remote_node: sending state=%s target=%s follower=%s following=%s to %s",
+        payload_state,
+        target,
+        follow.follower_id,
+        follow.following_id,
+        remote_node.host_url,
+    )
 
     payload = {
         "type": "follow",

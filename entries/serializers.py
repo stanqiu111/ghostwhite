@@ -39,6 +39,8 @@ class CommentSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         ]
 
     def get_id(self, obj):
+        if obj.source_url:
+            return obj.source_url
         return self.build_full_url(f"/api/authors/{obj.author.id}/commented/{obj.id}")
 
     def get_serial(self, obj):

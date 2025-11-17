@@ -112,13 +112,25 @@ def serialize_author(author):
 
 
 def send_to_inbox(remote_author_url, payload, remote_node):
-    """Send payload to remote author's inbox"""
+    """
+    Send payload to remote author's inbox.
+    """
     inbox_url = f"{remote_author_url.rstrip('/')}/inbox/"
     try:
+        try:
+            local_node = Node.objects.get(is_local=True)
+        except Node.DoesNotExist:
+            logger.error("Local node not found, cannot send to inbox")
+            return False
+        
+        if not local_node.username or not local_node.password:
+            logger.error("Local node credentials not set, cannot send to inbox")
+            return False
+        
         response = requests.post(
             inbox_url,
             json=payload,
-            auth=HTTPBasicAuth(remote_node.username, remote_node.password),
+            auth=HTTPBasicAuth(local_node.username, local_node.password),
             headers={"Content-Type": "application/json"},
             timeout=10
         )

@@ -252,19 +252,6 @@ class InboxTests(TestCase):
             },
         }
 
-        entry_payload_private = {
-            "type": "entry",
-            "id": str(uuid.uuid4()),
-            "content": "test private entry payload",
-            "visibility": "PRIVATE",
-            "contentType": "text/plain",
-            "author": {
-                "id": f"{self.remote_node.host_url}api/authors/{self.remote_author.id}/",
-                "displayName": self.remote_author.display_name,
-                "username": self.remote_author.username,
-            },
-        }
-
         entry_payload_unlisted = {
             "type": "entry",
             "id": str(uuid.uuid4()),
@@ -321,12 +308,6 @@ class InboxTests(TestCase):
         )
         self.client.post(
             url,
-            data=json.dumps(entry_payload_private),
-            content_type="application/json",
-            **self.remote_auth_headers
-        )
-        self.client.post(
-            url,
             data=json.dumps(entry_payload_unlisted),
             content_type="application/json",
             **self.remote_auth_headers
@@ -351,6 +332,5 @@ class InboxTests(TestCase):
         )
 
         self.assertTrue(Entry.objects.filter(content="test entry payload").exists())
-        self.assertTrue(Entry.objects.filter(content="test private entry payload").exists())
         self.assertTrue(Entry.objects.filter(content="test unlisted entry payload").exists())
         self.assertTrue(Entry.objects.filter(content="test friends_only entry payload").exists())

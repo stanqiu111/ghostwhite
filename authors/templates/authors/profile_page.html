@@ -162,8 +162,57 @@
           {% endfor %}
         </ul>
       </section>
-    </section>
 
+      <section class="friends">
+        <h3>Followers</h3>
+        <ul class="friend-grid">
+          {% for fr in request_user_followers %}
+            {# fr.follower 가 실제 Author 객체 #}
+            <li class="friend-item" onclick="navigateToPublicProfile('{{ fr.follower.username }}')">
+              <div class="friend-avatar">
+                {% if fr.follower.image %}
+                  <img src="{{ fr.follower.image.url }}" alt="{{ fr.follower.display_name }}">
+                {% else %}
+                  <img src="{% static 'images/default_pfp.png' %}" alt="{{ fr.follower.display_name }}">
+                {% endif %}
+              </div>
+              <div class="friend-name" title="{{ fr.follower.display_name }}">
+                {{ fr.follower.display_name|default:fr.follower.username }}
+              </div>
+            </li>
+          {% empty %}
+            <li class="empty-state">
+              No followers yet
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="friends">
+        <h3>Following</h3>
+        <ul class="friend-grid">
+          {% for fr in request_user_following %}
+            {# fr.following 이 실제 Author 객체 #}
+            <li class="friend-item" onclick="navigateToPublicProfile('{{ fr.following.username }}')">
+              <div class="friend-avatar">
+                {% if fr.following.image %}
+                  <img src="{{ fr.following.image.url }}" alt="{{ fr.following.display_name }}">
+                {% else %}
+                  <img src="{% static 'images/default_pfp.png' %}" alt="{{ fr.following.display_name }}">
+                {% endif %}
+              </div>
+              <div class="friend-name" title="{{ fr.following.display_name }}">
+                {{ fr.following.display_name|default:fr.following.username }}
+              </div>
+            </li>
+          {% empty %}
+            <li class="empty-state">
+              Not following anyone yet
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    </section>
 
     <section class="profile-detail">
       <h2>Profile Details</h2>

@@ -30,7 +30,7 @@ from rest_framework.response import Response
 from .github import sync_github_events
 from django.utils import timezone
 import logging
-from utils.node_communication import send_follow_request_to_remote_node, send_follow_decision_to_remote_node
+from utils.node_communication import send_follow_to_remote_node
 
 logger = logging.getLogger(__name__)
 
@@ -123,17 +123,51 @@ def author_profile_page(request, username):
     request_user_follower_count = 0
     request_user_following_count = 0
     request_user_friends = []
+    request_user_followers = []
+    request_user_following = []
     
     if request.user.is_authenticated:
-        request_user_entry_count = Entry.objects.filter(author=request.user.id, deleted_at__isnull=True).count()
-        request_user_follower_count = Follow.objects.filter(following=request.user.id, approved=True).count()
-        request_user_following_count = Follow.objects.filter(follower=request.user.id, approved=True).count()
-        request_user_friends = Follow.get_friends(request.user)[:5]
+        me = request.user
+
+        request_user_entry_count = Entry.objects.filter(
+            author=me,
+            deleted_at__isnull=True
+        ).count()
+
+        followers_qs = Follow.objects.filter(
+            following=me,
+            approved=True
+        ).select_related('follower')
+
+        following_qs = Follow.objects.filter(
+            follower=me,
+            approved=True
+        ).select_related('following')
+
+        request_user_follower_count = followers_qs.count()
+        request_user_following_count = following_qs.count()
+
+        following_ids = set(
+            following_qs.values_list("following_id", flat=True)
+        )
+        follower_ids = set(
+            followers_qs.values_list("follower_id", flat=True)
+        )
+        mutual_ids = following_ids & follower_ids 
+
+        request_user_friends = Author.objects.filter(id__in=mutual_ids)
+
+        request_user_followers = followers_qs.exclude(
+            follower_id__in=mutual_ids
+        )
+
+        request_user_following = following_qs.exclude(
+            following_id__in=mutual_ids
+        )
     
     author_follower_count = Follow.objects.filter(following=author.id, approved=True).count()
     author_following_count = Follow.objects.filter(follower=author.id, approved=True).count()
     
-    # Check follow status if user is authenticated
     follow_status = None
     if request.user.is_authenticated and request.user.id != author.id:
         try:
@@ -142,17 +176,40 @@ def author_profile_page(request, username):
         except Follow.DoesNotExist:
             follow_status = None
 
-    # Get friends (mutual followers) - limit to 5 for display
     author_friends = Follow.get_friends(author)[:5]
 
     if request.path.endswith('/settings/'):
-        # this we dont have to show the full list of entries, only return top 5
-        # we only have to show the follower and following count for the request user
-        return render(request, "authors/profile_page.html", {'top_5_entries': top_5_entries, 'entry_count': entry_count, 'follower_count': request_user_follower_count, 'following_count': request_user_following_count, "request_user_friends": request_user_friends})
+        return render(
+            request,
+            "authors/profile_page.html",
+            {
+                'top_5_entries': top_5_entries,
+                'entry_count': entry_count,
+                'follower_count': request_user_follower_count,
+                'following_count': request_user_following_count,
+                "request_user_friends": request_user_friends,
+                "request_user_followers": request_user_followers,
+                "request_user_following": request_user_following,
+            }
+        )
     else:
-        # Public profile page - use author_public.html, here we yave to show the full list of entries
-        return render(request, "authors/author_public.html", {'author': author, "entries": entries, "entry_count": entry_count, "request_user_entry_count": request_user_entry_count, "request_user_follower_count": request_user_follower_count, "request_user_following_count": request_user_following_count, "author_follower_count": author_follower_count, "author_following_count": author_following_count, "follow_status": follow_status, "author_friends": author_friends, "request_user_friends": request_user_friends})
-
+        return render(
+            request,
+            "authors/author_public.html",
+            {
+                'author': author,
+                "entries": entries,
+                "entry_count": entry_count,
+                "request_user_entry_count": request_user_entry_count,
+                "request_user_follower_count": request_user_follower_count,
+                "request_user_following_count": request_user_following_count,
+                "author_follower_count": author_follower_count,
+                "author_following_count": author_following_count,
+                "follow_status": follow_status,
+                "author_friends": author_friends,
+                "request_user_friends": request_user_friends,
+            }
+        )
 
 class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
     """
@@ -289,7 +346,6 @@ class FollowRequestView(APIView):
                 existing.status = Follow.PENDING
                 existing.approved = False
                 existing.save(update_fields=['status', 'approved'])
-                send_follow_request_to_remote_node(existing)
                 data = {"id": str(existing.id), "follower": str(existing.follower_id), 
                        "following": str(existing.following_id), "approved": existing.approved}
                 return Response(data, status=status.HTTP_200_OK)
@@ -301,7 +357,7 @@ class FollowRequestView(APIView):
         except IntegrityError:
             return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
 
-        send_follow_request_to_remote_node(f)
+        send_follow_to_remote_node(f)
 
         # serialize minimal response (id is enough for tests)
         data = {"id": str(f.id), "follower": str(f.follower_id), "following": str(f.following_id), "approved": f.approved}
@@ -428,13 +484,13 @@ class FollowDecisionView(APIView):
                 fr.refresh_from_db()
                 print(f"[DEBUG] After refresh - Status: {fr.status}, Approved: {fr.approved}")
                 logger.info(f"Sending follow acceptance to follower {fr.follower_id}")
-                send_follow_decision_to_remote_node(fr, Follow.ACCEPTED)
+                send_follow_to_remote_node(fr, state=Follow.ACCEPTED, target="follower")
                 return Response({"detail": "Follow request accepted.", "status": fr.status, "approved": fr.approved}, status=status.HTTP_200_OK)
 
             if decision == "deny":
                 fr.deny(request.user)
                 logger.info(f"Sending follow denial to follower {fr.follower_id}")
-                send_follow_decision_to_remote_node(fr, Follow.DENIED)
+                send_follow_to_remote_node(fr, state=Follow.DENIED, target="follower")
                 fr.delete()
                 return Response({"detail": "Follow request denied."}, status=status.HTTP_204_NO_CONTENT)
         except PermissionError as e:

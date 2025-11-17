@@ -323,10 +323,12 @@ class FollowRequestsListView(generics.ListAPIView):
     serializer_class = FollowRequestSerializer
 
     def get_queryset(self):
-        # pending for ME (I am the followee), approved == False
+        # pending for ME (I am the followee), approved == False and status == PENDING
         return Follow.objects.select_related("follower").filter(
-            following=self.request.user, approved=False
-        )
+            following=self.request.user, 
+            approved=False,
+            status=Follow.PENDING
+        ).order_by("-created_at")
 
 class FollowRequestsListViewwww(APIView):
     permission_classes = [IsAuthenticated]

@@ -232,11 +232,18 @@ class InboxPostView(APIView):
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
         
-        Follow.objects.get_or_create(
+        follow, created = Follow.objects.get_or_create(
             follower=remote_author,
             following=author,
             defaults={"approved": False, "status": Follow.PENDING}
         )
+        
+        # If it already existed but was denied, reset it to pending
+        if not created and follow.status == Follow.DENIED:
+            follow.status = Follow.PENDING
+            follow.approved = False
+            follow.save(update_fields=['status', 'approved'])
+        
         return Response({"detail": "Follow received"}, status=200)
     
     def _handle_like(self, author, data):

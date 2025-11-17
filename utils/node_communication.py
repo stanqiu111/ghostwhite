@@ -137,14 +137,21 @@ def send_to_inbox(payload, remote_node, author_id):
     remote_author_url = build_remote_url(remote_node.host_url, author_id)
     inbox_url = f"{remote_author_url.rstrip('/')}/inbox/"
     
+    logger.info(f"[SEND TO INBOX] Target: {inbox_url}")
+    logger.info(f"[SEND TO INBOX] Payload type: {payload.get('type', 'unknown')}")
+    
     try:
         local_node = get_local_node()
         if not local_node:
+            logger.error("[SEND TO INBOX] Local node not configured")
             return False
         
         if not local_node.username or not local_node.password:
-            logger.error("Local node credentials not set, cannot send to inbox")
+            logger.error("[SEND TO INBOX] Local node credentials not set")
             return False
+        
+        logger.info(f"[SEND TO INBOX] Using credentials: username={local_node.username}")
+        logger.info(f"[SEND TO INBOX] Sending POST request...")
         
         response = requests.post(
             inbox_url,
@@ -153,11 +160,17 @@ def send_to_inbox(payload, remote_node, author_id):
             headers={"Content-Type": "application/json"},
             timeout=10
         )
+        
+        logger.info(f"[SEND TO INBOX] Response status: {response.status_code}")
+        
         response.raise_for_status()
-        logger.info(f"Sent to {inbox_url}")
+        logger.info(f"[SEND TO INBOX] SUCCESS: Sent to {inbox_url}")
         return True
     except requests.RequestException as e:
-        logger.error(f"Failed to send to {inbox_url}: {e}")
+        logger.error(f"[SEND TO INBOX] FAILED: {inbox_url} - {type(e).__name__}: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"[SEND TO INBOX] Response status: {e.response.status_code}")
+            logger.error(f"[SEND TO INBOX] Response body: {e.response.text[:500]}")
         return False
 
 def send_entry_to_remote_nodes(entry):
@@ -317,17 +330,23 @@ def send_follow_request_to_remote_node(follow):
     Args:
         follow: Follow model instance with status=PENDING
     """
-    logger.info(f"Sending follow request to remote node: follow_id={follow.id}, follower={follow.follower_id}, following={follow.following_id}")
+    logger.info(f"[SEND FOLLOW REQUEST] Starting: follow_id={follow.id}")
+    logger.info(f"[SEND FOLLOW REQUEST] Follower: id={follow.follower_id}, name={follow.follower.display_name}, node={follow.follower.node.host_url if follow.follower.node else 'None'}")
+    logger.info(f"[SEND FOLLOW REQUEST] Following: id={follow.following_id}, name={follow.following.display_name}, node={follow.following.node.host_url if follow.following.node else 'None'}")
+    logger.info(f"[SEND FOLLOW REQUEST] Status: {follow.status}, Approved: {follow.approved}")
+    
     local_node = get_local_node()
     if not local_node:
-        logger.warning("send_follow_request_to_remote_node: local node not configured")
+        logger.warning("[SEND FOLLOW REQUEST] Local node not configured, aborting")
         return
 
     # Notify the followee (person being followed)
     target_author = follow.following
+    logger.info(f"[SEND FOLLOW REQUEST] Target author: id={target_author.id}, is_local={target_author.node == local_node}")
+    
     if target_author.node == local_node:
         logger.info(
-            "send_follow_request_to_remote_node: target author %s is local, skipping",
+            "[SEND FOLLOW REQUEST] Target author %s is local, skipping remote notification",
             target_author.id,
         )
         return
@@ -335,7 +354,7 @@ def send_follow_request_to_remote_node(follow):
     remote_node = target_author.node
     if not remote_node.username:
         logger.warning(
-            "send_follow_request_to_remote_node: remote node %s missing credentials",
+            "[SEND FOLLOW REQUEST] Remote node %s missing credentials, aborting",
             remote_node.host_url,
         )
         return
@@ -348,14 +367,17 @@ def send_follow_request_to_remote_node(follow):
         "state": "requesting",
     }
 
+    logger.info(f"[SEND FOLLOW REQUEST] Payload: {payload}")
     logger.info(
-        "send_follow_request_to_remote_node: sending request from follower=%s to following=%s at node %s",
-        follow.follower_id,
-        follow.following_id,
+        "[SEND FOLLOW REQUEST] Sending to: node=%s, author_id=%s, inbox_url=%s/api/authors/%s/inbox/",
         remote_node.host_url,
+        target_author.id,
+        remote_node.host_url,
+        target_author.id,
     )
 
-    send_to_inbox(payload, remote_node, target_author.id)
+    result = send_to_inbox(payload, remote_node, target_author.id)
+    logger.info(f"[SEND FOLLOW REQUEST] Result: {'SUCCESS' if result else 'FAILED'}")
 
 
 def send_follow_decision_to_remote_node(follow, decision):
@@ -369,21 +391,28 @@ def send_follow_decision_to_remote_node(follow, decision):
         follow: Follow model instance
         decision: Either Follow.ACCEPTED or Follow.DENIED constant
     """
+    logger.info(f"[SEND FOLLOW DECISION] Starting: follow_id={follow.id}, decision={decision}")
+    
     if decision not in (Follow.ACCEPTED, Follow.DENIED):
-        logger.error(f"send_follow_decision_to_remote_node: invalid decision {decision}, must be ACCEPTED or DENIED")
+        logger.error(f"[SEND FOLLOW DECISION] Invalid decision {decision}, must be ACCEPTED or DENIED, aborting")
         return
     
-    logger.info(f"Sending follow decision to remote node: follow_id={follow.id}, decision={decision}, follower={follow.follower_id}, following={follow.following_id}")
+    logger.info(f"[SEND FOLLOW DECISION] Follower: id={follow.follower_id}, name={follow.follower.display_name}, node={follow.follower.node.host_url if follow.follower.node else 'None'}")
+    logger.info(f"[SEND FOLLOW DECISION] Following: id={follow.following_id}, name={follow.following.display_name}, node={follow.following.node.host_url if follow.following.node else 'None'}")
+    logger.info(f"[SEND FOLLOW DECISION] Current status: {follow.status}, Approved: {follow.approved}")
+    
     local_node = get_local_node()
     if not local_node:
-        logger.warning("send_follow_decision_to_remote_node: local node not configured")
+        logger.warning("[SEND FOLLOW DECISION] Local node not configured, aborting")
         return
 
     # Notify the follower (person who made the request)
     target_author = follow.follower
+    logger.info(f"[SEND FOLLOW DECISION] Target author: id={target_author.id}, is_local={target_author.node == local_node}")
+    
     if target_author.node == local_node:
         logger.info(
-            "send_follow_decision_to_remote_node: target author %s is local, skipping",
+            "[SEND FOLLOW DECISION] Target author %s is local, skipping remote notification",
             target_author.id,
         )
         return
@@ -391,12 +420,13 @@ def send_follow_decision_to_remote_node(follow, decision):
     remote_node = target_author.node
     if not remote_node.username:
         logger.warning(
-            "send_follow_decision_to_remote_node: remote node %s missing credentials",
+            "[SEND FOLLOW DECISION] Remote node %s missing credentials, aborting",
             remote_node.host_url,
         )
         return
 
     payload_state = FOLLOW_STATE_TO_SPEC.get(decision, "requesting")
+    logger.info(f"[SEND FOLLOW DECISION] Payload state: {payload_state}")
     
     payload = {
         "type": "follow",
@@ -406,12 +436,14 @@ def send_follow_decision_to_remote_node(follow, decision):
         "state": payload_state,
     }
 
+    logger.info(f"[SEND FOLLOW DECISION] Payload: {payload}")
     logger.info(
-        "send_follow_decision_to_remote_node: sending decision=%s from following=%s to follower=%s at node %s",
-        payload_state,
-        follow.following_id,
-        follow.follower_id,
+        "[SEND FOLLOW DECISION] Sending to: node=%s, author_id=%s, inbox_url=%s/api/authors/%s/inbox/",
         remote_node.host_url,
+        target_author.id,
+        remote_node.host_url,
+        target_author.id,
     )
 
-    send_to_inbox(payload, remote_node, target_author.id)
+    result = send_to_inbox(payload, remote_node, target_author.id)
+    logger.info(f"[SEND FOLLOW DECISION] Result: {'SUCCESS' if result else 'FAILED'}")

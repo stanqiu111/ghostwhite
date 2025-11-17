@@ -11,8 +11,8 @@ from django.utils.decorators import method_decorator
 from django.shortcuts import render
 from nodes.authentication import NodeBasicAuthentication, NodeAuthenticated
 from nodes.models import Node
-from utils.node_communication import get_remote_author_from_json_data, find_entry_by_url, find_comment_by_url, parse_follow_state_from_payload
-from utils.fqid import parse_author_fqid
+from utils.inbox_parsing import get_remote_author_from_json_data, parse_follow_state_from_payload
+from utils.fqid import find_entry_by_url, find_comment_by_url, parse_author_fqid
 import logging
 from django.utils import timezone
 
@@ -246,8 +246,7 @@ class InboxPostView(APIView):
         return Response({"detail": f"Entry {action}"}, status=200)
     
     def _is_decision_notification(self, data, author, desired_status):
-        """Check if this is a decision notification since the follow can be used for both requests and decisions
-        it is a decision if the object ( the target author ) matches the local author and the status is ACCEPTED/DENIED - not pending which is for requests"""
+        """Check if this is a decision notification (object matches local author and status is ACCEPTED/DENIED)."""
         object_data = data.get("object", {})
         if not object_data or not isinstance(object_data, dict):
             return False
@@ -281,15 +280,12 @@ class InboxPostView(APIView):
             logger.error(f"[INBOX FOLLOW] Failed to get remote author: {e}")
             return Response({"detail": str(e)}, status=400)
 
-        # Parse desired status from payload
         state_str = data.get("state") or Follow.PENDING
         desired_status = parse_follow_state_from_payload(state_str)
         
-        # Determine relationship direction: decision vs request
         is_decision = self._is_decision_notification(data, author, desired_status)
         
         if is_decision:
-            # not follow requests but other decisions like accept or deny
             follow, created = Follow.objects.get_or_create(
                 follower=author,
                 following=remote_author,
@@ -303,11 +299,9 @@ class InboxPostView(APIView):
             )
         
         if desired_status == Follow.PENDING and not created:
-            # we are retrying after denial
             if follow.status != Follow.PENDING:
                 self._update_follow_status(follow, Follow.PENDING)
         elif follow.status != desired_status or follow.approved != (desired_status == Follow.ACCEPTED):
-            # we are accepting or denying the follow request
             self._update_follow_status(follow, desired_status)
         
         logger.info(f"[INBOX FOLLOW] Processed: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}")

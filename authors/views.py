@@ -388,6 +388,7 @@ class FollowDecisionView(APIView):
         decision: "accept" | "deny"
         Only the followee (request.user) can decide.
         """
+        logger.info(f"FollowDecisionView: request={request.data}")
         decision = (request.data or {}).get("decision", "").lower()
         logger.info(
             "FollowDecisionView: user=%s follow_id=%s decision=%s payload=%s",

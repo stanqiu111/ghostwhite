@@ -335,3 +335,26 @@ def send_follow_decision_to_remote_node(follow, decision):
     result = send_to_inbox(payload, remote_node, target_author.id)
     logger.info(f"{log_prefix} Result: {'SUCCESS' if result else 'FAILED'}")
 
+
+def send_unfollow_to_remote_node(follower, followee):
+    """Send unfollow notification to remote author's inbox."""
+    log_prefix = "[SEND UNFOLLOW]"
+    logger.info(f"{log_prefix} Starting: follower={follower.id}, followee={followee.id}")
+    
+    target_author = followee
+    local_node, remote_node = _validate_and_get_remote_node(target_author, log_prefix)
+    if not remote_node:
+        return
+
+    payload = {
+        "type": "follow",
+        "summary": f"{follower.display_name or follower.username} unfollowed {followee.display_name or followee.username}",
+        "actor": serialize_author_for_node_communication(follower),
+        "object": serialize_author_for_node_communication(followee),
+        "state": "unfollow",
+    }
+
+    logger.info(f"{log_prefix} Payload: {payload}")
+    result = send_to_inbox(payload, remote_node, target_author.id)
+    logger.info(f"{log_prefix} Result: {'SUCCESS' if result else 'FAILED'}")
+

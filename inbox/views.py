@@ -272,7 +272,7 @@ class InboxPostView(APIView):
         follow.save(update_fields=["status", "approved"])
     
     def _handle_follow(self, author, data):
-        """Handle incoming follow activity: requests, acceptances, and denials
+        """Handle incoming follow activity: requests, acceptances, denials, and unfollows
         """
         try:
             remote_author = get_remote_author_from_json_data(data.get("actor", {}))
@@ -281,6 +281,17 @@ class InboxPostView(APIView):
             return Response({"detail": str(e)}, status=400)
 
         state_str = data.get("state") or Follow.PENDING
+        
+        if state_str.lower() == "unfollow":
+            follow = Follow.objects.filter(follower=remote_author, following=author).first()
+            if follow:
+                follow.delete()
+                logger.info(f"[INBOX FOLLOW] Unfollow processed: {remote_author.display_name} unfollowed {author.display_name}")
+                return Response({"detail": "Unfollow processed"}, status=200)
+            else:
+                logger.warning(f"[INBOX FOLLOW] Unfollow received but no relationship found: {remote_author.id} -> {author.id}")
+                return Response({"detail": "No follow relationship found"}, status=200)
+        
         desired_status = parse_follow_state_from_payload(state_str)
         
         is_decision = self._is_decision_notification(data, author, desired_status)
@@ -299,7 +310,7 @@ class InboxPostView(APIView):
             )
         
         if desired_status == Follow.PENDING and not created:
-            if follow.status != Follow.PENDING:
+            if follow.status in (Follow.ACCEPTED, Follow.DENIED):
                 self._update_follow_status(follow, Follow.PENDING)
         elif follow.status != desired_status or follow.approved != (desired_status == Follow.ACCEPTED):
             self._update_follow_status(follow, desired_status)

@@ -30,7 +30,7 @@ from rest_framework.response import Response
 from .github import sync_github_events
 from django.utils import timezone
 import logging
-from utils.node_communication import send_follow_request_to_remote_node, send_follow_decision_to_remote_node
+from utils.node_communication import send_follow_request_to_remote_node, send_follow_decision_to_remote_node, send_unfollow_to_remote_node
 
 logger = logging.getLogger(__name__)
 
@@ -373,10 +373,12 @@ class FollowRequestView(APIView):
         follower = request.user 
         if follower.id == followee.id: 
             return Response({"detail": "Cannot unfollow yourself."}, status=status.HTTP_400_BAD_REQUEST) 
-        qs = Follow.objects.filter(follower=follower, following=followee) 
-        deleted, _ = qs.delete() 
-        if deleted == 0: 
-            return Response({"detail": "No follow relationship found."}, status=status.HTTP_404_NOT_FOUND) 
+        follow = Follow.objects.filter(follower=follower, following=followee).first()
+        if not follow:
+            return Response({"detail": "No follow relationship found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        send_unfollow_to_remote_node(follower, followee)
+        follow.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class FollowRequestsListView(generics.ListAPIView):

@@ -14,3 +14,11 @@ class Node(models.Model):
 
     def __str__(self):
         return f"{'Local' if self.is_local else 'External'} Node: {self.host_url}"
+    
+    @property
+    def is_authenticated(self):
+        """
+        Required for DRF's IsAuthenticated permission when using NodeBasicAuthentication.
+        Returns True since if a Node object exists, authentication succeeded.
+        """
+        return True

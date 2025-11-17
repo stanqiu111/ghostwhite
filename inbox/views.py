@@ -11,8 +11,8 @@ from django.utils.decorators import method_decorator
 from django.shortcuts import render
 from nodes.authentication import NodeBasicAuthentication, NodeAuthenticated
 from nodes.models import Node
-from utils.node_communication import get_or_create_remote_author
-from utils.fqid import parse_entry_fqid, parse_author_fqid
+from utils.node_communication import get_remote_author_from_actor_data, find_entry_by_url
+from utils.fqid import parse_author_fqid
 import logging
 
 logger = logging.getLogger(__name__)
@@ -206,7 +206,7 @@ class InboxPostView(APIView):
             return Response({"detail": "Entry ID missing"}, status=400)
         
         try:
-            remote_author = self._get_remote_author(data.get("author", {}))
+            remote_author = get_remote_author_from_actor_data(data.get("author", {}))
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
         
@@ -250,7 +250,7 @@ class InboxPostView(APIView):
         logger.info(f"[INBOX FOLLOW] Payload: {data}")
         
         try:
-            remote_author = self._get_remote_author(data.get("actor", {}))
+            remote_author = get_remote_author_from_actor_data(data.get("actor", {}))
             logger.info(f"[INBOX FOLLOW] Remote author resolved: id={remote_author.id}, display_name={remote_author.display_name}, node={remote_author.node.host_url if remote_author.node else 'None'}")
         except ValueError as e:
             logger.error(f"[INBOX FOLLOW] Failed to get remote author: {e}")
@@ -276,7 +276,7 @@ class InboxPostView(APIView):
         
         if object_data and isinstance(object_data, dict):
             try:
-                object_author = self._get_remote_author(object_data)
+                object_author = get_remote_author_from_actor_data(object_data)
                 logger.info(f"[INBOX FOLLOW] Object author resolved: id={object_author.id}, matches local author={object_author.id == author.id}")
                 if object_author.id == author.id and desired_status in (Follow.ACCEPTED, Follow.DENIED):
                     is_decision = True
@@ -371,60 +371,10 @@ class InboxPostView(APIView):
         logger.info(f"[INBOX FOLLOW] Follow request processed: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}, approved={follow.approved}")
         return Response({"detail": "Follow received"}, status=200)
     
-    def _find_entry_by_url(self, entry_url):
-        """
-        Find entry by URL, trying source_url first, then parsing ID from URL.
-        
-        Args:
-            entry_url: Entry FQID URL
-            
-        Returns:
-            Entry object
-            
-        Raises:
-            Entry.DoesNotExist: If entry cannot be found
-        """
-        # Try source_url first (for remote entries)
-        try:
-            return Entry.objects.get(source_url=entry_url)
-        except Entry.DoesNotExist:
-            pass
-        
-        # Fallback: parse entry ID from URL
-        try:
-            entry_uuid, author_uuid, _ = parse_entry_fqid(entry_url)
-            return Entry.objects.get(id=entry_uuid, author_id=author_uuid)
-        except (ValueError, Entry.DoesNotExist):
-            raise Entry.DoesNotExist(f"Entry not found for URL: {entry_url}")
-    
-    def _get_remote_author(self, actor_data):
-        """
-        Get or create remote author from actor data.
-        
-        Args:
-            actor_data: Dict with author info including 'id' field
-            
-        Returns:
-            Author object
-            
-        Raises:
-            ValueError: If author_fqid is missing or invalid
-        """
-        author_fqid = actor_data.get("id", "")
-        if not author_fqid:
-            raise ValueError("Author ID missing")
-        
-        try:
-            remote_author, _ = get_or_create_remote_author(author_fqid, actor_data)
-            return remote_author
-        except ValueError as e:
-            logger.error(f"Failed to get/create remote author: {e}")
-            raise
-    
     def _handle_like(self, author, data):
         """Handle incoming like activity"""
         try:
-            remote_author = self._get_remote_author(data.get("author", {}))
+            remote_author = get_remote_author_from_actor_data(data.get("author", {}))
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
         
@@ -435,7 +385,7 @@ class InboxPostView(APIView):
         removed = bool(data.get("removed"))
 
         try:
-            entry = self._find_entry_by_url(object_url)
+            entry = find_entry_by_url(object_url)
             if removed:
                 deleted, _ = EntryLike.objects.filter(entry=entry, author=remote_author).delete()
                 logger.info(
@@ -474,7 +424,7 @@ class InboxPostView(APIView):
     def _handle_comment(self, author, data):
         """Handle incoming comment activity"""
         try:
-            remote_author = self._get_remote_author(data.get("author", {}))
+            remote_author = get_remote_author_from_actor_data(data.get("author", {}))
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
 
@@ -506,7 +456,7 @@ class InboxPostView(APIView):
             return Response({"detail": "Entry URL missing"}, status=400)
 
         try:
-            entry = self._find_entry_by_url(entry_url)
+            entry = find_entry_by_url(entry_url)
         except Entry.DoesNotExist:
             logger.warning(f"Comment: Entry not found for URL: {entry_url}")
             return Response({"detail": "Entry not found"}, status=404)

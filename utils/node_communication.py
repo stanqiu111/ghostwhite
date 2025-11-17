@@ -13,6 +13,7 @@ from utils.fqid import (
     get_local_node,
     parse_author_fqid,
     build_comment_url,
+    parse_entry_fqid,
 )
 
 logger = logging.getLogger(__name__)
@@ -447,3 +448,61 @@ def send_follow_decision_to_remote_node(follow, decision):
 
     result = send_to_inbox(payload, remote_node, target_author.id)
     logger.info(f"[SEND FOLLOW DECISION] Result: {'SUCCESS' if result else 'FAILED'}")
+
+
+def get_remote_author_from_actor_data(actor_data):
+    """
+    Get or create remote author from actor data (used in inbox handlers).
+    
+    This is a convenience wrapper around get_or_create_remote_author that
+    extracts the author FQID from the actor data dict.
+    
+    Args:
+        actor_data: Dict with author info including 'id' field (the FQID)
+        
+    Returns:
+        Author object
+        
+    Raises:
+        ValueError: If author_fqid is missing or invalid
+    """
+    author_fqid = actor_data.get("id", "")
+    if not author_fqid:
+        raise ValueError("Author ID missing")
+    
+    try:
+        remote_author, _ = get_or_create_remote_author(author_fqid, actor_data)
+        return remote_author
+    except ValueError as e:
+        logger.error(f"Failed to get/create remote author: {e}")
+        raise
+
+
+def find_entry_by_url(entry_url):
+    """
+    Find entry by URL, trying source_url first, then parsing ID from URL.
+    
+    This utility function is used by inbox handlers to resolve remote entry
+    references to local Entry objects.
+    
+    Args:
+        entry_url: Entry FQID URL
+        
+    Returns:
+        Entry object
+        
+    Raises:
+        Entry.DoesNotExist: If entry cannot be found
+    """
+    # Try source_url first (for remote entries)
+    try:
+        return Entry.objects.get(source_url=entry_url)
+    except Entry.DoesNotExist:
+        pass
+    
+    # Fallback: parse entry ID from URL
+    try:
+        entry_uuid, author_uuid, _ = parse_entry_fqid(entry_url)
+        return Entry.objects.get(id=entry_uuid, author_id=author_uuid)
+    except (ValueError, Entry.DoesNotExist):
+        raise Entry.DoesNotExist(f"Entry not found for URL: {entry_url}")

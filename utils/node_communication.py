@@ -187,6 +187,9 @@ def send_entry_to_remote_nodes(entry):
         "visibility": entry.visibility.upper(),
     }
     
+    if entry.image:
+        payload["image"] = f"{host_url}{entry.image.url}"
+    
     for recipient in recipients:
         remote_node = recipient.node
         if remote_node.username:

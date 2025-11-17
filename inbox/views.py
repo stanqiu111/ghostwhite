@@ -12,7 +12,7 @@ from django.shortcuts import render
 from nodes.authentication import NodeBasicAuthentication, NodeAuthenticated
 from nodes.models import Node
 from utils.node_communication import get_or_create_remote_author
-from utils.fqid import parse_entry_fqid, build_fqid
+from utils.fqid import parse_entry_fqid
 import logging
 
 logger = logging.getLogger(__name__)
@@ -226,47 +226,13 @@ class InboxPostView(APIView):
     
     def _handle_follow(self, author, data):
         """Handle incoming follow activity"""
-        actor_data = data.get("actor") or {}
-        object_data = data.get("object") or {}
-        actor_id = (actor_data.get("id") or "").rstrip("/")
-        object_id = (object_data.get("id") or "").rstrip("/")
-        local_fqid = build_fqid("", author.id)
-
-        follower = None
-        following = None
-
-        if object_id and object_id == local_fqid:
-            # Remote author is requesting to follow us (we are the followee)
-            try:
-                follower = self._get_remote_author(actor_data)
-            except ValueError as e:
-                return Response({"detail": str(e)}, status=400)
-            following = author
-        elif actor_id and actor_id == local_fqid:
-            # A remote followee is sending a decision back to our follower
-            follower = author
-            try:
-                following = self._get_remote_author(object_data)
-            except ValueError as e:
-                return Response({"detail": str(e)}, status=400)
-        else:
-            logger.warning(
-                "Inbox follow payload could not be matched to this author=%s actor=%s object=%s",
-                author.id,
-                actor_id,
-                object_id,
-            )
-            return Response({"detail": "Follow payload mismatched."}, status=400)
+        try:
+            remote_author = self._get_remote_author(data.get("actor", {}))
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=400)
 
         state_str = (data.get("state") or Follow.PENDING).lower()
-        logger.info(
-            "Inbox follow payload state=%s follower=%s following=%s (local=%s)",
-            state_str,
-            getattr(follower, "id", None),
-            getattr(following, "id", None),
-            author.id,
-        )
-
+        logger.info(f"Inbox follow payload state={state_str} from {remote_author.id} -> {author.id}")
         if state_str in {"requesting", "pending"}:
             desired_status = Follow.PENDING
         elif state_str in {"accepted", "accept"}:
@@ -277,8 +243,8 @@ class InboxPostView(APIView):
             desired_status = Follow.PENDING
 
         follow, created = Follow.objects.get_or_create(
-            follower=follower,
-            following=following,
+            follower=remote_author,
+            following=author,
             defaults={"approved": False, "status": Follow.PENDING}
         )
 
@@ -287,7 +253,7 @@ class InboxPostView(APIView):
                 follow.status = Follow.ACCEPTED
                 follow.approved = True
                 follow.save(update_fields=["status", "approved"])
-            logger.info("Follow accepted for follower=%s -> following=%s", follow.follower_id, follow.following_id)
+            logger.info(f"Follow accepted for {remote_author.display_name} -> {author.display_name}")
             return Response({"detail": "Follow accepted"}, status=200)
 
         if desired_status == Follow.DENIED:
@@ -295,7 +261,7 @@ class InboxPostView(APIView):
                 follow.status = Follow.DENIED
                 follow.approved = False
                 follow.save(update_fields=["status", "approved"])
-            logger.info("Follow denied for follower=%s -> following=%s", follow.follower_id, follow.following_id)
+            logger.info(f"Follow denied for {remote_author.display_name} -> {author.display_name}")
             return Response({"detail": "Follow denied"}, status=200)
 
         # If it already existed but was denied, reset it to pending
@@ -304,7 +270,7 @@ class InboxPostView(APIView):
             follow.approved = False
             follow.save(update_fields=["status", "approved"])
 
-        logger.info("Follow request received from follower=%s to following=%s", follow.follower_id, follow.following_id)
+        logger.info(f"Follow request received from {remote_author.display_name} to {author.display_name}")
         return Response({"detail": "Follow received"}, status=200)
     
     def _find_entry_by_url(self, entry_url):

@@ -389,11 +389,30 @@ class FollowDecisionView(APIView):
         Only the followee (request.user) can decide.
         """
         decision = (request.data or {}).get("decision", "").lower()
+        logger.info(
+            "FollowDecisionView: user=%s follow_id=%s decision=%s payload=%s",
+            getattr(request.user, "id", None),
+            pk,
+            decision,
+            request.data,
+        )
         try:
             fr = Follow.objects.select_related("follower", "following").get(
                 id=pk, following=request.user
             )
+            logger.info(
+                "FollowDecisionView: loaded follow id=%s follower=%s following=%s status=%s",
+                fr.id,
+                fr.follower_id,
+                fr.following_id,
+                fr.status,
+            )
         except Follow.DoesNotExist:
+            logger.warning(
+                "FollowDecisionView: follow id=%s not found for user=%s",
+                pk,
+                getattr(request.user, "id", None),
+            )
             return Response({"detail": "Request not found or already handled."},
                             status=status.HTTP_404_NOT_FOUND)
 

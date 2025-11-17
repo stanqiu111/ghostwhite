@@ -346,6 +346,7 @@ class FollowRequestView(APIView):
                 existing.status = Follow.PENDING
                 existing.approved = False
                 existing.save(update_fields=['status', 'approved'])
+                send_follow_request_to_remote_node(existing)
                 data = {"id": str(existing.id), "follower": str(existing.follower_id), 
                        "following": str(existing.following_id), "approved": existing.approved}
                 return Response(data, status=status.HTTP_200_OK)

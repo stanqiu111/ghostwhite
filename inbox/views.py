@@ -9,7 +9,7 @@ from entries.models import Entry, EntryLike, Comment
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.shortcuts import render
-from nodes.authentication import NodeBasicAuthentication
+from nodes.authentication import NodeBasicAuthentication, NodeAuthenticated
 from nodes.models import Node
 from utils.node_communication import get_or_create_remote_author
 import logging
@@ -174,26 +174,35 @@ class MyNotificationsView(APIView):
 class InboxPostView(APIView):
     """POST /api/authors/{author_id}/inbox - Receive from remote nodes"""
     authentication_classes = [NodeBasicAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [NodeAuthenticated]
     
     def dispatch(self, request, *args, **kwargs):
         logger = logging.getLogger(__name__)
         logger.error(f"=== InboxPostView.dispatch CALLED === {request.method} {request.path}")
         logger.error(f"Auth header: {request.META.get('HTTP_AUTHORIZATION', 'None')[:50]}")
         logger.error(f"Author ID from kwargs: {kwargs.get('author_id', 'NOT FOUND')}")
+        logger.error(f"Request user: {request.user}, authenticated: {getattr(request.user, 'is_authenticated', False) if request.user else 'No user'}")
         try:
-            return super().dispatch(request, *args, **kwargs)
+            result = super().dispatch(request, *args, **kwargs)
+            logger.error(f"InboxPostView.dispatch: returning response with status {result.status_code}")
+            return result
         except Exception as e:
             logger.error(f"InboxPostView.dispatch error: {e}", exc_info=True)
             raise
     
     def post(self, request, author_id):
+        logger = logging.getLogger(__name__)
+        logger.error(f"InboxPostView.post: author_id={author_id}, data={request.data}")
+        
         try:
             author = Author.objects.get(id=author_id)
+            logger.error(f"InboxPostView.post: Found author {author.username}")
         except Author.DoesNotExist:
+            logger.error(f"InboxPostView.post: Author {author_id} NOT FOUND in database")
             return Response({"detail": "Author not found"}, status=404)
         
         obj_type = request.data.get("type", "").lower()
+        logger.error(f"InboxPostView.post: Processing type={obj_type}")
         
         if obj_type == "entry":
             return self._handle_entry(author, request.data)
@@ -203,6 +212,7 @@ class InboxPostView(APIView):
             return self._handle_like(author, request.data)
         elif obj_type == "comment":
             return self._handle_comment(author, request.data)
+        logger.error(f"InboxPostView.post: Unknown type={obj_type}")
         return Response({"detail": f"Unknown type: {obj_type}"}, status=400)
     
     def _handle_entry(self, author, data):

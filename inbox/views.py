@@ -216,22 +216,27 @@ class InboxPostView(APIView):
         
         visibility = data.get("visibility", "PUBLIC").upper()
         
+        defaults = {
+            "author": remote_author,
+            "content": data.get("content", ""),
+            "content_type": data.get("contentType", "text/plain"),
+            "visibility": visibility.lower(),
+            "node": remote_author.node,
+            "source": "remote",
+            "source_id": data.get("image"),
+        }
+        
         entry, created = Entry.objects.get_or_create(
             source_url=entry_fqid,
-            defaults={
-                "author": remote_author,
-                "content": data.get("content", ""),
-                "content_type": data.get("contentType", "text/plain"),
-                "visibility": visibility.lower(),
-                "node": remote_author.node,
-                "source": "remote",
-            }
+            defaults=defaults
         )
         
         if not created:
             entry.content = data.get("content", entry.content)
             entry.content_type = data.get("contentType", entry.content_type)
             entry.visibility = visibility.lower()
+            if data.get("image"):
+                entry.source_id = data.get("image")
 
             # If we are deleting the entry, we mark it as deleted ( soft delete )           
             if visibility == "DELETED":

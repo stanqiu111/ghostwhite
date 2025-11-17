@@ -180,7 +180,7 @@ def send_entry_to_remote_nodes(entry):
             send_to_inbox(payload, remote_node, recipient.id)
 
 
-def send_like_to_remote_node(like, entry):
+def send_like_to_remote_node(like, entry, *, removed=False):
     """Send like notification to entry author's inbox (if remote)"""
     local_node = get_local_node()
     if not local_node or entry.author.node == local_node:
@@ -199,11 +199,13 @@ def send_like_to_remote_node(like, entry):
         "id": f"{build_fqid('', author_id=like.author.id)}/liked/{like.id}",
         "object": object_url,
     }
+    if removed:
+        payload["removed"] = True
     
     send_to_inbox(payload, remote_node, entry.author.id)
 
 
-def send_comment_to_remote_node(comment, entry):
+def send_comment_to_remote_node(comment, entry, state=None):
     """Send comment notification to entry author's inbox (if remote)
     According to the project description, comments should have the following fields: type, author, comment, contentType, published, id, entry, web, likes
     """
@@ -243,11 +245,13 @@ def send_comment_to_remote_node(comment, entry):
             "src": [],
         },
     }
+    if state:
+        payload["state"] = state
     
     send_to_inbox(payload, remote_node, entry.author.id)
 
 
-def send_comment_like_to_remote_node(comment_like):
+def send_comment_like_to_remote_node(comment_like, *, removed=False):
     """
     Send a like on a comment to the comment author's node (if remote).
     """
@@ -278,6 +282,8 @@ def send_comment_like_to_remote_node(comment_like):
         "author": serialize_author(comment_like.author),
         "object": object_url,
     }
+    if removed:
+        payload["removed"] = True
 
     send_to_inbox(payload, comment_author_node, comment.author_id)
 

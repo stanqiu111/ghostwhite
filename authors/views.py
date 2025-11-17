@@ -403,10 +403,12 @@ class FollowDecisionView(APIView):
                 # Refresh from database to confirm the save worked
                 fr.refresh_from_db()
                 print(f"[DEBUG] After refresh - Status: {fr.status}, Approved: {fr.approved}")
+                send_follow_to_remote_node(fr, state=Follow.ACCEPTED, target="follower")
                 return Response({"detail": "Follow request accepted.", "status": fr.status, "approved": fr.approved}, status=status.HTTP_200_OK)
 
             if decision == "deny":
                 fr.deny(request.user)
+                send_follow_to_remote_node(fr, state=Follow.DENIED, target="follower")
                 fr.delete()
                 return Response({"detail": "Follow request denied."}, status=status.HTTP_204_NO_CONTENT)
         except PermissionError as e:

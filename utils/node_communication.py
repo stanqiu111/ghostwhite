@@ -243,21 +243,44 @@ def send_comment_to_remote_node(comment, entry):
     send_to_inbox(payload, remote_node, entry.author.id)
 
 
-def send_follow_to_remote_node(follow):
-    """Send follow request notification to target author's inbox (if remote)"""
-    local_node = get_local_node()
-    if not local_node or follow.following.node == local_node:
-        return
+FOLLOW_STATE_TO_SPEC = {
+    Follow.PENDING: "requesting",
+    Follow.ACCEPTED: "accepted",
+    Follow.DENIED: "rejected",
+}
+
+
+def send_follow_to_remote_node(follow, *, state=None, target="following"):
+    """
+    Send follow notification/decision to a remote author's inbox.
     
-    remote_node = follow.following.node
+    Args:
+        follow: Follow model instance
+        state: Optional override for follow status (use Follow constants)
+        target: "following" to notify the followee (default for new requests),
+                "follower" to notify the follower (used when decision is made)
+    """
+    local_node = get_local_node()
+    if not local_node:
+        return
+
+    target_author = follow.following if target == "following" else follow.follower
+    if target_author.node == local_node:
+        return
+
+    remote_node = target_author.node
     if not remote_node.username:
         return
-    
+
+    state_value = (state or follow.status or Follow.PENDING).lower()
+    payload_state = FOLLOW_STATE_TO_SPEC.get(state_value, FOLLOW_STATE_TO_SPEC[Follow.PENDING])
+
     payload = {
         "type": "follow",
         "summary": f"{follow.follower.display_name or follow.follower.username} wants to follow {follow.following.display_name or follow.following.username}",
         "actor": serialize_author(follow.follower),
         "object": serialize_author(follow.following),
+        "state": payload_state,
     }
-    
-    send_to_inbox(payload, remote_node, follow.following.id)
+
+    send_to_inbox(payload, remote_node, target_author.id)

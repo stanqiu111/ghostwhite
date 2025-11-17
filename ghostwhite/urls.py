@@ -22,13 +22,6 @@ from django.views.generic import RedirectView
 from inbox.views import inbox_page
 from .views import home_view
 from django.conf import settings
-from django.conf.urls.static import static 
-from django.views.generic import RedirectView
-from .views import home_view
-from django.conf import settings
-from django.conf.urls.static import static
-
-from django.conf import settings
 from django.conf.urls.static import static
 
 # drf spectacular for API schema and docs

@@ -178,7 +178,9 @@ class InboxPostView(APIView):
     
     def dispatch(self, request, *args, **kwargs):
         logger = logging.getLogger(__name__)
-        logger.info(f"InboxPostView.dispatch: {request.method} {request.path}, auth={request.META.get('HTTP_AUTHORIZATION', 'None')[:20]}")
+        logger.error(f"=== InboxPostView.dispatch CALLED === {request.method} {request.path}")
+        logger.error(f"Auth header: {request.META.get('HTTP_AUTHORIZATION', 'None')[:50]}")
+        logger.error(f"Author ID from kwargs: {kwargs.get('author_id', 'NOT FOUND')}")
         try:
             return super().dispatch(request, *args, **kwargs)
         except Exception as e:

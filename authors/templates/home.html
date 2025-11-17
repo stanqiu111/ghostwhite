@@ -724,81 +724,60 @@
         }
       }
       async function loadFollowingInbox() {
-        const list  = document.getElementById('notifList');
+        const list = document.getElementById('notifList');
         const badge = document.getElementById('notifCount');
-        if (!list || !badge) return;
-
         try {
           list.innerHTML = '<div class="empty-state">Loading…</div>';
 
-          // ★ 새 API: 내 글에 달린 알림, 최대 5개
+          // ★ 여기만 바꾸기: following-activity → notifications, limit=5
           const res = await api('/inbox/notifications/?limit=5', { method: 'GET' });
-          const items = (res && res.items) ? res.items : [];
-
+          const items = res.items || [];
           badge.textContent = String(items.length);
 
           if (!items.length) {
             list.innerHTML = '<div class="empty-state">No notifications</div>';
             return;
           }
-
           list.innerHTML = '';
 
           items.forEach(n => {
-            const row  = document.createElement('div');
+            const row = document.createElement('div');
             row.className = 'suggestion-item';
             row.style.borderBottom = '1px solid #f0f0f0';
 
             const left = document.createElement('div');
             left.className = 'suggestion-info';
-
-            const actorImg  = n.actor && n.actor.image ? n.actor.image : '{% static "images/default_pfp.png" %}';
-            const actorName = n.actor && (n.actor.display_name || n.actor.username) ? (n.actor.display_name || n.actor.username) : 'Someone';
-            const verb      = n.verb || (n.type === 'like' ? 'liked your post'
-                                 : n.type === 'comment' ? 'commented on your post'
-                                 : 'activity');
-            const preview   = n.comment_preview ? `: ${esc(n.comment_preview)}` : '';
-
-            let createdText = '';
-            try {
-              createdText = new Date(n.created).toLocaleString();
-            } catch (_) {}
-
+            const actorImg = (n.actor && n.actor.image) ? n.actor.image : '{% static "images/default_pfp.png" %}';
+            const actorName = (n.actor && n.actor.display_name) ? n.actor.display_name : 'Someone';
             left.innerHTML = `
               <div class="suggestion-avatar">
                 <img src="${actorImg}" alt="${esc(actorName)}"
-                     style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                    style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
               </div>
               <div>
                 <div class="suggestion-name">${esc(actorName)}</div>
                 <div style="font-size:12px;color:#6b7280;">
-                  ${esc(verb)}${preview} ${createdText ? '• ' + esc(createdText) : ''}
+                  ${esc(n.verb)} • ${new Date(n.created).toLocaleString()}
                 </div>
               </div>
             `;
 
             const right = document.createElement('div');
-            right.style.display = 'flex';
-            right.style.gap = '8px';
-
+            right.style.display = 'flex'; right.style.gap = '8px';
             const btn = document.createElement('button');
             btn.className = 'follow-btn';
             btn.textContent = 'View';
             btn.onclick = () => {
-              if (n.object_id) {
-                navigateToEntry(n.object_id);
-              } else if (n.object_url) {
-                window.location.href = n.object_url;
-              }
+              if (n.object_id) navigateToEntry(n.object_id);
+              else if (n.object_url) window.open(n.object_url, '_blank', 'noopener');
             };
-
             right.appendChild(btn);
+
             row.appendChild(left);
             row.appendChild(right);
             list.appendChild(row);
           });
         } catch (e) {
-          console.error(e);
           list.innerHTML = `<div class="empty-state">Failed to load. ${e.message || e}</div>`;
         }
       }
@@ -909,7 +888,6 @@
       document.addEventListener('DOMContentLoaded', () => {
         loadFollowRequests();
         loadFollowingInbox();
-        setInterval(loadFollowingInbox, 30000); // refresh every 30s 
       });
 
       async function followFromButton(btn) {

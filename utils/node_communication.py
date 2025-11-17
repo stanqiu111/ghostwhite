@@ -102,7 +102,7 @@ def serialize_author(author):
     
     return {
         "type": "author",
-        "id": build_fqid(author_id=author.id),
+        "id": build_fqid("", author_id=author.id),
         "host": f"{host_url}api/",
         "displayName": author.display_name or author.username,
         "github": author.github_url or "",
@@ -165,7 +165,7 @@ def send_entry_to_remote_nodes(entry):
     
     payload = {
         "type": "entry",
-        "id": build_fqid(author_id=entry.author.id, entry_id=entry.id),
+        "id": build_fqid("", author_id=entry.author.id, entry_id=entry.id),
         "title": "",
         "description": entry.content[:100] if entry.content else "",
         "contentType": entry.content_type,
@@ -199,8 +199,8 @@ def send_like_to_remote_node(like, entry):
         "type": "like",
         "author": serialize_author(like.author),
         "published": like.created_at.isoformat(),
-        "id": f"{build_fqid(author_id=like.author.id)}/liked/{like.id}",
-        "object": build_fqid(author_id=entry.author.id, entry_id=entry.id),
+        "id": f"{build_fqid('', author_id=like.author.id)}/liked/{like.id}",
+        "object": build_fqid("", author_id=entry.author.id, entry_id=entry.id),
     }
     
     remote_url = f"{remote_node.host_url.rstrip('/')}/api/authors/{entry.author.id}"
@@ -226,8 +226,8 @@ def send_comment_to_remote_node(comment, entry):
         "comment": comment.content,
         "contentType": comment.content_type,
         "published": comment.created_at.isoformat(),
-        "id": f"{build_fqid(author_id=comment.author.id)}/commented/{comment.id}",
-        "entry": build_fqid(author_id=entry.author.id, entry_id=entry.id),
+        "id": f"{build_fqid('', author_id=comment.author.id)}/commented/{comment.id}",
+        "entry": build_fqid("", author_id=entry.author.id, entry_id=entry.id),
     }
     
     remote_url = f"{remote_node.host_url.rstrip('/')}/api/authors/{entry.author.id}"

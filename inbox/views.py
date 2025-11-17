@@ -331,14 +331,30 @@ class InboxPostView(APIView):
             logger.info(f"[INBOX FOLLOW] Follow denied: {follow.follower.display_name} -> {follow.following.display_name}")
             return Response({"detail": "Follow denied"}, status=200)
 
-        # For pending requests, only update if it was previously denied
-        # Don't overwrite accepted status with pending
-        if not created and follow.status == Follow.DENIED and desired_status == Follow.PENDING:
-            logger.info(f"[INBOX FOLLOW] Resetting from DENIED to PENDING")
-            follow.status = Follow.PENDING
-            follow.approved = False
-            follow.save(update_fields=["status", "approved"])
-            logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
+        # For pending requests:
+        # - If it was previously denied, reset to pending (allows retry after denial)
+        # - If it was previously accepted but we're receiving a new request, reset to pending
+        #   (this handles the case where user unfollowed and followed again)
+        if not created and desired_status == Follow.PENDING:
+            if follow.status == Follow.DENIED:
+                logger.info(f"[INBOX FOLLOW] Resetting from DENIED to PENDING (retry after denial)")
+                follow.status = Follow.PENDING
+                follow.approved = False
+                follow.save(update_fields=["status", "approved"])
+                logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
+            elif follow.status == Follow.ACCEPTED:
+                logger.info(f"[INBOX FOLLOW] Resetting from ACCEPTED to PENDING (new request after unfollow)")
+                follow.status = Follow.PENDING
+                follow.approved = False
+                follow.save(update_fields=["status", "approved"])
+                logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
+            elif follow.status != Follow.PENDING:
+                # If status is something else, ensure it's set to PENDING
+                logger.info(f"[INBOX FOLLOW] Updating status from {follow.status} to PENDING")
+                follow.status = Follow.PENDING
+                follow.approved = False
+                follow.save(update_fields=["status", "approved"])
+                logger.info(f"[INBOX FOLLOW] Saved: status={follow.status}, approved={follow.approved}")
         elif created:
             # New follow request created
             logger.info(f"[INBOX FOLLOW] New follow request created: {follow.follower.display_name} -> {follow.following.display_name}")

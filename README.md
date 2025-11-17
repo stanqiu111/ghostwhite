@@ -39,6 +39,9 @@ The authors claiming copyright, if they wish to be known, can list their names h
 ## To run tests, node-to-node communication
       python manage.py test nodes.tests
 
+## run inbox tests
+      python manage.py test inbox
+
 ## API Documentation
 
 You can view the automatically generated API documentation using **drf-spectacular (Swagger UI)**.

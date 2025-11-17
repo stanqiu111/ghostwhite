@@ -17,13 +17,24 @@ Make a distributed social network!
 The authors claiming copyright, if they wish to be known, can list their names here...
 
 | Name          | GitHub Username |
-| ------------- | --------------- |
+| ------------- | --------------- | 
 | Jueun (Krystal) Kim     | rlawndms        |
 | Evelyn Nguyen | LinhNguyen310   |
 | Stan Qiu      | stanqiu111      |
 | Ximeng Duan   | XimengDuan      |
 | Michael Yang  | MichaelY223     |
 | Shuran Kong   | arinnaaa        |
+
+## Nodes
+
+| Name          | Node            | Username        | Password       |
+| ------------- | --------------- | --------------- |--------------- |
+| Jueun (Krystal) Kim | https://krystal-7a3d144806fa.herokuapp.com/ | krystal | Test123! |
+| Evelyn Nguyen | https://ghostwhite-evelyn-node-f268ea95378e.herokuapp.com/ | linhn | linhnprod |
+| Stan Qiu      | | | |
+| Ximeng Duan   | https://ghostwhite-ximeng-c739441113d7.herokuapp.com/ | ximeng | dxm021108 |
+| Michael Yang  | https://peaceful-garden-43112-3554aa58b634.herokuapp.com/ | MichaelY | MichaelPassword@123 |
+| Shuran Kong   | | | |
 
 ## API Documentation
 

@@ -65,3 +65,5 @@ User Stories: https://docs.google.com/spreadsheets/d/1pNFONRS94QShi56lbZggabKdFV
 Figma: https://www.figma.com/design/eOnTTGBQ0kVjNBlamF3RqB/CMPUT404_Project?node-id=0-1&t=z3hQl4rjija8zXbG-1
 
 DataBase Design: https://docs.google.com/document/d/1N5pYmGQqjjYz-mZyWd0076LR-xhAuy6zakLM-ltd8Ug/edit?tab=t.0
+
+External node connection design: https://docs.google.com/document/d/1pWfzVwklOOw3OyrlPQfki7emm3yVROubkzIoKSGH8KE/

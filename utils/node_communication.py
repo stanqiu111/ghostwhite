@@ -260,20 +260,39 @@ def send_follow_to_remote_node(follow, *, state=None, target="following"):
         target: "following" to notify the followee (default for new requests),
                 "follower" to notify the follower (used when decision is made)
     """
+    logger.info(f"Sending follow notification to remote node: {follow.id}")
     local_node = get_local_node()
     if not local_node:
+        logger.warning("send_follow_to_remote_node: local node not configured")
         return
 
     target_author = follow.following if target == "following" else follow.follower
     if target_author.node == local_node:
+        logger.info(
+            "send_follow_to_remote_node: target author %s is local, skipping",
+            target_author.id,
+        )
         return
 
     remote_node = target_author.node
     if not remote_node.username:
+        logger.warning(
+            "send_follow_to_remote_node: remote node %s missing credentials",
+            remote_node.host_url,
+        )
         return
 
     state_value = (state or follow.status or Follow.PENDING).lower()
     payload_state = FOLLOW_STATE_TO_SPEC.get(state_value, FOLLOW_STATE_TO_SPEC[Follow.PENDING])
+
+    logger.info(
+        "send_follow_to_remote_node: sending state=%s target=%s follower=%s following=%s to %s",
+        payload_state,
+        target,
+        follow.follower_id,
+        follow.following_id,
+        remote_node.host_url,
+    )
 
     payload = {
         "type": "follow",

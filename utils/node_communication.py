@@ -102,7 +102,7 @@ def serialize_author(author):
     
     return {
         "type": "author",
-        "id": build_fqid(author_id=author.id),
+        "id": build_fqid("", author_id=author.id),
         "host": f"{host_url}api/",
         "displayName": author.display_name or author.username,
         "github": author.github_url or "",

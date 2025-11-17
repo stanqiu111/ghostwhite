@@ -18,7 +18,13 @@ from django.shortcuts import get_object_or_404, render
 from django.db.models import Q, Exists, OuterRef, Prefetch
 from authors.models import Follow
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
-from utils.node_communication import send_entry_to_remote_nodes, send_comment_to_remote_node, send_like_to_remote_node
+from utils.node_communication import (
+    send_entry_to_remote_nodes,
+    send_comment_to_remote_node,
+    send_like_to_remote_node,
+    send_comment_like_to_remote_node,
+)
+from utils.fqid import build_comment_url
 import logging
 
 
@@ -285,6 +291,8 @@ class CommentCreateView(generics.CreateAPIView):
             return Response({"detail": "Content is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         comment = Comment.objects.create(entry=entry, author=author, content=content)
+        comment.source_url = build_comment_url(comment)
+        comment.save(update_fields=["source_url"])
         try:
             send_comment_to_remote_node(comment, entry)
         except Exception as e:
@@ -329,6 +337,11 @@ class CommentLikeToggleView(generics.DestroyAPIView):
         if not created:
             like.delete()
             return Response({"detail": "Comment like removed."}, status=status.HTTP_200_OK)
+        try:
+            send_comment_like_to_remote_node(like)
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send comment like to remote node: {e}")
         return Response({"detail": "Comment like added."}, status=status.HTTP_201_CREATED)
 
 

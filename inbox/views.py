@@ -5,14 +5,14 @@ from rest_framework.response import Response
 from django.db.models import Q, Exists, OuterRef
 from authors.models import Author, Follow
 from authors.serializers import AuthorSerializer
-from entries.models import Entry, EntryLike, Comment
+from entries.models import Entry, EntryLike, Comment, CommentLike
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.shortcuts import render
 from nodes.authentication import NodeBasicAuthentication, NodeAuthenticated
 from nodes.models import Node
 from utils.node_communication import get_or_create_remote_author
-from utils.fqid import parse_entry_fqid
+from utils.fqid import parse_entry_fqid, parse_author_fqid
 import logging
 
 logger = logging.getLogger(__name__)
@@ -336,13 +336,21 @@ class InboxPostView(APIView):
         
         try:
             entry = self._find_entry_by_url(object_url)
+            EntryLike.objects.get_or_create(entry=entry, author=remote_author)
+            logger.info(f"Like received from {remote_author.display_name} for entry {entry.id}")
+            return Response({"detail": "Like received"}, status=200)
         except Entry.DoesNotExist:
-            logger.warning(f"Like: Entry not found for URL: {object_url}")
-            return Response({"detail": "Entry not found"}, status=404)
-        
-        EntryLike.objects.get_or_create(entry=entry, author=remote_author)
-        logger.info(f"Like received from {remote_author.display_name} for entry {entry.id}")
-        return Response({"detail": "Like received"}, status=200)
+            pass
+
+        try:
+            comment = self._find_comment_by_url(object_url)
+        except Comment.DoesNotExist:
+            logger.warning(f"Like: Target not found for URL: {object_url}")
+            return Response({"detail": "Object not found"}, status=404)
+
+        CommentLike.objects.get_or_create(comment=comment, author=remote_author)
+        logger.info(f"Comment like received from {remote_author.display_name} for comment {comment.id}")
+        return Response({"detail": "Comment like received"}, status=200)
     
     def _handle_comment(self, author, data):
         """Handle incoming comment activity"""
@@ -365,9 +373,36 @@ class InboxPostView(APIView):
             entry=entry,
             author=remote_author,
             content=data.get("comment", ""),
+            source_url=data.get("id"),
         )
         logger.info(f"Comment received from {remote_author.display_name} on entry {entry.id}")
         return Response({"detail": "Comment received"}, status=201)
+
+    def _find_comment_by_url(self, comment_url):
+        """
+        Find a comment by its source URL or by parsing the local FQID.
+        """
+        if not comment_url:
+            raise Comment.DoesNotExist("Comment URL missing")
+
+        comment = Comment.objects.filter(source_url=comment_url).first()
+        if comment:
+            return comment
+
+        url = comment_url.rstrip("/")
+        if "/commented/" in url:
+            base, comment_id_str = url.split("/commented/", 1)
+            try:
+                comment_id = int(comment_id_str)
+            except ValueError as exc:
+                raise Comment.DoesNotExist(f"Invalid comment URL: {comment_url}") from exc
+            try:
+                author_uuid, _ = parse_author_fqid(base + "/")
+            except ValueError as exc:
+                raise Comment.DoesNotExist(f"Invalid comment URL: {comment_url}") from exc
+            return Comment.objects.get(id=comment_id, author_id=author_uuid)
+
+        raise Comment.DoesNotExist(f"Comment not found for URL: {comment_url}")
 
 
 @login_required

@@ -4,7 +4,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 from authors.models import Author, Follow
-from entries.models import Entry, EntryLike, Comment
+from entries.models import Entry, EntryLike, Comment, CommentLike
 from nodes.models import Node
 from utils.fqid import (
     build_entry_url,
@@ -12,6 +12,7 @@ from utils.fqid import (
     build_remote_url,
     get_local_node,
     parse_author_fqid,
+    build_comment_url,
 )
 
 logger = logging.getLogger(__name__)
@@ -218,7 +219,10 @@ def send_comment_to_remote_node(comment, entry):
     host_url = local_node.host_url.rstrip('/')
     entry_web_url = f"{host_url}/entries/{entry.id}/"
     like_count = comment.likes.count()
-    comment_id_url = f"{build_fqid('', author_id=comment.author.id)}/commented/{comment.id}"
+    comment_id_url = comment.source_url or build_comment_url(comment)
+    if not comment_id_url:
+        logger.warning("send_comment_to_remote_node: missing comment ID URL")
+        return
     
     payload = {
         "type": "comment",
@@ -241,6 +245,41 @@ def send_comment_to_remote_node(comment, entry):
     }
     
     send_to_inbox(payload, remote_node, entry.author.id)
+
+
+def send_comment_like_to_remote_node(comment_like):
+    """
+    Send a like on a comment to the comment author's node (if remote).
+    """
+    comment = comment_like.comment
+    local_node = get_local_node()
+    if not local_node:
+        return
+
+    comment_author_node = getattr(comment.author, "node", None)
+    if not comment_author_node or comment_author_node == local_node:
+        return
+
+    if not comment_author_node.username:
+        logger.warning(
+            "send_comment_like_to_remote_node: remote node %s missing credentials",
+            comment_author_node.host_url,
+        )
+        return
+
+    object_url = comment.source_url or build_comment_url(comment)
+    if not object_url:
+        logger.warning("send_comment_like_to_remote_node: missing comment URL")
+        return
+
+    payload = {
+        "type": "like",
+        "summary": f"{comment_like.author.display_name or comment_like.author.username} liked a comment",
+        "author": serialize_author(comment_like.author),
+        "object": object_url,
+    }
+
+    send_to_inbox(payload, comment_author_node, comment.author_id)
 
 
 FOLLOW_STATE_TO_SPEC = {

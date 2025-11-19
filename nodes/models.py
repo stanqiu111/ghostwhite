@@ -9,6 +9,7 @@ class Node(models.Model):
         default=False,
         # unique=True,
     )  # To differentiate between local and external nodes, for every env we only allow one local node
+    is_active = models.BooleanField(default=True)
     username = models.CharField(max_length=255, blank=True)  # For remote node auth
     password = models.CharField(max_length=255, blank=True)  # For remote node auth
 

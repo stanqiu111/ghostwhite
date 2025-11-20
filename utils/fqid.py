@@ -57,7 +57,7 @@ def build_remote_url(host_url, author_id):
 
 def parse_author_fqid(author_fqid):
     """
-    Parse author FQID to extract UUID and node URL.
+    Parse author FQID to extract UUID and node URL. If author doesnt have UUID but use username, then we will use username
     """
     if not author_fqid:
         raise ValueError("Author FQID is required")
@@ -68,7 +68,11 @@ def parse_author_fqid(author_fqid):
             raise ValueError(f"Invalid author FQID format: {author_fqid}")
         node_url = parts[0] + '/'
         author_uuid_str = parts[1]
-        author_uuid = uuid.UUID(author_uuid_str)
+
+        try:
+            author_uuid = uuid.UUID(author_uuid_str)
+        except ValueError:
+            author_uuid = author_uuid_str
         return author_uuid, node_url
     except (ValueError, IndexError) as exc:
         raise ValueError(f"Invalid author FQID format: {author_fqid}") from exc

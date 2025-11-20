@@ -75,8 +75,9 @@ def get_remote_recipients_for_entry(entry, local_node):
 
 def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
     """Get or create remote author from FQID and data."""
-    author_uuid, node_url = parse_author_fqid(author_fqid)
-    author_uuid_str = str(author_uuid)
+    full_fqid, node_url = parse_author_fqid(author_fqid)
+    author_id_part = full_fqid.split('/api/authors/')[-1]
+    username_suffix = author_id_part[:8] if len(author_id_part) >= 8 else author_id_part
     
     if remote_node is None:
         try:
@@ -85,9 +86,9 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
             raise ValueError(f"Remote node not found: {node_url}")
     
     author, created = Author.objects.get_or_create(
-        id=author_uuid,
+        id=full_fqid,
         defaults={
-            "username": f"remote_{author_uuid_str[:8]}",
+            "username": f"remote_{username_suffix}",
             "display_name": author_data.get("displayName", ""),
             "node": remote_node,
             "is_active": True,
@@ -121,6 +122,7 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
 def send_to_inbox(payload, remote_node, author_id):
     """
     Send payload to remote author's inbox.
+    
     """
     remote_author_url = build_remote_url(remote_node.host_url, author_id)
     inbox_url = f"{remote_author_url.rstrip('/')}/inbox"

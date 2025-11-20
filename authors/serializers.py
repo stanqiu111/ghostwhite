@@ -19,8 +19,7 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         return "author"
 
     def get_full_url(self, obj):
-        # Return absolute API endpoint for this author (e.g., /api/authors/<id>/)
-        return self.build_full_url(f"/api/authors/{obj.id}/")
+        return obj.id
 
     def get_host(self, obj):
         # Return base API host URL (e.g., /api/)
@@ -31,9 +30,11 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         return self.build_full_url(f"/authors/{obj.username}/")
 
     def get_id(self, obj):
-        return self.get_full_url(obj)
+        return obj.id
 
     def get_serial(self, obj):
+        if '/api/authors/' in obj.id:
+            return obj.id.split('/api/authors/')[-1]
         return str(obj.id)
 
     def get_follow_status(self, obj):

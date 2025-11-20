@@ -28,6 +28,8 @@ def build_fqid(path="", author_id=None, entry_id=None):
     host_url = _get_local_host_url()
     if not host_url:
         return None
+    if author_id:
+        author_id = extract_author_id_from_fqid(author_id)
     if entry_id:
         return f"{host_url}api/authors/{author_id}/entries/{entry_id}"
     if author_id:
@@ -37,6 +39,7 @@ def build_fqid(path="", author_id=None, entry_id=None):
 
 def build_entry_url(author_id, entry_id):
     """Helper to build a canonical entry URL."""
+    author_id = extract_author_id_from_fqid(author_id)
     return build_fqid("", author_id=author_id, entry_id=entry_id)
 
 
@@ -47,33 +50,42 @@ def build_comment_url(comment):
     host_url = _get_local_host_url()
     if not host_url:
         return None
-    return f"{host_url}api/authors/{comment.author_id}/commented/{comment.id}"
+    author_id = extract_author_id_from_fqid(comment.author_id)
+    return f"{host_url}api/authors/{author_id}/commented/{comment.id}"
 
+
+def extract_author_id_from_fqid(author_fqid_or_id):
+    """
+    Extract the identifier part (UUID or username) from an author FQID.
+    If it's already just an identifier (no /api/authors/), return it as-is.
+    """
+    if '/api/authors/' in str(author_fqid_or_id):
+        return str(author_fqid_or_id).split('/api/authors/')[-1]
+    return str(author_fqid_or_id)
 
 def build_remote_url(host_url, author_id):
     """Build remote author URL for inbox endpoint."""
+    author_id = extract_author_id_from_fqid(author_id)
     return f"{host_url.rstrip('/')}/api/authors/{author_id}"
 
 
 def parse_author_fqid(author_fqid):
     """
-    Parse author FQID to extract UUID and node URL. If author doesnt have UUID but use username, then we will use username
+    Parse author FQID to extract full FQID and node URL.
+    Returns: (full_fqid, node_url) where full_fqid is the normalized FQID string.
     """
     if not author_fqid:
         raise ValueError("Author FQID is required")
 
     try:
-        parts = author_fqid.rstrip('/').split('/api/authors/')
+        # Normalize the FQID (remove trailing slash)
+        normalized_fqid = author_fqid.rstrip('/')
+        parts = normalized_fqid.split('/api/authors/')
         if len(parts) != 2:
             raise ValueError(f"Invalid author FQID format: {author_fqid}")
         node_url = parts[0] + '/'
-        author_uuid_str = parts[1]
-
-        if not is_valid_uuid(author_uuid_str):
-            author_uuid = author_uuid_str
-        else:
-            author_uuid = uuid.UUID(author_uuid_str)
-        return author_uuid, node_url
+        # Return the normalized full FQID and node URL
+        return normalized_fqid, node_url
     except (ValueError, IndexError) as exc:
         raise ValueError(f"Invalid author FQID format: {author_fqid}") from exc
 
@@ -86,7 +98,8 @@ def is_valid_uuid(uuid_str):
 
 def parse_entry_fqid(entry_fqid):
     """
-    Parse entry FQID to extract entry UUID, author UUID, and node URL.
+    Parse entry FQID to extract entry UUID, author FQID, and node URL.
+    Returns: (entry_uuid, author_fqid, node_url)
     """
     if not entry_fqid:
         raise ValueError("Entry FQID is required")
@@ -103,8 +116,9 @@ def parse_entry_fqid(entry_fqid):
             raise ValueError(f"Invalid entry FQID format: {entry_fqid}")
 
         node_url = author_parts[0] + '/'
-        author_uuid = uuid.UUID(author_parts[1])
-        return entry_uuid, author_uuid, node_url
+        # Build the full author FQID
+        author_fqid = base_url
+        return entry_uuid, author_fqid, node_url
     except (ValueError, IndexError) as exc:
         raise ValueError(f"Invalid entry FQID format: {entry_fqid}") from exc
 
@@ -117,8 +131,8 @@ def find_entry_by_url(entry_url):
         pass
     
     try:
-        entry_uuid, author_uuid, _ = parse_entry_fqid(entry_url)
-        return Entry.objects.get(id=entry_uuid, author_id=author_uuid)
+        entry_uuid, author_fqid, _ = parse_entry_fqid(entry_url)
+        return Entry.objects.get(id=entry_uuid, author_id=author_fqid)
     except (ValueError, Entry.DoesNotExist):
         raise Entry.DoesNotExist(f"Entry not found for URL: {entry_url}")
 
@@ -139,10 +153,10 @@ def find_comment_by_url(comment_url):
         except ValueError as exc:
             raise Comment.DoesNotExist(f"Invalid comment URL: {comment_url}") from exc
         try:
-            author_uuid, _ = parse_author_fqid(base + "/")
+            author_fqid, _ = parse_author_fqid(base + "/")
         except ValueError as exc:
             raise Comment.DoesNotExist(f"Invalid comment URL: {comment_url}") from exc
-        return Comment.objects.get(id=comment_id, author_id=author_uuid)
+        return Comment.objects.get(id=comment_id, author_id=author_fqid)
 
     raise Comment.DoesNotExist(f"Comment not found for URL: {comment_url}")
 

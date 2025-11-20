@@ -167,6 +167,7 @@ def send_to_inbox(payload, remote_node, author_id):
 
 def send_entry_to_remote_nodes(entry):
     """Send entry to remote followers' inboxes."""
+    from utils.fqid import extract_entry_id_from_fqid
     local_node = get_local_node()
     if not local_node:
         return
@@ -176,7 +177,8 @@ def send_entry_to_remote_nodes(entry):
         return
 
     host_url = local_node.host_url.rstrip('/')
-    entry_web_url = f"{host_url}/entries/{entry.id}/"
+    entry_uuid = extract_entry_id_from_fqid(entry.id)
+    entry_web_url = f"{host_url}/entries/{entry_uuid}/"
     
     payload = {
         "type": "entry",

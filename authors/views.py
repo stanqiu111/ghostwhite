@@ -343,16 +343,23 @@ class FollowRequestView(APIView):
     permission_classes = [IsAuthenticated, IsApproved]
 
     def post(self, request, author_id):
-        from utils.fqid import build_fqid
+        from utils.fqid import extract_serial_from_fqid
+        
+        author_id = str(author_id)
         
         try:
             followee = Author.objects.get(id=author_id)
         except Author.DoesNotExist:
-            author_fqid = build_fqid("", author_id=author_id)
-            if author_fqid:
-                followee = get_object_or_404(Author, id=author_fqid)
+            uuid_part = author_id
+            authors = Author.objects.all()
+            for author in authors:
+                if extract_serial_from_fqid(author.id) == uuid_part:
+                    followee = author
+                    break
             else:
+                # Fallback: try username lookup
                 followee = get_object_or_404(Author, username=author_id)
+        
         follower = request.user
 
         # 1) block self-follow
@@ -389,16 +396,23 @@ class FollowRequestView(APIView):
         DELETE /api/authors/<author_id>/follow/ Deletes 
         both pending and approved relationships where current user is the follower. 
         """ 
-        from utils.fqid import build_fqid
+        from utils.fqid import extract_serial_from_fqid
+        
+        author_id = str(author_id)
         
         try:
             followee = Author.objects.get(id=author_id)
         except Author.DoesNotExist:
-            author_fqid = build_fqid("", author_id=author_id)
-            if author_fqid:
-                followee = get_object_or_404(Author, id=author_fqid)
+            uuid_part = author_id
+            authors = Author.objects.all()
+            for author in authors:
+                if extract_serial_from_fqid(author.id) == uuid_part:
+                    followee = author
+                    break
             else:
-                followee = get_object_or_404(Author, username=author_id) 
+                # Fallback: try username lookup
+                followee = get_object_or_404(Author, username=author_id)
+        
         follower = request.user 
         if follower.id == followee.id: 
             return Response({"detail": "Cannot unfollow yourself."}, status=status.HTTP_400_BAD_REQUEST) 

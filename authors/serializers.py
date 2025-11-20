@@ -97,8 +97,9 @@ class AuthorRegistrationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        from utils.fqid import get_local_node
         password2 = validated_data.pop("password2")
-        local_node = Node.objects.get(is_local=True)
+        local_node = get_local_node()
         validated_data["node"] = local_node
 
         return Author.objects.create_user(**validated_data)

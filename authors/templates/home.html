@@ -1086,7 +1086,6 @@
         if (id.includes('/api/authors/')) {
           authorId = extract_serial_from_fqid(id);
         }
-        console.log('followFromButton called with id:', id, 'extracted:', authorId);
 
         btn.disabled = true;
         btn.textContent = 'Requesting…';

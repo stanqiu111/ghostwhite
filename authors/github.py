@@ -74,7 +74,7 @@ def map_event_to_entry(event, author):
 
     return {
         "content": content,
-        "content_type": "markdown",
+        "content_type": "text/markdown",
         "visibility": "public",
         "author": author,
         "source": "github",

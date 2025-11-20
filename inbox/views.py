@@ -258,11 +258,20 @@ class InboxPostView(APIView):
         )
         
         if not created:
+            # Update entry fields
             entry.content = data.get("content", entry.content)
             entry.content_type = data.get("contentType", entry.content_type)
             entry.visibility = visibility.lower()
             if data.get("image"):
                 entry.source_id = data.get("image")
+
+            # Ensure author and node are correct (in case they were incorrectly set before)
+            if entry.author != remote_author:
+                logger.warning(f"[INBOX ENTRY] Updating entry author from {entry.author.id} to {remote_author.id}")
+                entry.author = remote_author
+            if entry.node != remote_author.node:
+                logger.warning(f"[INBOX ENTRY] Updating entry node from {entry.node.id if entry.node else 'None'} to {remote_author.node.id}")
+                entry.node = remote_author.node
 
             # If we are deleting the entry, we mark it as deleted ( soft delete )           
             if visibility == "DELETED":

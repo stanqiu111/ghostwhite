@@ -30,6 +30,7 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
     
     try:
         target_author = Author.objects.select_related('node').get(pk=target_author.pk)
+        logger.info(f"{log_prefix} Loaded author from DB: {target_author.id}, node_id: {target_author.node_id}, node: {target_author.node}")
     except Author.DoesNotExist:
         logger.error(f"{log_prefix} Target author {target_author.id} not found in database")
         return None, None
@@ -39,12 +40,26 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
         logger.warning(f"{log_prefix} Local node not configured, aborting")
         return None, None
     
+    logger.info(f"{log_prefix} Local node: {local_node.id} (host: {local_node.host_url}), is_local: {local_node.is_local}")
+    
     if not target_author.node:
         logger.warning(f"{log_prefix} Target author {target_author.id} has no node set, aborting")
         return None, None
     
-    if target_author.node == local_node:
-        logger.info(f"{log_prefix} Target author {target_author.id} is local (node: {target_author.node.id}), skipping remote notification")
+    logger.info(f"{log_prefix} Author node: {target_author.node.id} (host: {target_author.node.host_url}), is_local: {target_author.node.is_local}")
+    logger.info(f"{log_prefix} Node comparison: target_author.node.id={target_author.node.id}, local_node.id={local_node.id}, equal={target_author.node.id == local_node.id}")
+    logger.info(f"{log_prefix} Node host comparison: target_author.node.host_url={target_author.node.host_url}, local_node.host_url={local_node.host_url}")
+    logger.info(f"{log_prefix} Node object comparison: target_author.node == local_node = {target_author.node == local_node}")
+    
+    # Check if author is local by comparing both node ID and host URL
+    is_local = (
+        target_author.node.id == local_node.id or 
+        target_author.node.host_url.rstrip('/') == local_node.host_url.rstrip('/') or
+        target_author.node.is_local
+    )
+    
+    if is_local:
+        logger.info(f"{log_prefix} Target author {target_author.id} is local (node ID: {target_author.node.id}, host: {target_author.node.host_url}), skipping remote notification")
         return None, None
     
     remote_node = target_author.node

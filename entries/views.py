@@ -346,10 +346,15 @@ class CommentCreateView(generics.CreateAPIView):
         comment = Comment.objects.create(entry=entry, author=author, content=content)
         comment.source_url = build_comment_url(comment)
         comment.save(update_fields=["source_url"])
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"[COMMENT CREATE] Comment created on entry {entry.id}")
+        logger.info(f"[COMMENT CREATE] Entry author: {entry.author.id}, author node: {entry.author.node_id if entry.author.node_id else 'None'}")
+        logger.info(f"[COMMENT CREATE] Comment author: {comment.author.id}, author node: {comment.author.node_id if comment.author.node_id else 'None'}")
+        
         try:
             send_comment_to_remote_node(comment, entry)
         except Exception as e:
-            logger = logging.getLogger(__name__)
             logger.error(f"Failed to send comment to remote node: {e}")
         return Response({"detail": "Comment added."}, status=status.HTTP_201_CREATED)
 

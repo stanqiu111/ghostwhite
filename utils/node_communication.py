@@ -231,8 +231,10 @@ def send_entry_to_remote_nodes(entry):
 def send_like_to_remote_node(like, entry, *, removed=False):
     """Send like to entry author's inbox if remote."""
     log_prefix = "[SEND LIKE]"
-    local_node, remote_node = _validate_and_get_remote_node(entry.author, log_prefix=log_prefix)
+    entry_author = Author.objects.select_related('node').get(pk=entry.author.pk)
+    local_node, remote_node = _validate_and_get_remote_node(entry_author, log_prefix=log_prefix)
     if not remote_node:
+        logger.info(f"{log_prefix} No remote node found, skipping inbox notification")
         return
     
     if entry.source_url:
@@ -240,7 +242,7 @@ def send_like_to_remote_node(like, entry, *, removed=False):
         logger.info(f"{log_prefix} Using entry source_url: {object_url}")
     else:
         entry_uuid = extract_entry_id_from_fqid(entry.id)
-        author_uuid = extract_serial_from_fqid(entry.author.id)
+        author_uuid = extract_serial_from_fqid(entry_author.id)
         remote_host = remote_node.host_url.rstrip('/')
         object_url = f"{remote_host}/api/authors/{author_uuid}/entries/{entry_uuid}"
         logger.info(f"{log_prefix} Built entry URL from entry ID: {object_url}")
@@ -257,14 +259,16 @@ def send_like_to_remote_node(like, entry, *, removed=False):
         payload["removed"] = True
     
     logger.info(f"{log_prefix} Sending like payload with object URL: {object_url}")
-    send_to_inbox(payload, remote_node, entry.author.id)
+    send_to_inbox(payload, remote_node, entry_author.id)
 
 
 def send_comment_to_remote_node(comment, entry, state=None):
     """Send comment to entry author's inbox if remote."""
     log_prefix = "[SEND COMMENT]"
-    local_node, remote_node = _validate_and_get_remote_node(entry.author, log_prefix=log_prefix)
+    entry_author = Author.objects.select_related('node').get(pk=entry.author.pk)
+    local_node, remote_node = _validate_and_get_remote_node(entry_author, log_prefix=log_prefix)
     if not remote_node:
+        logger.info(f"{log_prefix} No remote node found, skipping inbox notification")
         return
     
     if entry.source_url:
@@ -272,7 +276,7 @@ def send_comment_to_remote_node(comment, entry, state=None):
         logger.info(f"{log_prefix} Using entry source_url: {entry_url}")
     else:
         entry_uuid = extract_entry_id_from_fqid(entry.id)
-        author_uuid = extract_serial_from_fqid(entry.author.id)
+        author_uuid = extract_serial_from_fqid(entry_author.id)
         remote_host = remote_node.host_url.rstrip('/')
         entry_url = f"{remote_host}/api/authors/{author_uuid}/entries/{entry_uuid}"
         logger.info(f"{log_prefix} Built entry URL from entry ID: {entry_url}")
@@ -309,15 +313,17 @@ def send_comment_to_remote_node(comment, entry, state=None):
         payload["state"] = state
     
     logger.info(f"{log_prefix} Sending comment payload with entry URL: {entry_url}")
-    send_to_inbox(payload, remote_node, entry.author.id)
+    send_to_inbox(payload, remote_node, entry_author.id)
 
 
 def send_comment_like_to_remote_node(comment_like, *, removed=False):
     """Send comment like to comment author's inbox if remote."""
     log_prefix = "[SEND COMMENT LIKE]"
     comment = comment_like.comment
-    local_node, remote_node = _validate_and_get_remote_node(comment.author, log_prefix=log_prefix)
+    comment_author = Author.objects.select_related('node').get(pk=comment.author.pk)
+    local_node, remote_node = _validate_and_get_remote_node(comment_author, log_prefix=log_prefix)
     if not remote_node:
+        logger.info(f"{log_prefix} No remote node found, skipping inbox notification")
         return
 
     object_url = comment.source_url or build_comment_url(comment)
@@ -334,7 +340,7 @@ def send_comment_like_to_remote_node(comment_like, *, removed=False):
     if removed:
         payload["removed"] = True
 
-    send_to_inbox(payload, remote_node, comment.author_id)
+    send_to_inbox(payload, remote_node, comment_author.id)
 
 
 FOLLOW_STATE_TO_SPEC = {

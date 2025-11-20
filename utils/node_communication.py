@@ -25,21 +25,32 @@ logger = logging.getLogger(__name__)
 def _validate_and_get_remote_node(target_author, log_prefix=""):
     """Validate and get remote node for sending notifications."""
     logger.info(f"{log_prefix} Validating and getting remote node for target author: {target_author.id}")
+    
+    try:
+        target_author = Author.objects.select_related('node').get(pk=target_author.pk)
+    except Author.DoesNotExist:
+        logger.error(f"{log_prefix} Target author {target_author.id} not found in database")
+        return None, None
+    
     local_node = get_local_node()
     if not local_node:
         logger.warning(f"{log_prefix} Local node not configured, aborting")
         return None, None
     
+    if not target_author.node:
+        logger.warning(f"{log_prefix} Target author {target_author.id} has no node set, aborting")
+        return None, None
+    
     if target_author.node == local_node:
-        logger.info(f"{log_prefix} Target author {target_author.id} is local, skipping remote notification")
+        logger.info(f"{log_prefix} Target author {target_author.id} is local (node: {target_author.node.id}), skipping remote notification")
         return None, None
     
     remote_node = target_author.node
-    if not remote_node or not remote_node.username:
-        logger.warning(f"{log_prefix} Remote node missing or missing credentials, aborting")
+    if not remote_node.username:
+        logger.warning(f"{log_prefix} Remote node {remote_node.id} (host: {remote_node.host_url}) missing credentials (username), aborting")
         return None, None
 
-    logger.info(f"{log_prefix} Remote node found: {remote_node.id}")
+    logger.info(f"{log_prefix} Remote node found: {remote_node.id} (host: {remote_node.host_url}), sending notification")
     return local_node, remote_node
 
 
@@ -206,7 +217,8 @@ def send_entry_to_remote_nodes(entry):
 
 def send_like_to_remote_node(like, entry, *, removed=False):
     """Send like to entry author's inbox if remote."""
-    local_node, remote_node = _validate_and_get_remote_node(entry.author)
+    log_prefix = "[SEND LIKE]"
+    local_node, remote_node = _validate_and_get_remote_node(entry.author, log_prefix=log_prefix)
     if not remote_node:
         return
     
@@ -227,7 +239,8 @@ def send_like_to_remote_node(like, entry, *, removed=False):
 
 def send_comment_to_remote_node(comment, entry, state=None):
     """Send comment to entry author's inbox if remote."""
-    local_node, remote_node = _validate_and_get_remote_node(entry.author)
+    log_prefix = "[SEND COMMENT]"
+    local_node, remote_node = _validate_and_get_remote_node(entry.author, log_prefix=log_prefix)
     if not remote_node:
         return
     
@@ -267,8 +280,9 @@ def send_comment_to_remote_node(comment, entry, state=None):
 
 def send_comment_like_to_remote_node(comment_like, *, removed=False):
     """Send comment like to comment author's inbox if remote."""
+    log_prefix = "[SEND COMMENT LIKE]"
     comment = comment_like.comment
-    local_node, remote_node = _validate_and_get_remote_node(comment.author)
+    local_node, remote_node = _validate_and_get_remote_node(comment.author, log_prefix=log_prefix)
     if not remote_node:
         return
 

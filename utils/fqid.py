@@ -103,13 +103,11 @@ def parse_author_fqid(author_fqid):
         raise ValueError("Author FQID is required")
 
     try:
-        # Normalize the FQID (remove trailing slash)
         normalized_fqid = author_fqid.rstrip('/')
         parts = normalized_fqid.split('/api/authors/')
         if len(parts) != 2:
             raise ValueError(f"Invalid author FQID format: {author_fqid}")
         node_url = parts[0] + '/'
-        # Return the normalized full FQID and node URL
         return normalized_fqid, node_url
     except (ValueError, IndexError) as exc:
         raise ValueError(f"Invalid author FQID format: {author_fqid}") from exc
@@ -141,7 +139,6 @@ def parse_entry_fqid(entry_fqid):
             raise ValueError(f"Invalid entry FQID format: {entry_fqid}")
 
         node_url = author_parts[0] + '/'
-        # Build the full author FQID
         author_fqid = base_url
         return entry_uuid, author_fqid, node_url
     except (ValueError, IndexError) as exc:
@@ -151,13 +148,13 @@ def parse_entry_fqid(entry_fqid):
 def find_entry_by_url(entry_url):
     """Find entry by URL, trying source_url first, then parsing ID from URL."""
     try:
-        return Entry.objects.get(source_url=entry_url)
+        return Entry.objects.select_related('author', 'author__node').get(source_url=entry_url)
     except Entry.DoesNotExist:
         pass
     
     try:
         entry_uuid, author_fqid, _ = parse_entry_fqid(entry_url)
-        entries = Entry.objects.filter(author_id=author_fqid)
+        entries = Entry.objects.filter(author_id=author_fqid).select_related('author', 'author__node')
         for entry in entries:
             if extract_entry_id_from_fqid(entry.id) == str(entry_uuid):
                 return entry
@@ -168,9 +165,9 @@ def find_entry_by_url(entry_url):
 
 def find_entry_by_uuid(entry_uuid, author_fqid=None):
     if author_fqid:
-        entries = Entry.objects.filter(author_id=author_fqid)
+        entries = Entry.objects.filter(author_id=author_fqid).select_related('author', 'author__node')
     else:
-        entries = Entry.objects.all()
+        entries = Entry.objects.all().select_related('author', 'author__node')
     
     for entry in entries:
         extracted_uuid = extract_entry_id_from_fqid(entry.id)
@@ -185,17 +182,15 @@ def find_comment_by_url(comment_url):
     if not comment_url:
         raise Comment.DoesNotExist("Comment URL missing")
 
-    comment = Comment.objects.filter(source_url=comment_url).first()
+    comment = Comment.objects.filter(source_url=comment_url).select_related('author', 'author__node').first()
     if comment:
         return comment
     
-    # Try direct lookup if comment_url is an FQID
     try:
-        return Comment.objects.get(id=comment_url)
+        return Comment.objects.select_related('author', 'author__node').get(id=comment_url)
     except Comment.DoesNotExist:
         pass
     
-    # Parse FQID to find comment
     url = comment_url.rstrip("/")
     if "/commented/" in url:
         base, comment_uuid_str = url.split("/commented/", 1)
@@ -205,8 +200,7 @@ def find_comment_by_url(comment_url):
         except ValueError as exc:
             raise Comment.DoesNotExist(f"Invalid comment URL: {comment_url}") from exc
         
-        # Find comment by UUID part of FQID
-        comments = Comment.objects.filter(author_id=author_fqid)
+        comments = Comment.objects.filter(author_id=author_fqid).select_related('author', 'author__node')
         for comment in comments:
             if extract_comment_id_from_fqid(comment.id) == comment_uuid:
                 return comment
@@ -217,9 +211,9 @@ def find_comment_by_url(comment_url):
 def find_comment_by_uuid(comment_uuid, entry_id=None):
     if entry_id:
         entry = find_entry_by_uuid(entry_id)
-        comments = Comment.objects.filter(entry=entry)
+        comments = Comment.objects.filter(entry=entry).select_related('author', 'author__node')
     else:
-        comments = Comment.objects.all()
+        comments = Comment.objects.all().select_related('author', 'author__node')
     
     for comment in comments:
         extracted_uuid = extract_comment_id_from_fqid(comment.id)

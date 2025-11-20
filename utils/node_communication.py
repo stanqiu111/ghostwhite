@@ -367,21 +367,32 @@ def send_comment_to_remote_node(comment, entry, state=None):
         .distinct()
     )
     
-    logger.info(f"{log_prefix} Found {other_commenters.count()} other commenters to check")
+    # Track which authors we've already notified to avoid duplicates
+    notified_authors = set()
+    if remote_node:
+        notified_authors.add(entry_author.id)
     
-    for commenter_id in other_commenters:
-        try:
-            commenter = Author.objects.select_related('node').get(pk=commenter_id)
-            _, remote_node = _validate_and_get_remote_node(commenter, log_prefix=log_prefix)
-            if remote_node:
-                logger.info(f"{log_prefix} Sending to remote commenter: {commenter.id}")
-                result = send_to_inbox(payload, remote_node, commenter.id)
-                logger.info(f"{log_prefix} Commenter {commenter.id} notification result: {'SUCCESS' if result else 'FAILED'}")
-            else:
-                logger.info(f"{log_prefix} Commenter {commenter.id} is local, skipping notification")
-        except Author.DoesNotExist:
-            logger.warning(f"{log_prefix} Commenter with ID {commenter_id} not found")
-            continue
+    if remote_node:
+        excluded_authors = {comment.author.id, entry_author.id}
+        
+        other_remote_authors = (
+            Author.objects.filter(node=remote_node)
+            .exclude(id__in=excluded_authors)
+            .select_related('node')
+        )
+        
+        logger.info(f"{log_prefix} Found {other_remote_authors.count()} other authors on remote node {remote_node.host_url} to notify")
+        
+        for author in other_remote_authors:
+            if author.id in notified_authors:
+                continue
+            
+            logger.info(f"{log_prefix} Sending to remote author on same node: {author.id}")
+            result = send_to_inbox(payload, remote_node, author.id)
+            logger.info(f"{log_prefix} Remote author {author.id} notification result: {'SUCCESS' if result else 'FAILED'}")
+            notified_authors.add(author.id)
+    else:
+        logger.info(f"{log_prefix} Entry author is local, no remote authors to notify")
 
 
 def send_comment_like_to_remote_node(comment_like, *, removed=False):

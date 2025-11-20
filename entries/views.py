@@ -1,23 +1,20 @@
 from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse, Http404
-from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.views import APIView
-
-from authors.models import Follow
-from .models import Entry, Comment, EntryLike, CommentLike
-from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.http import http_date
 from django.utils.timezone import now
-from rest_framework import generics, status
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404, render
 from django.db.models import Q, Exists, OuterRef, Prefetch
-from authors.models import Follow
+
+from rest_framework import generics, status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+
+from authors.models import Follow, Author
+from .models import Entry, Comment, EntryLike, CommentLike
+from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
 from utils.node_communication import (
     send_entry_to_remote_nodes,
     send_comment_to_remote_node,
@@ -26,7 +23,8 @@ from utils.node_communication import (
 )
 from utils.fqid import build_comment_url
 import logging
-from authors.models import Author
+
+logger = logging.getLogger(__name__)
 
 
 def with_follow_flags(qs, user):
@@ -258,8 +256,6 @@ class EntryUpdateView(generics.UpdateAPIView):
         try:
             send_entry_to_remote_nodes(entry)
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error(f"Failed to send entry update to remote nodes: {e}")
 
 
@@ -288,8 +284,6 @@ class EntryDeleteView(generics.DestroyAPIView):
         try:
             send_entry_to_remote_nodes(instance)
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error(f"Failed to send entry deletion to remote nodes: {e}")
 
 
@@ -347,7 +341,6 @@ class CommentCreateView(generics.CreateAPIView):
         comment.source_url = build_comment_url(comment)
         comment.save(update_fields=["source_url"])
         
-        logger = logging.getLogger(__name__)
         logger.info(f"[COMMENT CREATE] Comment created on entry {entry.id}")
         logger.info(f"[COMMENT CREATE] Entry author: {entry.author.id}, author node: {entry.author.node_id if entry.author.node_id else 'None'}")
         logger.info(f"[COMMENT CREATE] Comment author: {comment.author.id}, author node: {comment.author.node_id if comment.author.node_id else 'None'}")
@@ -375,14 +368,12 @@ class EntryLikeToggleView(generics.DestroyAPIView):
             try:
                 send_like_to_remote_node(like, entry, removed=True)
             except Exception as e:
-                logger = logging.getLogger(__name__)
                 logger.error(f"Failed to send like removal to remote node: {e}")
             like.delete()
             return Response({"detail": "Like removed."}, status=status.HTTP_200_OK)
         try:
             send_like_to_remote_node(like, entry)
         except Exception as e:
-            logger = logging.getLogger(__name__)
             logger.error(f"Failed to send like to remote node: {e}")
         return Response({"detail": "Like added."}, status=status.HTTP_201_CREATED)
 
@@ -403,14 +394,12 @@ class CommentLikeToggleView(generics.DestroyAPIView):
             try:
                 send_comment_like_to_remote_node(like, removed=True)
             except Exception as e:
-                logger = logging.getLogger(__name__)
                 logger.error(f"Failed to send comment like removal to remote node: {e}")
             like.delete()
             return Response({"detail": "Comment like removed."}, status=status.HTTP_200_OK)
         try:
             send_comment_like_to_remote_node(like)
         except Exception as e:
-            logger = logging.getLogger(__name__)
             logger.error(f"Failed to send comment like to remote node: {e}")
         return Response({"detail": "Comment like added."}, status=status.HTTP_201_CREATED)
 
@@ -433,7 +422,6 @@ class CommentUpdateDeleteView(APIView):
         try:
             send_comment_to_remote_node(comment, comment.entry, state="updated")
         except Exception as e:
-            logger = logging.getLogger(__name__)
             logger.error(f"Failed to send comment update to remote node: {e}")
         return Response({"detail": "Comment updated.", "id": comment.id}, status=200)
 
@@ -446,7 +434,6 @@ class CommentUpdateDeleteView(APIView):
         try:
             send_comment_to_remote_node(comment, entry, state="deleted")
         except Exception as e:
-            logger = logging.getLogger(__name__)
             logger.error(f"Failed to send comment deletion to remote node: {e}")
         comment.delete()
         return Response(status=204)

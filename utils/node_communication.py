@@ -309,7 +309,16 @@ def send_comment_to_remote_node(comment, entry, state=None):
         entry_url = entry.source_url
         logger.info(f"{log_prefix} Using entry source_url: {entry_url}")
     else:
-        entry_url = None
+        entry_uuid = extract_entry_id_from_fqid(entry.id)
+        author_uuid = extract_serial_from_fqid(entry_author.id)
+        entry_author_node = entry_author.node
+        if entry_author_node:
+            node_host = entry_author_node.host_url.rstrip('/')
+            entry_url = f"{node_host}/api/authors/{author_uuid}/entries/{entry_uuid}"
+            logger.info(f"{log_prefix} Built entry URL from entry ID: {entry_url}")
+        else:
+            logger.warning(f"{log_prefix} Entry {entry.id} has no source_url and entry author has no node - cannot build URL")
+            return
     
     host_url = local_node.host_url.rstrip('/')
     entry_web_url = f"{host_url}/entries/{entry.id}/"
@@ -326,6 +335,7 @@ def send_comment_to_remote_node(comment, entry, state=None):
         "contentType": getattr(comment, 'content_type', 'text/plain'),  # Comment model doesn't have content_type, default to text/plain
         "published": comment.created_at.isoformat(),
         "id": comment_id_url,
+        "entry": entry_url,
         "web": entry_web_url,  
         "likes": {
             "type": "likes",
@@ -342,16 +352,11 @@ def send_comment_to_remote_node(comment, entry, state=None):
     
     _, remote_node = _validate_and_get_remote_node(entry_author, log_prefix=log_prefix)
     if remote_node:
-        if not entry_url:
-            entry_uuid = extract_entry_id_from_fqid(entry.id)
-            author_uuid = extract_serial_from_fqid(entry_author.id)
-            remote_host = remote_node.host_url.rstrip('/')
-            entry_url = f"{remote_host}/api/authors/{author_uuid}/entries/{entry_uuid}"
-            logger.info(f"{log_prefix} Built entry URL from entry ID: {entry_url}")
-        
-        payload["entry"] = entry_url
         logger.info(f"{log_prefix} Sending to entry author: {entry_author.id}")
-        send_to_inbox(payload, remote_node, entry_author.id)
+        result = send_to_inbox(payload, remote_node, entry_author.id)
+        logger.info(f"{log_prefix} Entry author notification result: {'SUCCESS' if result else 'FAILED'}")
+    else:
+        logger.info(f"{log_prefix} Entry author is local, skipping notification")
     
     other_commenters = (
         Comment.objects.filter(entry=entry)
@@ -362,20 +367,20 @@ def send_comment_to_remote_node(comment, entry, state=None):
         .distinct()
     )
     
+    logger.info(f"{log_prefix} Found {other_commenters.count()} other commenters to check")
+    
     for commenter_id in other_commenters:
         try:
             commenter = Author.objects.select_related('node').get(pk=commenter_id)
             _, remote_node = _validate_and_get_remote_node(commenter, log_prefix=log_prefix)
             if remote_node:
-                entry_uuid = extract_entry_id_from_fqid(entry.id)
-                entry_author_uuid = extract_serial_from_fqid(entry_author.id)
-                remote_host = remote_node.host_url.rstrip('/')
-                recipient_entry_url = f"{remote_host}/api/authors/{entry_author_uuid}/entries/{entry_uuid}"
-                
-                payload["entry"] = recipient_entry_url
                 logger.info(f"{log_prefix} Sending to remote commenter: {commenter.id}")
-                send_to_inbox(payload, remote_node, commenter.id)
+                result = send_to_inbox(payload, remote_node, commenter.id)
+                logger.info(f"{log_prefix} Commenter {commenter.id} notification result: {'SUCCESS' if result else 'FAILED'}")
+            else:
+                logger.info(f"{log_prefix} Commenter {commenter.id} is local, skipping notification")
         except Author.DoesNotExist:
+            logger.warning(f"{log_prefix} Commenter with ID {commenter_id} not found")
             continue
 
 

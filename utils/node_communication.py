@@ -147,6 +147,7 @@ def send_to_inbox(payload, remote_node, author_id):
             return False
 
         logger.info(f"[SEND TO INBOX] Payload: {payload} inbox_url: {inbox_url}")
+        logger.info(f"[SEND TO INBOX] Local node: {local_node.username} {local_node.password}")
         
         response = requests.post(
             inbox_url,

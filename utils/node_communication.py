@@ -45,7 +45,7 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
         return None, None
     
     remote_node = target_author.node
-    if not remote_node.username:
+    if not remote_node or not remote_node.username or not getattr(remote_node, "is_active", True):
         logger.warning(f"{log_prefix} Remote node {remote_node.host_url} missing credentials")
         return None, None
 
@@ -60,6 +60,7 @@ def get_remote_recipients_for_entry(entry, local_node):
                 following=entry.author,
                 approved=True,
                 status=Follow.ACCEPTED,
+                follower__node__is_active=True, 
             )
             .select_related("follower", "follower__node")
         )
@@ -67,13 +68,15 @@ def get_remote_recipients_for_entry(entry, local_node):
     
     if entry.visibility == "friends_only":
         friends = Follow.get_friends(entry.author)
-        return [friend for friend in friends if friend.node != local_node]
+        return [friend for friend in friends if friend.node != local_node and getattr(friend.node, "is_active", True)]
     
     followers = (
         Follow.objects.filter(
             following=entry.author,
             approved=True,
             status=Follow.ACCEPTED,
+            follower__node__is_active=True,  
+            
         )
         .select_related("follower", "follower__node")
     )
@@ -94,7 +97,7 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
     
     if remote_node is None:
         try:
-            remote_node = Node.objects.get(host_url=node_url, is_local=False)
+            remote_node = Node.objects.get(host_url=node_url, is_local=False, is_active=True)
         except Node.DoesNotExist:
             raise ValueError(f"Remote node not found: {node_url}")
     

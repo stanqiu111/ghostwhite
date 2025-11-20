@@ -29,11 +29,11 @@ The authors claiming copyright, if they wish to be known, can list their names h
 
 | Name          | Node            | Username        | Password       |
 | ------------- | --------------- | --------------- |--------------- |
-| Jueun (Krystal) Kim | https://krystal-7a3d144806fa.herokuapp.com/ | krystal | Test123! |
+| Jueun (Krystal) Kim | [https://krystal-7a3d144806fa.herokuapp.com/](https://krystal-7a3d144806fa.herokuapp.com/home/) | krystal | krystal |
 | Evelyn Nguyen | https://ghostwhite-evelyn-node-f268ea95378e.herokuapp.com/ | linhn | linhnprod |
 | Stan Qiu      | https://stan-2dd8cc96fa3e.herokuapp.com/ | stan_node | stan1234 |
 | Ximeng Duan   | https://ghostwhite-ximeng-c739441113d7.herokuapp.com/ | ximeng | dxm021108 |
-| Michael Yang  | https://peaceful-garden-43112-3554aa58b634.herokuapp.com/ | MichaelYang | MichaelPassword@123 |
+| Michael Yang  | https://ghostwhite-michael-30ba71539df9.herokuapp.com/ | MichaelYang | MichaelPassword@123 |
 | Shuran Kong   | https://cmput404-app-shuran-d178a18f2c5f.herokuapp.com/ | shuran | shurantest123! |
 
 ## To run tests, node-to-node communication

@@ -19,8 +19,7 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         return "author"
 
     def get_full_url(self, obj):
-        # Return absolute API endpoint for this author (e.g., /api/authors/<id>/)
-        return self.build_full_url(f"/api/authors/{obj.id}/")
+        return obj.id
 
     def get_host(self, obj):
         # Return base API host URL (e.g., /api/)
@@ -31,10 +30,11 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         return self.build_full_url(f"/authors/{obj.username}/")
 
     def get_id(self, obj):
-        return self.get_full_url(obj)
+        return obj.id
 
     def get_serial(self, obj):
-        return str(obj.id)
+        from utils.fqid import extract_serial_from_fqid
+        return extract_serial_from_fqid(obj.id)
 
     def get_follow_status(self, obj):
         """
@@ -97,8 +97,9 @@ class AuthorRegistrationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        from utils.fqid import get_local_node
         password2 = validated_data.pop("password2")
-        local_node = Node.objects.get(is_local=True)
+        local_node = get_local_node()
         validated_data["node"] = local_node
 
         return Author.objects.create_user(**validated_data)

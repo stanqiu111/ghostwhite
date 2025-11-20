@@ -40,7 +40,7 @@ class EntryAPITests(TestCase):
             author=self.author,
             node=self.node,
             content="Original content",
-            content_type="plain_text",
+            content_type="text/plain",
             visibility="public",
         )
 

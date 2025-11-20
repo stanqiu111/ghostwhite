@@ -293,7 +293,16 @@
 
     function navigateToEntry(id) {
       if (!id) return;
-      window.location.href = `/entries/${id}/`;
+      function extractEntrySerialFromFqid(fqid) {
+        if (!fqid) return fqid;
+        if (typeof fqid !== 'string') fqid = String(fqid);
+        if (fqid.includes('/entries/')) {
+          return fqid.split('/entries/')[1].split('/')[0].split('?')[0];
+        }
+        return fqid;
+      }
+      const entrySerial = extractEntrySerialFromFqid(id);
+      window.location.href = `/entries/${entrySerial}/`;
     }
 
     async function loadAllNotifications() {

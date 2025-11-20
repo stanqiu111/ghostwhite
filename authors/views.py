@@ -1,35 +1,32 @@
 import json
-from django.shortcuts import render, redirect, get_object_or_404
 import re
-from django.shortcuts import render, redirect, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login, logout
+import logging
+
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError
+from django.utils import timezone
+
 from rest_framework import generics, status, permissions
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.parsers import MultiPartParser, JSONParser, FormParser
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.views import APIView
-from .models import Author, Follow
-from .serializers import AuthorSerializer, AuthorRegistrationSerializer, FollowRequestSerializer
-from django.contrib.auth import authenticate, login, logout
+
 from entries.models import Entry
-from django.db import IntegrityError
+from .models import Author, Follow, GitHubIntegration
+from .serializers import AuthorSerializer, AuthorRegistrationSerializer, FollowRequestSerializer
 from .permissions import IsApproved
-from django.contrib.auth.decorators import login_required
-from .models import GitHubIntegration
 from .forms import GitHubIntegrationForm
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from .github import sync_github_events
-from django.utils import timezone
-import logging
 from utils.node_communication import send_follow_request_to_remote_node, send_follow_decision_to_remote_node, send_unfollow_to_remote_node
 
 logger = logging.getLogger(__name__)
@@ -267,8 +264,18 @@ class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
     parser_classes = [JSONParser, FormParser, MultiPartParser]
     http_method_names = ["get", "put", "head", "options"]
 
-    lookup_field = "id"                # Author object identified by its UUID or ID
-    lookup_url_kwarg = "author_id"     # URL pattern param name expected (e.g., /api/authors/<author_id>/)
+    lookup_field = "id"                
+    lookup_url_kwarg = "author_id"     
+
+    def get_object(self):
+        author_id = self.kwargs.get(self.lookup_url_kwarg)
+        try:
+            return Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            try:
+                return Author.objects.get(username=author_id)
+            except Author.DoesNotExist:
+                raise Author.DoesNotExist(f"Author not found with id/username: {author_id}")
 
     def perform_update(self, serializer):
         author = self.get_object()
@@ -319,20 +326,27 @@ class AuthorListView(generics.ListAPIView):
 
 
 
-class FollowRequestViewww(generics.CreateAPIView):
-    queryset = Follow.objects.all()
-    serializer_class = FollowRequestSerializer
-    permission_classes = [IsAuthenticated]
-
-    def perform_create(self, serializer):
-        following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
-        serializer.save(follower=self.request.user, following=following_author)
-
 class FollowRequestView(APIView):
     permission_classes = [IsAuthenticated, IsApproved]
 
     def post(self, request, author_id):
-        followee = get_object_or_404(Author, id=author_id)
+        from utils.fqid import extract_serial_from_fqid
+        
+        author_id = str(author_id)
+        
+        try:
+            followee = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            uuid_part = author_id
+            authors = Author.objects.all()
+            for author in authors:
+                if extract_serial_from_fqid(author.id) == uuid_part:
+                    followee = author
+                    break
+            else:
+                # Fallback: try username lookup
+                followee = get_object_or_404(Author, username=author_id)
+        
         follower = request.user
 
         # 1) block self-follow
@@ -369,7 +383,23 @@ class FollowRequestView(APIView):
         DELETE /api/authors/<author_id>/follow/ Deletes 
         both pending and approved relationships where current user is the follower. 
         """ 
-        followee = get_object_or_404(Author, id=author_id) 
+        from utils.fqid import extract_serial_from_fqid
+        
+        author_id = str(author_id)
+        
+        try:
+            followee = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            uuid_part = author_id
+            authors = Author.objects.all()
+            for author in authors:
+                if extract_serial_from_fqid(author.id) == uuid_part:
+                    followee = author
+                    break
+            else:
+                # Fallback: try username lookup
+                followee = get_object_or_404(Author, username=author_id)
+        
         follower = request.user 
         if follower.id == followee.id: 
             return Response({"detail": "Cannot unfollow yourself."}, status=status.HTTP_400_BAD_REQUEST) 
@@ -392,47 +422,6 @@ class FollowRequestsListView(generics.ListAPIView):
             approved=False,
             status=Follow.PENDING
         ).order_by("-created_at")
-
-class FollowRequestsListViewwww(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def create(self, request, *args, **kwargs):
-        following_author = get_object_or_404(Author, id=self.kwargs['author_id'])
-        follower = request.user
-
-        # 1) block self-follow
-        if follower.id == following_author.id:
-            return Response({"detail": "Cannot follow yourself."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # 2) if already exists, return 409 (or 400 if you prefer)
-        existing = Follow.objects.filter(follower=follower, following=following_author).first()
-        if existing:
-            # you can include approved flag in the payload if you want
-            return Response(
-                {"detail": "Follow request already exists.", "approved": existing.approved},
-                status=status.HTTP_409_CONFLICT,
-            )
-
-        # 3) create pending request
-        serializer = self.get_serializer(data={})
-        serializer.is_valid(raise_exception=True)
-        try:
-            instance = serializer.save(follower=follower, following=following_author)
-        except IntegrityError:
-            # race-safe
-            return Response({"detail": "Follow request already exists."}, status=status.HTTP_409_CONFLICT)
-
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            {
-                "id": str(instance.id),
-                "follower": str(instance.follower_id),
-                "following": str(instance.following_id),
-                "approved": instance.approved,
-            },
-            status=status.HTTP_201_CREATED,
-            headers=headers,
-        )
 
 class FollowDecisionView(APIView): 
     """
@@ -480,12 +469,7 @@ class FollowDecisionView(APIView):
         # Use the model's approve/deny methods which properly update the status field
         try:
             if decision == "accept":
-                print(f"[DEBUG] Before approve - Status: {fr.status}, Approved: {fr.approved}")
                 fr.approve(request.user)
-                print(f"[DEBUG] After approve - Status: {fr.status}, Approved: {fr.approved}")
-                # Refresh from database to confirm the save worked
-                fr.refresh_from_db()
-                print(f"[DEBUG] After refresh - Status: {fr.status}, Approved: {fr.approved}")
                 logger.info(f"Sending follow acceptance to follower {fr.follower_id}")
                 send_follow_decision_to_remote_node(fr, Follow.ACCEPTED)
                 return Response({"detail": "Follow request accepted.", "status": fr.status, "approved": fr.approved}, status=status.HTTP_200_OK)
@@ -497,7 +481,7 @@ class FollowDecisionView(APIView):
                 fr.delete()
                 return Response({"detail": "Follow request denied."}, status=status.HTTP_204_NO_CONTENT)
         except PermissionError as e:
-            print(f"[DEBUG] PermissionError: {str(e)}")
+            logger.error(f"PermissionError in FollowDecisionView: {str(e)}")
             return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
 
         return Response({"detail": "Invalid decision."}, status=status.HTTP_400_BAD_REQUEST)

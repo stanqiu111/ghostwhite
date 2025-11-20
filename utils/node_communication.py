@@ -320,13 +320,18 @@ def send_comment_to_remote_node(comment, entry, state=None):
 
 
 def send_comment_like_to_remote_node(comment_like, *, removed=False):
-    """Send comment like to comment author's inbox if remote."""
+    """Send comment like to all remote recipients (comment author and entry author)."""
     log_prefix = "[SEND COMMENT LIKE]"
     comment = comment_like.comment
+    entry = comment.entry
+    
+    # Get both potential recipients
     comment_author = Author.objects.select_related('node').get(pk=comment.author.pk)
-    local_node, remote_node = _validate_and_get_remote_node(comment_author, log_prefix=log_prefix)
-    if not remote_node:
-        logger.info(f"{log_prefix} No remote node found, skipping inbox notification")
+    entry_author = Author.objects.select_related('node').get(pk=entry.author.pk)
+    
+    local_node = get_local_node()
+    if not local_node:
+        logger.info(f"{log_prefix} Local node not configured, skipping inbox notification")
         return
 
     object_url = comment.source_url or build_comment_url(comment)
@@ -343,7 +348,18 @@ def send_comment_like_to_remote_node(comment_like, *, removed=False):
     if removed:
         payload["removed"] = True
 
-    send_to_inbox(payload, remote_node, comment_author.id)
+    # Send to comment author if remote
+    _, remote_node = _validate_and_get_remote_node(comment_author, log_prefix=log_prefix)
+    if remote_node:
+        logger.info(f"{log_prefix} Sending to comment author: {comment_author.id}")
+        send_to_inbox(payload, remote_node, comment_author.id)
+    
+    # Send to entry author if remote (and different from comment author)
+    if entry_author.id != comment_author.id:
+        _, remote_node = _validate_and_get_remote_node(entry_author, log_prefix=log_prefix)
+        if remote_node:
+            logger.info(f"{log_prefix} Sending to entry author: {entry_author.id}")
+            send_to_inbox(payload, remote_node, entry_author.id)
 
 
 FOLLOW_STATE_TO_SPEC = {
@@ -354,33 +370,28 @@ FOLLOW_STATE_TO_SPEC = {
 
 
 def send_follow_request_to_remote_node(follow):
-    """Send follow request to remote author's inbox."""
+    """Send follow request to all remote recipients (the followee if remote)."""
     log_prefix = "[SEND FOLLOW REQUEST]"
     logger.info(f"{log_prefix} Starting: follow_id={follow.id}")
     
-    target_author = follow.following
-    local_node, remote_node = _validate_and_get_remote_node(target_author, log_prefix)
-    if not remote_node:
-        logger.error(f"{log_prefix} No remote node found, aborting")
-        return
-
-    # Debug: Log the author IDs before serialization
-    print(f"{log_prefix} [DEBUG] Following author ID before serialize: {follow.following.id}")
-    print(f"{log_prefix} [DEBUG] Following author username: {follow.following.username}")
-    print(f"{log_prefix} [DEBUG] Follower author ID before serialize: {follow.follower.id}")
-    print(f"{log_prefix} [DEBUG] Follower author username: {follow.follower.username}")
-    logger.info(f"{log_prefix} Following author ID before serialize: {follow.following.id}")
-    logger.info(f"{log_prefix} Follower author ID before serialize: {follow.follower.id}")
-    
     # Get fresh copies to ensure we have latest data
-    following_author = Author.objects.get(pk=follow.following.pk)
-    follower_author = Author.objects.get(pk=follow.follower.pk)
+    following_author = Author.objects.select_related('node').get(pk=follow.following.pk)
+    follower_author = Author.objects.select_related('node').get(pk=follow.follower.pk)
+    
+    # Debug: Log the author IDs before serialization
+    print(f"{log_prefix} [DEBUG] Following author ID before serialize: {following_author.id}")
+    print(f"{log_prefix} [DEBUG] Following author username: {following_author.username}")
+    print(f"{log_prefix} [DEBUG] Follower author ID before serialize: {follower_author.id}")
+    print(f"{log_prefix} [DEBUG] Follower author username: {follower_author.username}")
+    logger.info(f"{log_prefix} Following author ID before serialize: {following_author.id}")
+    logger.info(f"{log_prefix} Follower author ID before serialize: {follower_author.id}")
+    
     print(f"{log_prefix} [DEBUG] Fresh following author ID: {following_author.id}")
     print(f"{log_prefix} [DEBUG] Fresh follower author ID: {follower_author.id}")
     
     payload = {
         "type": "follow",
-        "summary": f"{follow.follower.display_name or follow.follower.username} wants to follow {follow.following.display_name or follow.following.username}",
+        "summary": f"{follower_author.display_name or follower_author.username} wants to follow {following_author.display_name or following_author.username}",
         "actor": serialize_author_for_node_communication(follower_author),
         "object": serialize_author_for_node_communication(following_author),
         "state": "requesting",
@@ -390,8 +401,15 @@ def send_follow_request_to_remote_node(follow):
     print(f"{log_prefix} [DEBUG] Serialized actor ID: {payload['actor']['id']}")
 
     logger.info(f"{log_prefix} Payload: {payload}")
-    result = send_to_inbox(payload, remote_node, target_author.id)
-    logger.info(f"{log_prefix} Result: {'SUCCESS' if result else 'FAILED'}")
+    
+    # Send to followee (the person being followed) if remote
+    local_node, remote_node = _validate_and_get_remote_node(following_author, log_prefix)
+    if remote_node:
+        logger.info(f"{log_prefix} Sending to followee: {following_author.id}")
+        result = send_to_inbox(payload, remote_node, following_author.id)
+        logger.info(f"{log_prefix} Result: {'SUCCESS' if result else 'FAILED'}")
+    else:
+        logger.info(f"{log_prefix} Followee is local, skipping remote notification")
 
 
 def send_follow_decision_to_remote_node(follow, decision):

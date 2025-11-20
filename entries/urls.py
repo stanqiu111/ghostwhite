@@ -11,8 +11,8 @@ urlpatterns = [
     path("entries/<uuid:pk>/delete/", views.EntryDeleteView.as_view(), name="entry-delete"),
     #path("<uuid:pk>/image/", views.EntryImageView.as_view(), name="entry-image-by-id"),
     path("entries/<uuid:pk>/addcomments/", views.CommentCreateView.as_view(), name="add_comment"),
-    path("entries/<uuid:pk>/comments/<int:comment_id>/", views.CommentUpdateDeleteView.as_view(),name="comment_update_delete"),
+    path("entries/<uuid:pk>/comments/<str:comment_id>/", views.CommentUpdateDeleteView.as_view(),name="comment_update_delete"),
 
     path("entries/<uuid:pk>/like/", views.EntryLikeToggleView.as_view(), name="like_entry"),
-    path("entries/<uuid:pk>/comments/<int:comment_id>/like/", views.CommentLikeToggleView.as_view(),name="like_comment"),
+    path("entries/<uuid:pk>/comments/<str:comment_id>/like/", views.CommentLikeToggleView.as_view(),name="like_comment"),
 ]

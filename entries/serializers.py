@@ -39,12 +39,11 @@ class CommentSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         ]
 
     def get_id(self, obj):
-        if obj.source_url:
-            return obj.source_url
-        return self.build_full_url(f"/api/authors/{obj.author.id}/commented/{obj.id}")
+        return obj.id
 
     def get_serial(self, obj):
-        return str(obj.id)
+        from utils.fqid import extract_comment_id_from_fqid
+        return extract_comment_id_from_fqid(obj.id)
 
     def get_user_has_liked_comment(self, obj):
         request = self.context.get('request')
@@ -158,10 +157,11 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         )
 
     def get_id(self, obj):
-        return self.build_full_url(f"/api/authors/{obj.author.id}/entries/{obj.id}")
+        return obj.id
 
     def get_serial(self, obj):
-        return str(obj.id)
+        from utils.fqid import extract_entry_id_from_fqid
+        return extract_entry_id_from_fqid(obj.id)
 
     def get_is_image(self, obj):
         """
@@ -190,10 +190,12 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         # Only expose the proxy image URL for base64 image entries
         if not (getattr(obj, "is_image_entry") and obj.is_image_entry()):
             return None
+        from utils.fqid import extract_entry_id_from_fqid
         request = self.context.get("request")
+        entry_uuid = extract_entry_id_from_fqid(obj.id)
         url = reverse(
             "authors:entry-image-by-id",
-            kwargs={"author_id": obj.author.id, "pk": obj.id}
+            kwargs={"author_id": obj.author.id, "pk": entry_uuid}
         )
         return request.build_absolute_uri(url) if request else url
 
@@ -217,6 +219,7 @@ class EntryCreateSerializer(serializers.ModelSerializer):
             "visibility",
             "image",
         ]
+        read_only_fields = ["id"]
         extra_kwargs = {
             "content_type": {"required": False},
             "content": {"required": False, "allow_blank": True},
@@ -244,7 +247,7 @@ class EntryCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        return super().create(validated_data)
+        return Entry.objects.create(**validated_data)
 
 class EntrySerializer(serializers.ModelSerializer):
     class Meta:

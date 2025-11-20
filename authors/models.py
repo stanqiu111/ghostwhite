@@ -10,12 +10,18 @@ from django.utils import timezone
 from django.conf import settings
 import django.db.transaction as transaction
 
-
 # Customize User model and Authentication: https://medium.com/django-unleashed/a-quick-way-to-customize-authentication-backends-user-manager-user-and-permissions-in-django-54f9359e31eb
 class AuthorManager(BaseUserManager):
     def create_user(self, username, password=None, **extra_fields):
         if not username:
             raise ValueError("Username is required")
+
+        if 'id' not in extra_fields:
+            from utils.fqid import build_fqid
+            author_uuid = uuid.uuid4()
+            fqid = build_fqid(author_id=str(author_uuid))
+            if fqid:
+                extra_fields['id'] = fqid
 
         user = self.model(username=username, **extra_fields)
         user.set_password(password)
@@ -47,7 +53,7 @@ class Author(AbstractBaseUser, PermissionsMixin):
     Uses AbstractBaseUser because for Author model, we only need display_name and not First Name and Last name so we don't user AbstractUser
     """
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.CharField(max_length=150, primary_key=True)
     username = models.CharField(max_length=150, unique=True)
     display_name = models.CharField(max_length=255)
     bio = models.TextField(blank=True)

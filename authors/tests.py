@@ -666,7 +666,7 @@ class SyncGitHubEventsTests(TestCase):
         Entry.objects.create(
             author=self.author,
             content="already there",
-            content_type="markdown",
+            content_type="text/markdown",
             visibility="public",
             node=self.author.node,
             source="github",

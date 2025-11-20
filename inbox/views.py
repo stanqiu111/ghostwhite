@@ -181,8 +181,21 @@ class InboxPostView(APIView):
     permission_classes = [NodeAuthenticated]
     
     def post(self, request, author_id):
-        """Route incoming inbox activity to appropriate handler, we have 4 types of activity: entry, follow, like, comment"""
-        author = Author.objects.get(id=author_id)
+        """Route incoming inbox activity to appropriate handler."""
+        from utils.fqid import extract_serial_from_fqid
+        
+        try:
+            author = Author.objects.select_related('node').get(id=author_id)
+        except Author.DoesNotExist:
+            serial = extract_serial_from_fqid(author_id)
+            author = Author.objects.select_related('node').filter(
+                id__endswith=f'/api/authors/{serial}'
+            ).first()
+            
+            if not author:
+                logger.error(f"[INBOX] Author not found: {author_id}")
+                return Response({"detail": "Object not found"}, status=404)
+        
         obj_type = request.data.get("type", "").lower()
 
         handler_map = {
@@ -232,11 +245,19 @@ class InboxPostView(APIView):
         )
         
         if not created:
+            # Update entry fields
             entry.content = data.get("content", entry.content)
             entry.content_type = data.get("contentType", entry.content_type)
             entry.visibility = visibility.lower()
             if data.get("image"):
                 entry.source_id = data.get("image")
+
+            if entry.author != remote_author:
+                logger.warning(f"[INBOX ENTRY] Updating entry author from {entry.author.id} to {remote_author.id}")
+                entry.author = remote_author
+            if entry.node != remote_author.node:
+                logger.warning(f"[INBOX ENTRY] Updating entry node from {entry.node.id if entry.node else 'None'} to {remote_author.node.id}")
+                entry.node = remote_author.node
 
             # If we are deleting the entry, we mark it as deleted ( soft delete )           
             if visibility == "DELETED":

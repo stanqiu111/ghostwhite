@@ -367,9 +367,28 @@
         return data;
       }
       
+      function extract_entry_serial_from_fqid(fqid) {
+        if (!fqid) return fqid;
+        if (typeof fqid !== 'string') fqid = String(fqid);
+        if (fqid.includes('/entries/')) {
+          return fqid.split('/entries/')[1].split('/')[0].split('?')[0];
+        }
+        return fqid;
+      }
+      
+      function extract_serial_from_fqid(fqid) {
+        if (!fqid) return fqid;
+        if (typeof fqid !== 'string') fqid = String(fqid);
+        if (fqid.includes('/api/authors/')) {
+          return fqid.split('/api/authors/')[1].split('/')[0].split('?')[0];
+        }
+        return fqid;
+      }
+      
       async function likeEntry(entryId, buttonElement) {
         try {
-          const response = await api(`/entries/${entryId}/like/`, { method: 'POST' });
+          const entrySerial = extract_entry_serial_from_fqid(entryId);
+          const response = await api(`/entries/${entrySerial}/like/`, { method: 'POST' });
           
           if (response && response.detail) {
             // Get current like count
@@ -396,13 +415,14 @@
           console.error('Error liking entry:', error);
         }
       }
-
+      
       function navigateToEntry(entryId) {
+        const entrySerial = extract_entry_serial_from_fqid(entryId);
         if (!isAuthenticated) {
           navigateToLogin()
           return
         }
-        window.location.href = `/entries/${entryId}/`;
+        window.location.href = `/entries/${entrySerial}/`;
       }
 
       function shareEntry(entryId) {
@@ -435,18 +455,24 @@
             credentials: 'same-origin'
           });
         },
-        // Send follow request by author UUID
         follow(authorId) {
-          return fetch(`/api/authors/${authorId}/follow/`, {
+          let id = authorId;
+          if (authorId.includes('/api/authors/')) {
+            id = extract_serial_from_fqid(authorId);
+          }
+          return fetch(`/api/authors/${id}/follow/`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({}),
             credentials: 'same-origin'
           });
         },
-        // Unfollow by author UUID (DELETE the follow relationship)
         unfollow(authorId) {
-          return fetch(`/api/authors/${authorId}/follow/`, {
+          let id = authorId;
+          if (authorId.includes('/api/authors/')) {
+            id = extract_serial_from_fqid(authorId);
+          }
+          return fetch(`/api/authors/${id}/follow/`, {
             method: 'DELETE',
             headers: getHeaders(),
             credentials: 'same-origin'
@@ -555,7 +581,7 @@
         btn.textContent = 'Sending...';
 
         try {
-          const res = await API.follow(profile.serial);
+          const res = await API.follow(profile.id);
           if (res.status === 201) {
             // Successfully created follow request
             btn.textContent = 'Requested';
@@ -609,7 +635,7 @@
         btn.textContent = 'Unfollowing...';
 
         try {
-          const res = await API.unfollow(profile.serial);
+          const res = await API.unfollow(profile.id);
 
           if (res.status === 204 || res.status === 200) {
             // Successfully unfollowed

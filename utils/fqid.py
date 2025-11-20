@@ -43,6 +43,23 @@ def build_entry_url(author_id, entry_id):
     return build_fqid("", author_id=author_id, entry_id=entry_id)
 
 
+def get_entry_url(entry, entry_author):
+    """Build entry URL from source_url or construct from entry/author data."""
+    if entry.source_url:
+        return entry.source_url
+    
+    entry_uuid = extract_entry_id_from_fqid(entry.id)
+    author_serial = extract_serial_from_fqid(entry_author.id)
+    entry_author_node = entry_author.node
+    
+    if not entry_author_node:
+        logger.warning(f"Entry {entry.id} has no source_url and entry author has no node")
+        return None
+    
+    node_host = entry_author_node.host_url.rstrip('/')
+    return f"{node_host}/api/authors/{author_serial}/entries/{entry_uuid}"
+
+
 def build_entry_fqid(author_id, entry_uuid):
     host_url = _get_local_host_url()
     if not host_url:

@@ -11,6 +11,8 @@ class Node(models.Model):
     )  # To differentiate between local and external nodes, for every env we only allow one local node
     username = models.CharField(max_length=255, blank=True)  # For remote node auth
     password = models.CharField(max_length=255, blank=True)  # For remote node auth
+    is_active = models.BooleanField(default=True)
+
 
     def __str__(self):
         return f"{'Local' if self.is_local else 'External'} Node: {self.host_url}"

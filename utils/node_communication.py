@@ -126,8 +126,10 @@ def send_to_inbox(payload, remote_node, author_id):
     Send payload to remote author's inbox.
     
     """
-    remote_author_url = build_remote_url(remote_node.host_url, author_id)
-    inbox_url = f"{remote_author_url.rstrip('/')}/inbox"
+    from utils.fqid import extract_serial_from_fqid
+    author_uuid = extract_serial_from_fqid(author_id)
+    base_url = remote_node.host_url.rstrip('/')
+    inbox_url = f"{base_url}/api/authors/{author_uuid}/inbox"
     
     logger.info(f"[SEND TO INBOX] Target: {inbox_url}")
     logger.info(f"[SEND TO INBOX] Payload type: {payload.get('type', 'unknown')}")

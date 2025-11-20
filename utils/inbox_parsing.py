@@ -1,7 +1,8 @@
 import logging
 
-from authors.models import Follow
+from authors.models import Follow, Author
 from utils.node_communication import get_or_create_remote_author
+from utils.fqid import get_local_node
 
 logger = logging.getLogger(__name__)
 
@@ -31,5 +32,30 @@ def get_remote_author_from_json_data(remote_author_json_data):
         return remote_author
     except ValueError as e:
         logger.error(f"Failed to get/create remote author: {e}")
+        raise
+
+
+def get_author_from_json_data(author_json_data):
+    """Get author from JSON data, handling both local and remote authors."""
+    author_fqid = author_json_data.get("id", "")
+    if not author_fqid:
+        raise ValueError("Author ID missing")
+    
+    try:
+        author = Author.objects.select_related('node').get(id=author_fqid)
+        local_node = get_local_node()
+        if local_node and (author.node_id == local_node.id or author.node == local_node):
+            logger.info(f"Found local author: {author.id}")
+        else:
+            logger.info(f"Found existing remote author: {author.id}")
+        return author
+    except Author.DoesNotExist:
+        pass
+    
+    try:
+        remote_author, _ = get_or_create_remote_author(author_fqid, author_json_data)
+        return remote_author
+    except ValueError as e:
+        logger.error(f"Failed to get/create author: {e}")
         raise
 

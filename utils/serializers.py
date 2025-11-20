@@ -35,6 +35,11 @@ def serialize_author_for_node_communication(author):
         author_fqid = author.id
         print(f"[SERIALIZE] [DEBUG] Author not found in DB, using original: {author_fqid}")
     
+    if '/api/authors/' not in str(author_fqid):
+        # for local author 
+        author_fqid = build_fqid("", author_id=str(author_fqid))
+        print(f"[SERIALIZE] [DEBUG] Built FQID for local author: {author_fqid}")
+    
     logger.info(f"[SERIALIZE] Author {author.username} ID: {author_fqid}")
     print(f"[SERIALIZE] [DEBUG] Final author_fqid: {author_fqid}")
     

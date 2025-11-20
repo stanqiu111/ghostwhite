@@ -102,6 +102,12 @@ def get_remote_recipients_for_entry(entry, local_node):
     )
     return [follow.follower for follow in followers if follow.follower.node != local_node]
 
+def notify_all_remote_authors(payload, local_node, author_id):
+    """ Notify all remote node that is not local node"""
+    remote_nodes = Node.objects.filter(is_local=False).exclude(id=local_node.id)
+    for remote_node in remote_nodes:
+        send_to_inbox(payload, remote_node, author_id)
+    return True
 
 def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
     """Get or create remote author from FQID and data."""
@@ -357,7 +363,8 @@ def send_comment_to_remote_node(comment, entry, state=None):
         logger.info(f"{log_prefix} Entry author notification result: {'SUCCESS' if result else 'FAILED'}")
     else:
         logger.info(f"{log_prefix} Entry author is local, notify all remote authorr")
-        notify_all_remote_authors(payload, remote_node, entry_author.id)
+        notify_all_remote_authors(payload, local_node, entry_author.id)
+    return True
 
 def send_comment_like_to_remote_node(comment_like, *, removed=False):
     """Send comment like to all remote recipients (comment author and entry author)."""

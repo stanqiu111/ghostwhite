@@ -184,23 +184,30 @@ class InboxPostView(APIView):
         """Route incoming inbox activity to appropriate handler, we have 4 types of activity: entry, follow, like, comment"""
         from utils.fqid import extract_serial_from_fqid
         
-        author_id = str(author_id)
+        author_id_param = str(author_id)
+        logger.info(f"[INBOX] Received request for author_id: {author_id_param}")
         
         try:
-            author = Author.objects.get(id=author_id)
+            author = Author.objects.select_related('node').get(id=author_id_param)
+            logger.info(f"[INBOX] Found author by full ID: {author.id}")
         except Author.DoesNotExist:
-            uuid_part = author_id
-            authors = Author.objects.all()
+            uuid_part = extract_serial_from_fqid(author_id_param)
+            logger.info(f"[INBOX] Full ID not found, trying UUID part: {uuid_part}")
+            authors = Author.objects.select_related('node').all()
+            author = None
             for author_obj in authors:
                 if extract_serial_from_fqid(author_obj.id) == uuid_part:
                     author = author_obj
+                    logger.info(f"[INBOX] Found author by UUID match: {author.id}")
                     break
-            else:
+            
+            if not author:
                 try:
-                    author = Author.objects.get(username=author_id)
+                    author = Author.objects.select_related('node').get(username=author_id_param)
+                    logger.info(f"[INBOX] Found author by username: {author.id}")
                 except Author.DoesNotExist:
-                    logger.error(f"[INBOX] Author not found: {author_id}")
-                    return Response({"detail": f"Author not found: {author_id}"}, status=404)
+                    logger.error(f"[INBOX] Author not found with ID/UUID: {author_id_param}, UUID part: {uuid_part}")
+                    return Response({"detail": "Object not found"}, status=404)
         
         obj_type = request.data.get("type", "").lower()
 

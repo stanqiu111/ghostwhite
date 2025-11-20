@@ -160,7 +160,7 @@ class Comment(models.Model):
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="comments")
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-    source_url = models.URLField(blank=True, null=True)
+    source_url = models.URLField(blank=True, null=True, max_length=512)
     
     def save(self, *args, **kwargs):
         if not self.id:

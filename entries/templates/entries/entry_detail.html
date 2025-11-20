@@ -464,7 +464,7 @@ function renderEntry(e){
   } catch (err) { console.warn('Failed to update entry meta', err); }
 
   const contentNode = $('#entryContent');
-  const contentType = (e.content_type||'plain_text').toLowerCase();
+  const contentType = (e.content_type||'text/plain').toLowerCase();
   if (contentType.includes('markdown')) { marked.setOptions({gfm:true,breaks:true}); contentNode.innerHTML = marked.parse(e.content||''); }
   else { contentNode.textContent = e.content || ''; }
 

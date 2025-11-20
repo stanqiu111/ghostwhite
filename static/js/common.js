@@ -66,7 +66,7 @@ function renderMarkdownContent() {
   }
   
   document.querySelectorAll('.entry-content').forEach(node => {
-    const type = String(node.dataset.ctype || 'plain_text').toLowerCase();
+    const type = String(node.dataset.ctype || 'text/plain').toLowerCase();
 
     // If this entry represents an image (base64 or `image/*`), do NOT echo the raw content.
     // The <img> element below will display it instead.

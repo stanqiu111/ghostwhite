@@ -26,11 +26,8 @@ logger = logging.getLogger(__name__)
 
 def _validate_and_get_remote_node(target_author, log_prefix=""):
     """Validate and get remote node for sending notifications."""
-    logger.info(f"{log_prefix} Validating and getting remote node for target author: {target_author.id}")
-    
     try:
         target_author = Author.objects.select_related('node').get(pk=target_author.pk)
-        logger.info(f"{log_prefix} Loaded author from DB: {target_author.id}, node_id: {target_author.node_id}, node: {target_author.node}")
     except Author.DoesNotExist:
         logger.error(f"{log_prefix} Target author {target_author.id} not found in database")
         return None, None
@@ -40,18 +37,11 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
         logger.warning(f"{log_prefix} Local node not configured, aborting")
         return None, None
     
-    logger.info(f"{log_prefix} Local node: {local_node.id} (host: {local_node.host_url}), is_local: {local_node.is_local}")
-    
     if not target_author.node:
         logger.warning(f"{log_prefix} Target author {target_author.id} has no node set, aborting")
         return None, None
     
-    logger.info(f"{log_prefix} Author node: {target_author.node.id} (host: {target_author.node.host_url}), is_local: {target_author.node.is_local}")
-    logger.info(f"{log_prefix} Node comparison: target_author.node.id={target_author.node.id}, local_node.id={local_node.id}, equal={target_author.node.id == local_node.id}")
-    logger.info(f"{log_prefix} Node host comparison: target_author.node.host_url={target_author.node.host_url}, local_node.host_url={local_node.host_url}")
-    logger.info(f"{log_prefix} Node object comparison: target_author.node == local_node = {target_author.node == local_node}")
-    
-    # Check if author is local by comparing both node ID and host URL
+    # Check if author is local by comparing node ID, host URL, or is_local flag
     is_local = (
         target_author.node.id == local_node.id or 
         target_author.node.host_url.rstrip('/') == local_node.host_url.rstrip('/') or
@@ -59,15 +49,13 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
     )
     
     if is_local:
-        logger.info(f"{log_prefix} Target author {target_author.id} is local (node ID: {target_author.node.id}, host: {target_author.node.host_url}), skipping remote notification")
         return None, None
     
     remote_node = target_author.node
     if not remote_node.username:
-        logger.warning(f"{log_prefix} Remote node {remote_node.id} (host: {remote_node.host_url}) missing credentials (username), aborting")
+        logger.warning(f"{log_prefix} Remote node {remote_node.host_url} missing credentials, aborting")
         return None, None
 
-    logger.info(f"{log_prefix} Remote node found: {remote_node.id} (host: {remote_node.host_url}), sending notification")
     return local_node, remote_node
 
 
@@ -103,11 +91,11 @@ def get_remote_recipients_for_entry(entry, local_node):
     return [follow.follower for follow in followers if follow.follower.node != local_node]
 
 def notify_all_remote_authors(payload, local_node, author_id):
-    """ Notify all remote node that is not local node"""
+    """Notify all remote nodes (excluding local node) about an activity."""
     remote_nodes = Node.objects.filter(is_local=False).exclude(id=local_node.id)
     for remote_node in remote_nodes:
-        send_to_inbox(payload, remote_node, author_id)
-    return True
+        if remote_node.username:
+            send_to_inbox(payload, remote_node, author_id)
 
 def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
     """Get or create remote author from FQID and data."""
@@ -362,9 +350,8 @@ def send_comment_to_remote_node(comment, entry, state=None):
         result = send_to_inbox(payload, remote_node, entry_author.id)
         logger.info(f"{log_prefix} Entry author notification result: {'SUCCESS' if result else 'FAILED'}")
     else:
-        logger.info(f"{log_prefix} Entry author is local, notify all remote authorr")
+        logger.info(f"{log_prefix} Entry author is local, notifying all remote nodes")
         notify_all_remote_authors(payload, local_node, entry_author.id)
-    return True
 
 def send_comment_like_to_remote_node(comment_like, *, removed=False):
     """Send comment like to all remote recipients (comment author and entry author)."""
@@ -419,22 +406,9 @@ FOLLOW_STATE_TO_SPEC = {
 def send_follow_request_to_remote_node(follow):
     """Send follow request to all remote recipients (the followee if remote)."""
     log_prefix = "[SEND FOLLOW REQUEST]"
-    logger.info(f"{log_prefix} Starting: follow_id={follow.id}")
     
-    # Get fresh copies to ensure we have latest data
     following_author = Author.objects.select_related('node').get(pk=follow.following.pk)
     follower_author = Author.objects.select_related('node').get(pk=follow.follower.pk)
-    
-    # Debug: Log the author IDs before serialization
-    print(f"{log_prefix} [DEBUG] Following author ID before serialize: {following_author.id}")
-    print(f"{log_prefix} [DEBUG] Following author username: {following_author.username}")
-    print(f"{log_prefix} [DEBUG] Follower author ID before serialize: {follower_author.id}")
-    print(f"{log_prefix} [DEBUG] Follower author username: {follower_author.username}")
-    logger.info(f"{log_prefix} Following author ID before serialize: {following_author.id}")
-    logger.info(f"{log_prefix} Follower author ID before serialize: {follower_author.id}")
-    
-    print(f"{log_prefix} [DEBUG] Fresh following author ID: {following_author.id}")
-    print(f"{log_prefix} [DEBUG] Fresh follower author ID: {follower_author.id}")
     
     payload = {
         "type": "follow",
@@ -444,12 +418,6 @@ def send_follow_request_to_remote_node(follow):
         "state": "requesting",
     }
     
-    print(f"{log_prefix} [DEBUG] Serialized object ID: {payload['object']['id']}")
-    print(f"{log_prefix} [DEBUG] Serialized actor ID: {payload['actor']['id']}")
-
-    logger.info(f"{log_prefix} Payload: {payload}")
-    
-    # Send to followee (the person being followed) if remote
     local_node, remote_node = _validate_and_get_remote_node(following_author, log_prefix)
     if remote_node:
         logger.info(f"{log_prefix} Sending to followee: {following_author.id}")

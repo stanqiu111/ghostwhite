@@ -166,8 +166,8 @@
           <button id="tabPreview" class="pill">Preview</button>
           <div class="grow"></div>
           <select id="contentType" class="select">
-            <option value="markdown">CommonMark</option>
-            <option value="plain_text">Plain text</option>
+            <option value="text/markdown">CommonMark</option>
+            <option value="text/plain">Plain text</option>
           </select>
         </div>
         <div class="body">
@@ -233,7 +233,7 @@ const IS_EDITING = !!ENTRY_ID;
 /* ----------- state ----------- */
 const state = {
   tab: 'edit',
-  contentType: 'markdown',
+  contentType: 'text/markdown',
   visibility: 'public',
   image: null,      // single File or null
   existingImageUrl: null, 
@@ -287,7 +287,7 @@ contentTypeSel.addEventListener('change', e => {
 
 function renderPreview(){
   const text = contentArea.value || '';
-  if (state.contentType === 'markdown') {
+  if (state.contentType === 'text/markdown') {
     marked.setOptions({ breaks:true, gfm:true });
     preview.innerHTML = marked.parse(text);
   } else {
@@ -350,10 +350,10 @@ async function loadEntry() {
       // Do not load raw base64 into the editor
       contentArea.value = '';
       // Keep the editor in a safe plain text mode
-      state.contentType = 'plain_text';
+      state.contentType = 'text/plain';
     } else {
       contentArea.value = entry.content || '';
-      state.contentType = entry.content_type || 'markdown';
+      state.contentType = entry.content_type || 'text/markdown';
     }
     contentTypeSel.value = state.contentType;
     state.visibility = entry.visibility || 'public';

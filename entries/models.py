@@ -5,8 +5,8 @@ from authors.models import Author
 from nodes.models import Node
 
 CONTENT_TYPE_CHOICES = [
-    ("plain_text", "Plain Text"),
-    ("markdown", "Markdown"),
+    ("text/plain", "Plain Text"),
+    ("text/markdown", "Markdown"),
     ("image/png;base64", "Image PNG (base64)"),
     ("image/jpeg;base64", "Image JPEG (base64)"),
     ("application/base64", "Base64 (other image)"),
@@ -25,7 +25,7 @@ class Entry(models.Model):
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="entries")
     content = models.TextField(blank=True)
     content_type = models.CharField(
-        max_length=64, choices=CONTENT_TYPE_CHOICES, default="plain_text"
+        max_length=64, choices=CONTENT_TYPE_CHOICES, default="text/plain"
     )
     visibility = models.CharField(
         max_length=20, choices=VISIBILITY_CHOICES, default="public"

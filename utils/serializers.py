@@ -1,5 +1,6 @@
 from django.conf import settings
 from utils.fqid import build_fqid, get_local_node
+import logging
 
 class UrlBuildingMixin:
     def build_full_url(self, path: str) -> str:
@@ -15,10 +16,13 @@ class UrlBuildingMixin:
 
 def serialize_author_for_node_communication(author):
     """Serialize author for node-to-node communication payloads."""
+    logger = logging.getLogger(__name__)
+    
     local_node = get_local_node()
     host_url = local_node.host_url.rstrip('/') + '/' if local_node else ""
     
     author_fqid = author.id
+    logger.debug(f"[SERIALIZE] Author {author.username} ID: {author_fqid}")
     
     if '/api/' in author_fqid:
         author_host_url = author_fqid.split('/api/')[0] + '/'

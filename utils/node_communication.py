@@ -300,6 +300,10 @@ def send_follow_request_to_remote_node(follow):
     if not remote_node:
         return
 
+    # Debug: Log the author IDs before serialization
+    logger.info(f"{log_prefix} Following author ID before serialize: {follow.following.id}")
+    logger.info(f"{log_prefix} Follower author ID before serialize: {follow.follower.id}")
+    
     payload = {
         "type": "follow",
         "summary": f"{follow.follower.display_name or follow.follower.username} wants to follow {follow.following.display_name or follow.following.username}",

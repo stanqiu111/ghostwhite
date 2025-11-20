@@ -232,24 +232,31 @@ def send_entry_to_remote_nodes(entry):
 
 
 def send_like_to_remote_node(like, entry, *, removed=False):
-    """Send like to entry author's inbox if remote."""
+    """Send like to all remote recipients (entry author and other remote likers)."""
     log_prefix = "[SEND LIKE]"
-    entry_author = Author.objects.select_related('node').get(pk=entry.author.pk)
-    local_node, remote_node = _validate_and_get_remote_node(entry_author, log_prefix=log_prefix)
-    if not remote_node:
-        logger.info(f"{log_prefix} No remote node found, skipping inbox notification")
+    
+    local_node = get_local_node()
+    if not local_node:
+        logger.info(f"{log_prefix} Local node not configured, skipping inbox notification")
         return
     
+    entry_author = Author.objects.select_related('node').get(pk=entry.author.pk)
+    
+    object_url = None
     if entry.source_url:
         object_url = entry.source_url
         logger.info(f"{log_prefix} Using entry source_url: {object_url}")
     else:
         entry_uuid = extract_entry_id_from_fqid(entry.id)
         author_uuid = extract_serial_from_fqid(entry_author.id)
-        remote_host = remote_node.host_url.rstrip('/')
-        object_url = f"{remote_host}/api/authors/{author_uuid}/entries/{entry_uuid}"
-        logger.info(f"{log_prefix} Built entry URL from entry ID: {object_url}")
-        logger.warning(f"{log_prefix} Entry {entry.id} has no source_url but author is remote - using constructed URL")
+        entry_author_node = entry_author.node
+        if entry_author_node:
+            node_host = entry_author_node.host_url.rstrip('/')
+            object_url = f"{node_host}/api/authors/{author_uuid}/entries/{entry_uuid}"
+            logger.info(f"{log_prefix} Built entry URL from entry ID: {object_url}")
+        else:
+            logger.warning(f"{log_prefix} Entry {entry.id} has no source_url and entry author has no node - cannot build URL")
+            return
     
     payload = {
         "type": "like",
@@ -261,29 +268,48 @@ def send_like_to_remote_node(like, entry, *, removed=False):
     if removed:
         payload["removed"] = True
     
-    logger.info(f"{log_prefix} Sending like payload with object URL: {object_url}")
-    send_to_inbox(payload, remote_node, entry_author.id)
+    _, remote_node = _validate_and_get_remote_node(entry_author, log_prefix=log_prefix)
+    if remote_node:
+        logger.info(f"{log_prefix} Sending to entry author: {entry_author.id}")
+        send_to_inbox(payload, remote_node, entry_author.id)
+    
+    other_likers = (
+        EntryLike.objects.filter(entry=entry)
+        .exclude(author=like.author)
+        .exclude(author=entry_author)
+        .select_related('author', 'author__node')
+        .values_list('author', flat=True)
+        .distinct()
+    )
+    
+    for liker_id in other_likers:
+        try:
+            liker = Author.objects.select_related('node').get(pk=liker_id)
+            _, remote_node = _validate_and_get_remote_node(liker, log_prefix=log_prefix)
+            if remote_node:
+                logger.info(f"{log_prefix} Sending to remote liker: {liker.id}")
+                send_to_inbox(payload, remote_node, liker.id)
+        except Author.DoesNotExist:
+            continue
 
 
 def send_comment_to_remote_node(comment, entry, state=None):
-    """Send comment to entry author's inbox if remote."""
+    """Send comment to all remote recipients (entry author and other remote commenters)."""
     log_prefix = "[SEND COMMENT]"
-    entry_author = Author.objects.select_related('node').get(pk=entry.author.pk)
-    local_node, remote_node = _validate_and_get_remote_node(entry_author, log_prefix=log_prefix)
-    if not remote_node:
-        logger.info(f"{log_prefix} No remote node found, skipping inbox notification")
+    
+    local_node = get_local_node()
+    if not local_node:
+        logger.info(f"{log_prefix} Local node not configured, skipping inbox notification")
         return
     
+    entry_author = Author.objects.select_related('node').get(pk=entry.author.pk)
+    
+    entry_url = None
     if entry.source_url:
         entry_url = entry.source_url
         logger.info(f"{log_prefix} Using entry source_url: {entry_url}")
     else:
-        entry_uuid = extract_entry_id_from_fqid(entry.id)
-        author_uuid = extract_serial_from_fqid(entry_author.id)
-        remote_host = remote_node.host_url.rstrip('/')
-        entry_url = f"{remote_host}/api/authors/{author_uuid}/entries/{entry_uuid}"
-        logger.info(f"{log_prefix} Built entry URL from entry ID: {entry_url}")
-        logger.warning(f"{log_prefix} Entry {entry.id} has no source_url but author is remote - using constructed URL")
+        entry_url = None
     
     host_url = local_node.host_url.rstrip('/')
     entry_web_url = f"{host_url}/entries/{entry.id}/"
@@ -300,7 +326,6 @@ def send_comment_to_remote_node(comment, entry, state=None):
         "contentType": getattr(comment, 'content_type', 'text/plain'),  # Comment model doesn't have content_type, default to text/plain
         "published": comment.created_at.isoformat(),
         "id": comment_id_url,
-        "entry": entry_url,
         "web": entry_web_url,  
         "likes": {
             "type": "likes",
@@ -315,8 +340,43 @@ def send_comment_to_remote_node(comment, entry, state=None):
     if state:
         payload["state"] = state
     
-    logger.info(f"{log_prefix} Sending comment payload with entry URL: {entry_url}")
-    send_to_inbox(payload, remote_node, entry_author.id)
+    _, remote_node = _validate_and_get_remote_node(entry_author, log_prefix=log_prefix)
+    if remote_node:
+        if not entry_url:
+            entry_uuid = extract_entry_id_from_fqid(entry.id)
+            author_uuid = extract_serial_from_fqid(entry_author.id)
+            remote_host = remote_node.host_url.rstrip('/')
+            entry_url = f"{remote_host}/api/authors/{author_uuid}/entries/{entry_uuid}"
+            logger.info(f"{log_prefix} Built entry URL from entry ID: {entry_url}")
+        
+        payload["entry"] = entry_url
+        logger.info(f"{log_prefix} Sending to entry author: {entry_author.id}")
+        send_to_inbox(payload, remote_node, entry_author.id)
+    
+    other_commenters = (
+        Comment.objects.filter(entry=entry)
+        .exclude(author=comment.author)
+        .exclude(author=entry_author)
+        .select_related('author', 'author__node')
+        .values_list('author', flat=True)
+        .distinct()
+    )
+    
+    for commenter_id in other_commenters:
+        try:
+            commenter = Author.objects.select_related('node').get(pk=commenter_id)
+            _, remote_node = _validate_and_get_remote_node(commenter, log_prefix=log_prefix)
+            if remote_node:
+                entry_uuid = extract_entry_id_from_fqid(entry.id)
+                entry_author_uuid = extract_serial_from_fqid(entry_author.id)
+                remote_host = remote_node.host_url.rstrip('/')
+                recipient_entry_url = f"{remote_host}/api/authors/{entry_author_uuid}/entries/{entry_uuid}"
+                
+                payload["entry"] = recipient_entry_url
+                logger.info(f"{log_prefix} Sending to remote commenter: {commenter.id}")
+                send_to_inbox(payload, remote_node, commenter.id)
+        except Author.DoesNotExist:
+            continue
 
 
 def send_comment_like_to_remote_node(comment_like, *, removed=False):

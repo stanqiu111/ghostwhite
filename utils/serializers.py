@@ -16,13 +16,27 @@ class UrlBuildingMixin:
 
 def serialize_author_for_node_communication(author):
     """Serialize author for node-to-node communication payloads."""
+    from authors.models import Author
     logger = logging.getLogger(__name__)
     
     local_node = get_local_node()
     host_url = local_node.host_url.rstrip('/') + '/' if local_node else ""
     
-    author_fqid = author.id
-    logger.debug(f"[SERIALIZE] Author {author.username} ID: {author_fqid}")
+    # Get fresh copy from database to ensure we have the latest id value
+    # refresh_from_db doesn't work for primary keys, so we need to re-fetch
+    print(f"[SERIALIZE] [DEBUG] Original author.id: {author.id}")
+    print(f"[SERIALIZE] [DEBUG] Original author.pk: {author.pk}")
+    try:
+        fresh_author = Author.objects.get(pk=author.pk)
+        author_fqid = fresh_author.id
+        print(f"[SERIALIZE] [DEBUG] Fresh author.id from DB: {author_fqid}")
+    except Author.DoesNotExist:
+        # Fallback to original author if not found
+        author_fqid = author.id
+        print(f"[SERIALIZE] [DEBUG] Author not found in DB, using original: {author_fqid}")
+    
+    logger.info(f"[SERIALIZE] Author {author.username} ID: {author_fqid}")
+    print(f"[SERIALIZE] [DEBUG] Final author_fqid: {author_fqid}")
     
     if '/api/' in author_fqid:
         author_host_url = author_fqid.split('/api/')[0] + '/'

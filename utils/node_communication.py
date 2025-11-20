@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 def _validate_and_get_remote_node(target_author, log_prefix=""):
     """Validate and get remote node for sending notifications."""
+    logger.info(f"{log_prefix} Validating and getting remote node for target author: {target_author.id}")
     local_node = get_local_node()
     if not local_node:
         logger.warning(f"{log_prefix} Local node not configured, aborting")
@@ -37,7 +38,8 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
     if not remote_node or not remote_node.username:
         logger.warning(f"{log_prefix} Remote node missing or missing credentials, aborting")
         return None, None
-    
+
+    logger.info(f"{log_prefix} Remote node found: {remote_node.id}")
     return local_node, remote_node
 
 
@@ -298,19 +300,33 @@ def send_follow_request_to_remote_node(follow):
     target_author = follow.following
     local_node, remote_node = _validate_and_get_remote_node(target_author, log_prefix)
     if not remote_node:
+        logger.error(f"{log_prefix} No remote node found, aborting")
         return
 
     # Debug: Log the author IDs before serialization
+    print(f"{log_prefix} [DEBUG] Following author ID before serialize: {follow.following.id}")
+    print(f"{log_prefix} [DEBUG] Following author username: {follow.following.username}")
+    print(f"{log_prefix} [DEBUG] Follower author ID before serialize: {follow.follower.id}")
+    print(f"{log_prefix} [DEBUG] Follower author username: {follow.follower.username}")
     logger.info(f"{log_prefix} Following author ID before serialize: {follow.following.id}")
     logger.info(f"{log_prefix} Follower author ID before serialize: {follow.follower.id}")
+    
+    # Get fresh copies to ensure we have latest data
+    following_author = Author.objects.get(pk=follow.following.pk)
+    follower_author = Author.objects.get(pk=follow.follower.pk)
+    print(f"{log_prefix} [DEBUG] Fresh following author ID: {following_author.id}")
+    print(f"{log_prefix} [DEBUG] Fresh follower author ID: {follower_author.id}")
     
     payload = {
         "type": "follow",
         "summary": f"{follow.follower.display_name or follow.follower.username} wants to follow {follow.following.display_name or follow.following.username}",
-        "actor": serialize_author_for_node_communication(follow.follower),
-        "object": serialize_author_for_node_communication(follow.following),
+        "actor": serialize_author_for_node_communication(follower_author),
+        "object": serialize_author_for_node_communication(following_author),
         "state": "requesting",
     }
+    
+    print(f"{log_prefix} [DEBUG] Serialized object ID: {payload['object']['id']}")
+    print(f"{log_prefix} [DEBUG] Serialized actor ID: {payload['actor']['id']}")
 
     logger.info(f"{log_prefix} Payload: {payload}")
     result = send_to_inbox(payload, remote_node, target_author.id)

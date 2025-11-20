@@ -29,7 +29,7 @@ The authors claiming copyright, if they wish to be known, can list their names h
 
 | Name          | Node            | Username        | Password       |
 | ------------- | --------------- | --------------- |--------------- |
-| Jueun (Krystal) Kim | https://krystal-7a3d144806fa.herokuapp.com/ | krystal | Test123! |
+| Jueun (Krystal) Kim | [https://krystal-7a3d144806fa.herokuapp.com/](https://krystal-7a3d144806fa.herokuapp.com/home/) | krystal | krystal |
 | Evelyn Nguyen | https://ghostwhite-evelyn-node-f268ea95378e.herokuapp.com/ | linhn | linhnprod |
 | Stan Qiu      | https://stan-2dd8cc96fa3e.herokuapp.com/ | stan_node | stan1234 |
 | Ximeng Duan   | https://ghostwhite-ximeng-c739441113d7.herokuapp.com/ | ximeng | dxm021108 |

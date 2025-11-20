@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 
 def _validate_and_get_remote_node(target_author, log_prefix=""):
-    """Validate and get node for sending notifications (local or remote)."""
-    logger.info(f"{log_prefix} Validating and getting node for target author: {target_author.id}")
+    """Validate and get remote node for sending notifications."""
+    logger.info(f"{log_prefix} Validating and getting remote node for target author: {target_author.id}")
     
     try:
         target_author = Author.objects.select_related('node').get(pk=target_author.pk)
@@ -47,6 +47,9 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
         return None, None
     
     logger.info(f"{log_prefix} Author node: {target_author.node.id} (host: {target_author.node.host_url}), is_local: {target_author.node.is_local}")
+    logger.info(f"{log_prefix} Node comparison: target_author.node.id={target_author.node.id}, local_node.id={local_node.id}, equal={target_author.node.id == local_node.id}")
+    logger.info(f"{log_prefix} Node host comparison: target_author.node.host_url={target_author.node.host_url}, local_node.host_url={local_node.host_url}")
+    logger.info(f"{log_prefix} Node object comparison: target_author.node == local_node = {target_author.node == local_node}")
     
     # Check if author is local by comparing both node ID and host URL
     is_local = (
@@ -55,17 +58,17 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
         target_author.node.is_local
     )
     
-    target_node = target_author.node
-    if not target_node.username:
-        logger.warning(f"{log_prefix} Target node {target_node.id} (host: {target_node.host_url}) missing credentials (username), aborting")
+    if is_local:
+        logger.info(f"{log_prefix} Target author {target_author.id} is local (node ID: {target_author.node.id}, host: {target_author.node.host_url}), skipping remote notification")
+        return None, None
+    
+    remote_node = target_author.node
+    if not remote_node.username:
+        logger.warning(f"{log_prefix} Remote node {remote_node.id} (host: {remote_node.host_url}) missing credentials (username), aborting")
         return None, None
 
-    if is_local:
-        logger.info(f"{log_prefix} Target author {target_author.id} is local, using local node for inbox")
-        return local_node, local_node
-    
-    logger.info(f"{log_prefix} Remote node found: {target_node.id} (host: {target_node.host_url}), sending notification")
-    return local_node, target_node
+    logger.info(f"{log_prefix} Remote node found: {remote_node.id} (host: {remote_node.host_url}), sending notification")
+    return local_node, remote_node
 
 
 def get_remote_recipients_for_entry(entry, local_node):

@@ -11,7 +11,7 @@ from django.utils.decorators import method_decorator
 from django.shortcuts import render
 from nodes.authentication import NodeBasicAuthentication, NodeAuthenticated
 from nodes.models import Node
-from utils.inbox_parsing import get_remote_author_from_json_data, parse_follow_state_from_payload, get_author_from_json_data
+from utils.inbox_parsing import get_remote_author_from_json_data, parse_follow_state_from_payload
 from utils.fqid import find_entry_by_url, find_comment_by_url, parse_author_fqid
 import logging
 from django.utils import timezone
@@ -367,7 +367,7 @@ class InboxPostView(APIView):
         """Handle incoming like activity
         Here we can do like actions on entry or comment so we need to check which one are we performing action on"""
         try:
-            remote_author = get_author_from_json_data(data.get("author", {}))
+            remote_author = get_remote_author_from_json_data(data.get("author", {}))
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
         
@@ -417,7 +417,7 @@ class InboxPostView(APIView):
     def _handle_comment(self, author, data):
         """Handle incoming comment activity"""
         try:
-            remote_author = get_author_from_json_data(data.get("author", {}))
+            remote_author = get_remote_author_from_json_data(data.get("author", {}))
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
 

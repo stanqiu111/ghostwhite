@@ -16,6 +16,8 @@ from utils.fqid import (
     parse_entry_fqid,
     find_entry_by_url,
     find_comment_by_url,
+    extract_entry_id_from_fqid,
+    extract_serial_from_fqid,
 )
 from utils.serializers import serialize_author_for_node_communication
 
@@ -137,7 +139,6 @@ def send_to_inbox(payload, remote_node, author_id):
     Send payload to remote author's inbox.
     
     """
-    from utils.fqid import extract_serial_from_fqid
     author_uuid = extract_serial_from_fqid(author_id)
     base_url = remote_node.host_url.rstrip('/')
     inbox_url = f"{base_url}/api/authors/{author_uuid}/inbox"
@@ -222,7 +223,16 @@ def send_like_to_remote_node(like, entry, *, removed=False):
     if not remote_node:
         return
     
-    object_url = entry.source_url or build_entry_url(entry.author.id, entry.id)
+    if entry.source_url:
+        object_url = entry.source_url
+        logger.info(f"{log_prefix} Using entry source_url: {object_url}")
+    else:
+        entry_uuid = extract_entry_id_from_fqid(entry.id)
+        author_uuid = extract_serial_from_fqid(entry.author.id)
+        remote_host = remote_node.host_url.rstrip('/')
+        object_url = f"{remote_host}/api/authors/{author_uuid}/entries/{entry_uuid}"
+        logger.info(f"{log_prefix} Built entry URL from entry ID: {object_url}")
+        logger.warning(f"{log_prefix} Entry {entry.id} has no source_url but author is remote - using constructed URL")
     
     payload = {
         "type": "like",
@@ -234,6 +244,7 @@ def send_like_to_remote_node(like, entry, *, removed=False):
     if removed:
         payload["removed"] = True
     
+    logger.info(f"{log_prefix} Sending like payload with object URL: {object_url}")
     send_to_inbox(payload, remote_node, entry.author.id)
 
 
@@ -244,13 +255,23 @@ def send_comment_to_remote_node(comment, entry, state=None):
     if not remote_node:
         return
     
-    entry_url = entry.source_url or build_entry_url(entry.author.id, entry.id)
+    if entry.source_url:
+        entry_url = entry.source_url
+        logger.info(f"{log_prefix} Using entry source_url: {entry_url}")
+    else:
+        entry_uuid = extract_entry_id_from_fqid(entry.id)
+        author_uuid = extract_serial_from_fqid(entry.author.id)
+        remote_host = remote_node.host_url.rstrip('/')
+        entry_url = f"{remote_host}/api/authors/{author_uuid}/entries/{entry_uuid}"
+        logger.info(f"{log_prefix} Built entry URL from entry ID: {entry_url}")
+        logger.warning(f"{log_prefix} Entry {entry.id} has no source_url but author is remote - using constructed URL")
+    
     host_url = local_node.host_url.rstrip('/')
     entry_web_url = f"{host_url}/entries/{entry.id}/"
     like_count = comment.likes.count()
     comment_id_url = comment.source_url or build_comment_url(comment)
     if not comment_id_url:
-        logger.warning("send_comment_to_remote_node: missing comment ID URL")
+        logger.warning(f"{log_prefix} Missing comment ID URL")
         return
     
     payload = {
@@ -275,6 +296,7 @@ def send_comment_to_remote_node(comment, entry, state=None):
     if state:
         payload["state"] = state
     
+    logger.info(f"{log_prefix} Sending comment payload with entry URL: {entry_url}")
     send_to_inbox(payload, remote_node, entry.author.id)
 
 

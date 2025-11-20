@@ -196,7 +196,7 @@ def send_entry_to_remote_nodes(entry):
     
     payload = {
         "type": "entry",
-        "id": build_entry_url(entry.author.id, entry.id),
+        "id": build_entry_url(entry.author.id, entry_uuid),
         "web": entry_web_url,
         "title": "",
         "description": entry.content[:100] if entry.content else "",

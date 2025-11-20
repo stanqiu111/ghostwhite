@@ -183,14 +183,18 @@ class InboxPostView(APIView):
     def post(self, request, author_id):
         """Route incoming inbox activity to appropriate handler, we have 4 types of activity: entry, follow, like, comment"""
         from utils.fqid import build_fqid
-        author_fqid = build_fqid("", author_id=author_id)
-        if not author_fqid:
-            return Response({"detail": "Could not build author FQID"}, status=400)
         
         try:
-            author = Author.objects.get(id=author_fqid)
+            author = Author.objects.get(id=author_id)
         except Author.DoesNotExist:
-            return Response({"detail": f"Author not found: {author_fqid}"}, status=404)
+            # If not found, try building FQID from author_id (might be just ID part)
+            author_fqid = build_fqid("", author_id=author_id)
+            if not author_fqid:
+                return Response({"detail": "Could not build author FQID"}, status=400)
+            try:
+                author = Author.objects.get(id=author_fqid)
+            except Author.DoesNotExist:
+                return Response({"detail": f"Author not found: {author_id}"}, status=404)
         
         obj_type = request.data.get("type", "").lower()
 

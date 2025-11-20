@@ -413,7 +413,16 @@ postBtn.addEventListener('click', async ()=>{
     note.textContent = IS_EDITING ? '✅ Updated!' : '✅ Posted!';
     // Redirect to entry page after success
     setTimeout(() => {
-      window.location.href = `/entries/${data.id}/`;
+      function extractEntrySerialFromFqid(fqid) {
+        if (!fqid) return fqid;
+        if (typeof fqid !== 'string') fqid = String(fqid);
+        if (fqid.includes('/entries/')) {
+          return fqid.split('/entries/')[1].split('/')[0].split('?')[0];
+        }
+        return fqid;
+      }
+      const entrySerial = extractEntrySerialFromFqid(data.id);
+      window.location.href = `/entries/${entrySerial}/`;
     }, 800);
   }catch(err){
     note.textContent = `⚠️ ${err.message || err}`;

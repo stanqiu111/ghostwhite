@@ -268,14 +268,14 @@ const withCacheBust = (u, version) => {
 };
 const esc = s => (s||"").replace(/[&<>'"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[m]));
 const updateComment = (entryId, commentId, newContent) =>
-    api(`/entries/${entryId}/comments/${commentId}/`, {
+    api(`entries/${entryId}/comments/${commentId}/`, {
       method: "PATCH",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ content: newContent })
     });
 
   const deleteComment = (entryId, commentId) =>
-    api(`/entries/${entryId}/comments/${commentId}/`, { method: "DELETE" });
+    api(`entries/${entryId}/comments/${commentId}/`, { method: "DELETE" });
     
   function shareUrlFor(id){
   return `${window.location.origin}/entries/${id}/`;
@@ -283,11 +283,11 @@ const updateComment = (entryId, commentId, newContent) =>
 /* ============== API ============= */
 async function api(path, opts = {}) {
   const method = (opts.method || 'GET').toUpperCase();
-
+  
   async function doFetch(withAuth = true) {
     const hdrs = { ...(opts.headers || {}) };
     if (withAuth) Object.assign(hdrs, getHeaders(hdrs));
-    const res = await fetch(`/api${path}`, {
+    const res = await fetch(`/api/${path}`, {
       ...opts,
       credentials: 'same-origin',
       headers: hdrs,
@@ -311,12 +311,12 @@ async function api(path, opts = {}) {
   if (!res.ok) throw new Error(data?.detail || `${res.status} ${res.statusText}`);
   return data;
 }
-const getEntry = serial => api(`/entries/${serial}/`);
-const toggleEntryLike = serial => api(`/entries/${serial}/like/`, { method:'POST' });
-const addComment = (serial, content) => api(`/entries/${serial}/addcomments/`, {
+const getEntry = serial => api(`entries/${serial}/`);
+const toggleEntryLike = serial => api(`entries/${serial}/like/`, { method:'POST' });
+const addComment = (serial, content) => api(`entries/${serial}/addcomments/`, {
   method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content})
 });
-const toggleCommentLike = (entrySerial, commentSerial) => api(`/entries/${entrySerial}/comments/${commentSerial}/like/`, { method:'POST' });
+const toggleCommentLike = (entrySerial, commentSerial) => api(`entries/${entrySerial}/comments/${commentSerial}/like/`, { method:'POST' });
 
 async function likeEntry(entrySerial, buttonElement) {
   try {
@@ -377,8 +377,21 @@ async function load(){
 
 /* ============ RENDER ============ */
 function renderEntry(e){
-  // show edits and delete button is the entry belongs to the user
-  if (e.author.serial === localStorage.getItem('user_id')) {
+  const userId = localStorage.getItem('user_id') || '';
+  const authorSerial = e.author?.serial || '';
+  
+  // Extract serial from FQID if user_id is stored as FQID
+  function extractAuthorSerialFromFqid(fqid) {
+    if (!fqid) return fqid;
+    if (typeof fqid !== 'string') fqid = String(fqid);
+    if (fqid.includes('/api/authors/')) {
+      return fqid.split('/api/authors/')[1].split('/')[0].split('?')[0];
+    }
+    return fqid;
+  }
+  
+  const userIdSerial = extractAuthorSerialFromFqid(userId);
+  if (authorSerial === userIdSerial || e.author?.id === userId) {
     $('#button_panel').style.display = 'flex';
   }
   // avatar with fallback
@@ -563,9 +576,22 @@ function renderRight(e){
   clist.innerHTML = '';
 
   const currentUserId = String(localStorage.getItem('user_id') || '');
+  
+  function extractAuthorSerialFromFqid(fqid) {
+    if (!fqid) return fqid;
+    if (typeof fqid !== 'string') fqid = String(fqid);
+    if (fqid.includes('/api/authors/')) {
+      return fqid.split('/api/authors/')[1].split('/')[0].split('?')[0];
+    }
+    return fqid;
+  }
+  
+  const currentUserIdSerial = extractAuthorSerialFromFqid(currentUserId);
 
   (e.comments || []).forEach(c => {
-    const isMine = String(c.author?.serial || '') === currentUserId;
+    const authorSerial = String(c.author?.serial || '');
+    const authorId = String(c.author?.id || '');
+    const isMine = authorSerial === currentUserIdSerial || authorId === currentUserId;
 
     const node = el(`
       <div class="item" data-id="${c.id}">

@@ -33,9 +33,8 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         return obj.id
 
     def get_serial(self, obj):
-        if '/api/authors/' in obj.id:
-            return obj.id.split('/api/authors/')[-1]
-        return str(obj.id)
+        from utils.fqid import extract_serial_from_fqid
+        return extract_serial_from_fqid(obj.id)
 
     def get_follow_status(self, obj):
         """

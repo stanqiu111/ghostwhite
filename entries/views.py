@@ -26,6 +26,7 @@ from utils.node_communication import (
 )
 from utils.fqid import build_comment_url
 import logging
+from authors.models import Author
 
 
 def with_follow_flags(qs, user):
@@ -115,7 +116,16 @@ class EntryImageView(APIView):
         return False
 
     def get(self, request, author_id, pk, *args, **kwargs):
-        entry = get_object_or_404(Entry, pk=pk, author_id=author_id)
+        from utils.fqid import find_entry_by_uuid, build_fqid
+        
+        author_fqid = author_id
+        if '/api/authors/' not in str(author_id):
+            author_fqid = build_fqid("", author_id=author_id) or author_id
+        
+        try:
+            entry = find_entry_by_uuid(pk, author_fqid=author_fqid)
+        except Entry.DoesNotExist:
+            raise Http404()
 
         # hide soft-deleted content from non-staff
         if getattr(entry, "deleted_at", None) and not (
@@ -175,6 +185,14 @@ class EntryRetrieveView(generics.RetrieveAPIView):
     serializer_class = EntryRetrieveSerializer
     permission_classes = [AllowAny]
     
+    def get_object(self):
+        from utils.fqid import find_entry_by_uuid
+        pk = self.kwargs['pk']
+        try:
+            return find_entry_by_uuid(pk)
+        except Entry.DoesNotExist:
+            raise Http404()
+    
     def get_queryset(self):
         user = self.request.user
         
@@ -221,6 +239,14 @@ class EntryUpdateView(generics.UpdateAPIView):
     serializer_class = EntryCreateSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_object(self):
+        from utils.fqid import find_entry_by_uuid
+        pk = self.kwargs['pk']
+        try:
+            return find_entry_by_uuid(pk)
+        except Entry.DoesNotExist:
+            raise Http404()
+
     def get_queryset(self):
         return Entry.objects.filter(deleted_at__isnull=True, author=self.request.user)
 
@@ -240,6 +266,14 @@ class EntryUpdateView(generics.UpdateAPIView):
 class EntryDeleteView(generics.DestroyAPIView):
     queryset = Entry.objects.filter(deleted_at__isnull=True)
     permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        from utils.fqid import find_entry_by_uuid
+        pk = self.kwargs['pk']
+        try:
+            return find_entry_by_uuid(pk)
+        except Entry.DoesNotExist:
+            raise Http404()
 
     def get_queryset(self):
         return Entry.objects.filter(deleted_at__isnull=True, author=self.request.user)
@@ -268,7 +302,8 @@ def _are_friends(a, b) -> bool:
 
 
 def entry_detail_page(request, pk):
-    entry = get_object_or_404(Entry, pk=pk)
+    from utils.fqid import find_entry_by_uuid
+    entry = find_entry_by_uuid(pk)
     if request.user.is_authenticated:
         user_has_liked = EntryLike.objects.filter(entry=entry, author=request.user).exists()
     else:
@@ -282,7 +317,8 @@ def entry_create_page(request):
 
 
 def entry_edit_page(request, pk):
-    entry = get_object_or_404(Entry, pk=pk)
+    from utils.fqid import find_entry_by_uuid
+    entry = find_entry_by_uuid(pk)
     if request.user != entry.author:
         return render(request, "entries/entry_detail.html", {"entry_id": pk})
     return render(request, "entries/create_entry.html", {"entry_id": pk})
@@ -299,7 +335,8 @@ class CommentCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, *args, **kwargs):
-        entry = get_object_or_404(Entry, pk=pk)
+        from utils.fqid import find_entry_by_uuid
+        entry = find_entry_by_uuid(pk)
         content = (request.data.get("content") or "").strip()
         author = request.user
 
@@ -325,7 +362,8 @@ class EntryLikeToggleView(generics.DestroyAPIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, *args, **kwargs):
-        entry = get_object_or_404(Entry, pk=pk)
+        from utils.fqid import find_entry_by_uuid
+        entry = find_entry_by_uuid(pk)
         author = request.user
         like, created = EntryLike.objects.get_or_create(entry=entry, author=author)
         if not created:
@@ -352,7 +390,8 @@ class CommentLikeToggleView(generics.DestroyAPIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, comment_id, *args, **kwargs):
-        comment = get_object_or_404(Comment, pk=comment_id)
+        from utils.fqid import find_comment_by_uuid
+        comment = find_comment_by_uuid(comment_id, entry_id=pk)
         author = request.user
         like, created = CommentLike.objects.get_or_create(comment=comment, author=author)
         if not created:
@@ -375,7 +414,8 @@ class CommentUpdateDeleteView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk, comment_id):
-        comment = get_object_or_404(Comment, pk=comment_id, entry_id=pk)
+        from utils.fqid import find_comment_by_uuid
+        comment = find_comment_by_uuid(comment_id, entry_id=pk)
         if comment.author_id != request.user.id:
             raise PermissionDenied("You can only edit your own comment.")
 
@@ -393,7 +433,8 @@ class CommentUpdateDeleteView(APIView):
         return Response({"detail": "Comment updated.", "id": comment.id}, status=200)
 
     def delete(self, request, pk, comment_id):
-        comment = get_object_or_404(Comment, pk=comment_id, entry_id=pk)
+        from utils.fqid import find_comment_by_uuid
+        comment = find_comment_by_uuid(comment_id, entry_id=pk)
         if comment.author_id != request.user.id and not request.user.is_staff:
             raise PermissionDenied("You can only delete your own comment.")
         entry = comment.entry

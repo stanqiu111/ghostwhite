@@ -29,7 +29,7 @@ def build_fqid(path="", author_id=None, entry_id=None):
     if not host_url:
         return None
     if author_id:
-        author_id = extract_author_id_from_fqid(author_id)
+        author_id = extract_serial_from_fqid(author_id)
     if entry_id:
         return f"{host_url}api/authors/{author_id}/entries/{entry_id}"
     if author_id:
@@ -39,8 +39,16 @@ def build_fqid(path="", author_id=None, entry_id=None):
 
 def build_entry_url(author_id, entry_id):
     """Helper to build a canonical entry URL."""
-    author_id = extract_author_id_from_fqid(author_id)
+    author_id = extract_serial_from_fqid(author_id)
     return build_fqid("", author_id=author_id, entry_id=entry_id)
+
+
+def build_entry_fqid(author_id, entry_uuid):
+    host_url = _get_local_host_url()
+    if not host_url:
+        return None
+    author_id = extract_serial_from_fqid(author_id)
+    return f"{host_url}api/authors/{author_id}/entries/{entry_uuid}"
 
 
 def build_comment_url(comment):
@@ -50,22 +58,39 @@ def build_comment_url(comment):
     host_url = _get_local_host_url()
     if not host_url:
         return None
-    author_id = extract_author_id_from_fqid(comment.author_id)
+    author_id = extract_serial_from_fqid(comment.author_id)
     return f"{host_url}api/authors/{author_id}/commented/{comment.id}"
 
 
-def extract_author_id_from_fqid(author_fqid_or_id):
-    """
-    Extract the identifier part (UUID or username) from an author FQID.
-    If it's already just an identifier (no /api/authors/), return it as-is.
-    """
+def build_comment_fqid(author_id, comment_uuid):
+    """Build FQID for a comment (used as comment.id)."""
+    host_url = _get_local_host_url()
+    if not host_url:
+        return None
+    author_id = extract_serial_from_fqid(author_id)
+    return f"{host_url}api/authors/{author_id}/commented/{comment_uuid}"
+
+
+def extract_serial_from_fqid(author_fqid_or_id):
     if '/api/authors/' in str(author_fqid_or_id):
         return str(author_fqid_or_id).split('/api/authors/')[-1]
     return str(author_fqid_or_id)
 
+
+def extract_entry_id_from_fqid(entry_fqid):
+    if '/entries/' in str(entry_fqid):
+        return str(entry_fqid).split('/entries/')[-1].split('/')[0].split('?')[0]
+    return str(entry_fqid)
+
+
+def extract_comment_id_from_fqid(comment_fqid):
+    if '/commented/' in str(comment_fqid):
+        return str(comment_fqid).split('/commented/')[-1].split('/')[0].split('?')[0]
+    return str(comment_fqid)
+
 def build_remote_url(host_url, author_id):
     """Build remote author URL for inbox endpoint."""
-    author_id = extract_author_id_from_fqid(author_id)
+    author_id = extract_serial_from_fqid(author_id)
     return f"{host_url.rstrip('/')}/api/authors/{author_id}"
 
 
@@ -132,9 +157,27 @@ def find_entry_by_url(entry_url):
     
     try:
         entry_uuid, author_fqid, _ = parse_entry_fqid(entry_url)
-        return Entry.objects.get(id=entry_uuid, author_id=author_fqid)
+        entries = Entry.objects.filter(author_id=author_fqid)
+        for entry in entries:
+            if extract_entry_id_from_fqid(entry.id) == str(entry_uuid):
+                return entry
+        raise Entry.DoesNotExist(f"Entry not found for URL: {entry_url}")
     except (ValueError, Entry.DoesNotExist):
         raise Entry.DoesNotExist(f"Entry not found for URL: {entry_url}")
+
+
+def find_entry_by_uuid(entry_uuid, author_fqid=None):
+    if author_fqid:
+        entries = Entry.objects.filter(author_id=author_fqid)
+    else:
+        entries = Entry.objects.all()
+    
+    for entry in entries:
+        extracted_uuid = extract_entry_id_from_fqid(entry.id)
+        if extracted_uuid == str(entry_uuid):
+            return entry
+    
+    raise Entry.DoesNotExist(f"Entry not found with UUID: {entry_uuid}")
 
 
 def find_comment_by_url(comment_url):
@@ -145,18 +188,43 @@ def find_comment_by_url(comment_url):
     comment = Comment.objects.filter(source_url=comment_url).first()
     if comment:
         return comment
+    
+    # Try direct lookup if comment_url is an FQID
+    try:
+        return Comment.objects.get(id=comment_url)
+    except Comment.DoesNotExist:
+        pass
+    
+    # Parse FQID to find comment
     url = comment_url.rstrip("/")
     if "/commented/" in url:
-        base, comment_id_str = url.split("/commented/", 1)
-        try:
-            comment_id = int(comment_id_str)
-        except ValueError as exc:
-            raise Comment.DoesNotExist(f"Invalid comment URL: {comment_url}") from exc
+        base, comment_uuid_str = url.split("/commented/", 1)
+        comment_uuid = comment_uuid_str.split('/')[0].split('?')[0]
         try:
             author_fqid, _ = parse_author_fqid(base + "/")
         except ValueError as exc:
             raise Comment.DoesNotExist(f"Invalid comment URL: {comment_url}") from exc
-        return Comment.objects.get(id=comment_id, author_id=author_fqid)
+        
+        # Find comment by UUID part of FQID
+        comments = Comment.objects.filter(author_id=author_fqid)
+        for comment in comments:
+            if extract_comment_id_from_fqid(comment.id) == comment_uuid:
+                return comment
 
     raise Comment.DoesNotExist(f"Comment not found for URL: {comment_url}")
+
+
+def find_comment_by_uuid(comment_uuid, entry_id=None):
+    if entry_id:
+        entry = find_entry_by_uuid(entry_id)
+        comments = Comment.objects.filter(entry=entry)
+    else:
+        comments = Comment.objects.all()
+    
+    for comment in comments:
+        extracted_uuid = extract_comment_id_from_fqid(comment.id)
+        if extracted_uuid == str(comment_uuid):
+            return comment
+    
+    raise Comment.DoesNotExist(f"Comment not found with UUID: {comment_uuid}")
 

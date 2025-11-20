@@ -1,5 +1,5 @@
 from django.conf import settings
-from utils.fqid import build_fqid, get_local_node
+from utils.fqid import get_local_node
 import logging
 
 class UrlBuildingMixin:

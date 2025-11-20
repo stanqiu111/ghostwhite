@@ -1,5 +1,6 @@
 import json
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import Http404
 import re
 from django.shortcuts import render, redirect, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
@@ -267,8 +268,18 @@ class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
     parser_classes = [JSONParser, FormParser, MultiPartParser]
     http_method_names = ["get", "put", "head", "options"]
 
-    lookup_field = "id"                # Author object identified by its UUID or ID
-    lookup_url_kwarg = "author_id"     # URL pattern param name expected (e.g., /api/authors/<author_id>/)
+    lookup_field = "id"                
+    lookup_url_kwarg = "author_id"     
+
+    def get_object(self):
+        author_id = self.kwargs.get(self.lookup_url_kwarg)
+        try:
+            return Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            try:
+                return Author.objects.get(username=author_id)
+            except Author.DoesNotExist:
+                raise Author.DoesNotExist(f"Author not found with id/username: {author_id}")
 
     def perform_update(self, serializer):
         author = self.get_object()
@@ -332,7 +343,16 @@ class FollowRequestView(APIView):
     permission_classes = [IsAuthenticated, IsApproved]
 
     def post(self, request, author_id):
-        followee = get_object_or_404(Author, id=author_id)
+        from utils.fqid import build_fqid
+        
+        try:
+            followee = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            author_fqid = build_fqid("", author_id=author_id)
+            if author_fqid:
+                followee = get_object_or_404(Author, id=author_fqid)
+            else:
+                followee = get_object_or_404(Author, username=author_id)
         follower = request.user
 
         # 1) block self-follow
@@ -369,7 +389,16 @@ class FollowRequestView(APIView):
         DELETE /api/authors/<author_id>/follow/ Deletes 
         both pending and approved relationships where current user is the follower. 
         """ 
-        followee = get_object_or_404(Author, id=author_id) 
+        from utils.fqid import build_fqid
+        
+        try:
+            followee = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            author_fqid = build_fqid("", author_id=author_id)
+            if author_fqid:
+                followee = get_object_or_404(Author, id=author_fqid)
+            else:
+                followee = get_object_or_404(Author, username=author_id) 
         follower = request.user 
         if follower.id == followee.id: 
             return Response({"detail": "Cannot unfollow yourself."}, status=status.HTTP_400_BAD_REQUEST) 

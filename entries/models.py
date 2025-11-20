@@ -21,7 +21,7 @@ VISIBILITY_CHOICES = [
 
 
 class Entry(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.CharField(max_length=512, primary_key=True)
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="entries")
     content = models.TextField(blank=True)
     content_type = models.CharField(
@@ -87,7 +87,14 @@ class Entry(models.Model):
         return None
     
     def save(self, *args, **kwargs):
-        # If a file was uploaded and we don't yet have a base64 payload, generate it
+        if not self.id:
+            from utils.fqid import build_entry_fqid
+            if self.author:
+                entry_uuid = uuid.uuid4()
+                fqid = build_entry_fqid(self.author.id, str(entry_uuid))
+                if fqid:
+                    self.id = fqid
+        
         if self.image and not self.content:
             import base64
             name = (self.image.name or "").lower()
@@ -124,8 +131,9 @@ class Entry(models.Model):
     
     def get_absolute_url(self) -> str:
         """Canonical reader URL (used by 'Copy link')."""
-        # if you have a named URL, prefer reverse("entry-detail", args=[self.id])
-        return f"/entries/{self.id}/"
+        from utils.fqid import extract_entry_id_from_fqid
+        entry_id = extract_entry_id_from_fqid(self.id)
+        return f"/entries/{entry_id}/"
 
     @property
     def is_shareable(self) -> bool:
@@ -147,11 +155,22 @@ class Entry(models.Model):
 
 
 class Comment(models.Model):
+    id = models.CharField(max_length=512, primary_key=True)
     entry = models.ForeignKey(Entry, on_delete=models.CASCADE, related_name="comments")
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="comments")
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     source_url = models.URLField(blank=True, null=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.id:
+            from utils.fqid import build_comment_fqid
+            if self.author:
+                comment_uuid = uuid.uuid4()
+                fqid = build_comment_fqid(self.author.id, str(comment_uuid))
+                if fqid:
+                    self.id = fqid
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.author.username}: {self.content[:20]}"

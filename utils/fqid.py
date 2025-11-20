@@ -69,14 +69,20 @@ def parse_author_fqid(author_fqid):
         node_url = parts[0] + '/'
         author_uuid_str = parts[1]
 
-        try:
-            author_uuid = uuid.UUID(author_uuid_str)
-        except ValueError:
+        if not is_valid_uuid(author_uuid_str):
             author_uuid = author_uuid_str
+        else:
+            author_uuid = uuid.UUID(author_uuid_str)
         return author_uuid, node_url
     except (ValueError, IndexError) as exc:
         raise ValueError(f"Invalid author FQID format: {author_fqid}") from exc
 
+def is_valid_uuid(uuid_str):
+    try:
+        uuid.UUID(uuid_str)
+        return True
+    except ValueError:
+        return False
 
 def parse_entry_fqid(entry_fqid):
     """

@@ -779,7 +779,6 @@
       }
 
       async function fetchFollowStatus(authorId) {
-        const cleanId = extract_serial_from_fqid(authorId);
         if (!authorId) return null;
         try {
           const profile = await api(`authors/${authorId}/`);
@@ -789,19 +788,6 @@
           return null;
         }
       }
-
-      function updateButtonsForAuthor(authorId, status) {
-        const cleanId = extract_serial_from_fqid(authorId);
-
-        // match both the raw FQID and the UUID, just in case
-        const selectors = [
-          `[data-author-id="${authorId}"]`,
-          `[data-author-id="${cleanId}"]`
-        ].join(',');
-
-        const buttons = document.querySelectorAll(selectors);
-        buttons.forEach(btn => applyFollowStateToButton(btn, status));
-        }
 
       function startFollowStatusWatcher(authorId) {
         if (!authorId || followStatusPollers.has(authorId)) return;

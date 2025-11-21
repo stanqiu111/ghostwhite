@@ -273,15 +273,18 @@ class InboxPostView(APIView):
     
     def _is_decision_notification(self, data, author, desired_status):
         """Check if this is a decision notification."""
+        if desired_status not in (Follow.ACCEPTED, Follow.DENIED):
+            return False
+
         object_data = data.get("object", {})
         if not object_data or not isinstance(object_data, dict):
             return False
-        
-        try:
-            object_author = get_remote_author_from_json_data(object_data)
-            return object_author.id == author.id and desired_status in (Follow.ACCEPTED, Follow.DENIED)
-        except (ValueError, KeyError):
+
+        obj_id = object_data.get("id")
+        if not obj_id:
             return False
+
+        return str(obj_id).rstrip("/") == str(author.id).rstrip("/")
     
     def _update_follow_status(self, follow, desired_status):
         """Update follow relationship status and approved flag"""

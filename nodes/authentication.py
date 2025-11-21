@@ -35,6 +35,8 @@ class NodeBasicAuthentication(authentication.BaseAuthentication):
         
         try:
             node = Node.objects.get(username=username, password=password)
+            if getattr(node, "is_disabled", False):
+                raise exceptions.AuthenticationFailed("This node is disabled.")
             return (node, None)
         except Node.DoesNotExist:
             raise exceptions.AuthenticationFailed('Invalid node credentials')

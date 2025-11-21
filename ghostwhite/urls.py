@@ -24,8 +24,8 @@ from .views import home_view
 from django.conf import settings
 from django.conf.urls.static import static
 
-# drf spectacular for API schema and docs
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+
 
 urlpatterns = [
     path("", RedirectView.as_view(url="/home/", permanent=False)),

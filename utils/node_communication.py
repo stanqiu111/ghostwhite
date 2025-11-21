@@ -52,8 +52,18 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
     return local_node, remote_node
 
 
-def get_remote_recipients_for_entry(entry, local_node):
+def get_remote_recipients_for_entry(entry, local_node, *, force_all_remote: bool = False):
     """Return remote authors that should receive an entry notification."""
+    if not local_node:
+        return []
+
+    if force_all_remote:
+        return (
+            Author.objects.filter(node__is_local=False, node__is_active=True)
+            .exclude(id=entry.author_id)
+            .distinct()
+        )
+
     if entry.visibility == "DELETED":
         followers = (
             Follow.objects.filter(
@@ -103,7 +113,7 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
     github_url_value = author_data.get("github") or ""
     if not github_url_value:
         github_url_value = ""
-        
+    
     author, created = Author.objects.get_or_create(
         id=full_fqid,
         defaults={
@@ -140,6 +150,11 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
 
 def send_to_inbox(payload, remote_node, author_id):
     """Send payload to remote author's inbox."""
+    if getattr(remote_node, "is_disabled", False):
+        logger.warning(
+            f"[SEND BLOCKED] Node {remote_node.host_url} is disabled. Skip sending."
+        )
+        return False
     author_serial = extract_serial_from_fqid(author_id)
     base_url = remote_node.host_url.rstrip('/')
     inbox_url = f"{base_url}/api/authors/{author_serial}/inbox"
@@ -147,18 +162,17 @@ def send_to_inbox(payload, remote_node, author_id):
     logger.info(f"[SEND TO INBOX] {payload.get('type', 'unknown')} -> {inbox_url}")
     
     try:
-        local_node = get_local_node()
-        if not local_node.username or not local_node.password:
-            logger.error("[SEND TO INBOX] Local node credentials not set")
+        if not remote_node.username or not remote_node.password:
+            logger.error(f"[SEND TO INBOX] Remote node {remote_node.host_url} credentials not set")
             return False
 
         logger.info(f"[SEND TO INBOX] Payload: {payload} inbox_url: {inbox_url}")
-        logger.info(f"[SEND TO INBOX] Local node: {local_node.username} {local_node.password}")
-        
+        logger.info(f"[SEND TO INBOX] Using remote credentials for node: {remote_node.host_url}")
+
         response = requests.post(
             inbox_url,
             json=payload,
-            auth=HTTPBasicAuth(local_node.username, local_node.password),
+            auth=HTTPBasicAuth(remote_node.username, remote_node.password),
             headers={"Content-Type": "application/json"},
             timeout=10
         )
@@ -172,11 +186,13 @@ def send_to_inbox(payload, remote_node, author_id):
             logger.error(f"[SEND TO INBOX] Response: {e.response.status_code} - {e.response.text[:200]}")
         return False
 
-def send_entry_to_remote_nodes(entry):
-    """Send entry to remote followers' inboxes."""
+def send_entry_to_remote_nodes(entry, *, force_all_remote: bool = False):
+    
     from utils.fqid import extract_entry_id_from_fqid
     local_node = get_local_node()
-    recipients = get_remote_recipients_for_entry(entry, local_node)
+    if not local_node:
+        return
+    recipients = get_remote_recipients_for_entry(entry, local_node, force_all_remote=force_all_remote)
     if not recipients:
         return
 

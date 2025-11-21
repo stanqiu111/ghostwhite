@@ -204,7 +204,7 @@ def send_entry_to_remote_nodes(entry, *, force_all_remote: bool = False):
         "type": "entry",
         "id": build_entry_url(entry.author.id, entry_uuid),
         "web": entry_web_url,
-        "title": "",
+        "title": entry.title or "",
         "description": entry.content[:100] if entry.content else "",
         "contentType": entry.content_type,
         "content": entry.content,

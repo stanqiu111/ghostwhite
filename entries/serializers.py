@@ -170,7 +170,7 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     id = serializers.SerializerMethodField()
     serial = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
-    title = serializers.SerializerMethodField()
+    title = serializers.CharField(read_only=True)
     description = serializers.SerializerMethodField()
     contentType = serializers.CharField(source="content_type", read_only=True)
     published = serializers.DateTimeField(source="created_at", read_only=True)
@@ -361,6 +361,7 @@ class EntryCreateSerializer(serializers.ModelSerializer):
         model = Entry
         fields = [
             "id",
+            "title",  
             "content",
             "content_type",
             "visibility",
@@ -368,6 +369,7 @@ class EntryCreateSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id"]
         extra_kwargs = {
+            "title": {"required": False, "allow_blank": True},
             "content_type": {"required": False},
             "content": {"required": False, "allow_blank": True},
             "image": {"required": False},
@@ -399,5 +401,5 @@ class EntryCreateSerializer(serializers.ModelSerializer):
 class EntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Entry
-        fields = ["id", "content", "author", "created_at", "visibility", "source", "source_url"]
+        fields = ["id", "title", "content", "author", "created_at", "visibility", "source", "source_url"]
         read_only_fields = ["source", "source_id", "source_url"]

@@ -43,6 +43,12 @@
   .meta{margin-top:6px;font-size:13px;color:var(--muted)}
   .badge{display:inline-block;background:#111827;color:#fff;padding:4px 8px;border-radius:8px;font-size:12px;margin-left:8px}
   .meta a.source-link{margin-left:8px;color:var(--brand);text-decoration:none;font-weight:600}
+  .entry-title{
+  margin-top:12px;
+  margin-bottom:6px;
+  font-size:22px;
+  font-weight:700;
+  }
   @media (max-width:980px){ .row{grid-template-columns:1fr} .right{order:2} }
   .section .content img {
   width: 320px !important;   
@@ -190,7 +196,7 @@
             <button class="edit_button" onclick="editEntry()">Edit</button>
           </div>
         </div>
-
+        <h1 id="entryTitle" class="entry-title"></h1>
         <div id="entryContent" class="content"></div>
         <img id="entryImage" class="hero" alt="Entry image">
 
@@ -463,6 +469,19 @@ function renderEntry(e){
     }
   } catch (err) { console.warn('Failed to update entry meta', err); }
 
+  const titleText = e.title || '';
+  const titleEl = document.getElementById('entryTitle');
+  if (titleEl) {
+    titleEl.textContent = titleText;
+    titleEl.style.display = titleText ? '' : 'none';
+  }
+
+  if (titleText) {
+    document.title = `${titleText} • Éthéré`;
+  } else {
+    document.title = 'Entry • Éthéré';
+  }
+  
   const contentNode = $('#entryContent');
   const contentType = (e.content_type||'text/plain').toLowerCase();
   if (contentType.includes('markdown')) { marked.setOptions({gfm:true,breaks:true}); contentNode.innerHTML = marked.parse(e.content||''); }

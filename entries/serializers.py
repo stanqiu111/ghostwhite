@@ -229,6 +229,10 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
             "comments",
             "likes",
             "like_count",
+            "is_image",
+            "image_url",
+            "image",
+            "node",
         ]
     def get_comments(self, obj: Entry):
         """Return comments object with pagination"""

@@ -162,18 +162,17 @@ def send_to_inbox(payload, remote_node, author_id):
     logger.info(f"[SEND TO INBOX] {payload.get('type', 'unknown')} -> {inbox_url}")
     
     try:
-        local_node = get_local_node()
-        if not local_node.username or not local_node.password:
-            logger.error("[SEND TO INBOX] Local node credentials not set")
+        if not remote_node.username or not remote_node.password:
+            logger.error(f"[SEND TO INBOX] Remote node {remote_node.host_url} credentials not set")
             return False
 
         logger.info(f"[SEND TO INBOX] Payload: {payload} inbox_url: {inbox_url}")
-        logger.info(f"[SEND TO INBOX] Local node: {local_node.username} {local_node.password}")
-        
+        logger.info(f"[SEND TO INBOX] Using remote credentials for node: {remote_node.host_url}")
+
         response = requests.post(
             inbox_url,
             json=payload,
-            auth=HTTPBasicAuth(local_node.username, local_node.password),
+            auth=HTTPBasicAuth(remote_node.username, remote_node.password),
             headers={"Content-Type": "application/json"},
             timeout=10
         )

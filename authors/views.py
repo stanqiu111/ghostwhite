@@ -133,12 +133,12 @@ def author_profile_page(request, username):
 
         followers_qs = Follow.objects.filter(
             following=me,
-            approved=True
+            status=Follow.ACCEPTED
         ).select_related('follower')
 
         following_qs = Follow.objects.filter(
             follower=me,
-            approved=True
+            status=Follow.ACCEPTED
         ).select_related('following')
 
         request_user_follower_count = followers_qs.count()
@@ -162,8 +162,8 @@ def author_profile_page(request, username):
             following_id__in=mutual_ids
         )
     
-    author_follower_count = Follow.objects.filter(following=author.id, approved=True).count()
-    author_following_count = Follow.objects.filter(follower=author.id, approved=True).count()
+    author_follower_count = Follow.objects.filter(following=author.id, status=Follow.ACCEPTED).count()
+    author_following_count = Follow.objects.filter(follower=author.id, status=Follow.ACCEPTED).count()
     
     follow_status = None
     if request.user.is_authenticated and request.user.id != author.id:

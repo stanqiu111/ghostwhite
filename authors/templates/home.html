@@ -523,7 +523,7 @@
               </div>
               <div class="entry-meta">
                 <div class="entry-username">
-                  {{ entry.author.displayName|default:entry.author.username }}
+                  {{ entry.author.displayName|default:entry.author.display_name|default:entry.author.username }}
                 </div>
                 <div class="entry-time">
                   {{ entry.created_at|timesince }} ago

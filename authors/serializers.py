@@ -56,7 +56,11 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         return None
 
     displayName = serializers.CharField(source="display_name", read_only=True)
-    github = serializers.URLField(source="github_url", read_only=True)
+    github = serializers.SerializerMethodField()
+    
+    def get_github(self, obj):
+        return obj.github_url or ""
+        
     profileImage = serializers.SerializerMethodField()
 
     def get_profileImage(self, obj):

@@ -45,7 +45,7 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
         return None, None
     
     remote_node = target_author.node
-    if not remote_node or not remote_node.username or not getattr(remote_node, "is_active", True):
+    if not remote_node or not getattr(remote_node, "is_active", True):
         logger.warning(f"{log_prefix} Remote node {remote_node.host_url} missing credentials")
         return None, None
 
@@ -86,7 +86,6 @@ def get_remote_recipients_for_entry(entry, local_node, *, force_all_remote: bool
             approved=True,
             status=Follow.ACCEPTED,
             follower__node__is_active=True,  
-            
         )
         .select_related("follower", "follower__node")
     )
@@ -111,6 +110,10 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
         except Node.DoesNotExist:
             raise ValueError(f"Remote node not found: {node_url}")
     
+    github_url_value = author_data.get("github") or ""
+    if not github_url_value:
+        github_url_value = ""
+    
     author, created = Author.objects.get_or_create(
         id=full_fqid,
         defaults={
@@ -119,7 +122,7 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
             "node": remote_node,
             "is_active": True,
             "approved": True,
-            "github_url": author_data.get("github", "")
+            "github_url": github_url_value
         }
     )
     

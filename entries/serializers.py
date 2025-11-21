@@ -166,6 +166,7 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     image = serializers.ImageField(read_only=True)
     visibility = serializers.SerializerMethodField()
+    title = serializers.CharField(read_only=True)
 
     id = serializers.SerializerMethodField()
     serial = serializers.SerializerMethodField()
@@ -178,10 +179,6 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
 
     def get_type(self, obj):
         return "entry"
-    
-    def get_title(self, obj):
-        """Return title - can be empty string or derived from content"""
-        return ""
     
     def get_description(self, obj):
         """Return brief description of the entry"""

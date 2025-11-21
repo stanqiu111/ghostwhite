@@ -23,7 +23,7 @@ VISIBILITY_CHOICES = [
 class Entry(models.Model):
     id = models.CharField(max_length=512, primary_key=True)
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="entries")
-    title = models.CharField(max_length=255, blank=True)
+    title = models.CharField(max_length=200, blank=True)
     content = models.TextField(blank=True)
     content_type = models.CharField(
         max_length=64, choices=CONTENT_TYPE_CHOICES, default="text/plain"

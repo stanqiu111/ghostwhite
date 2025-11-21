@@ -171,12 +171,7 @@
           </select>
         </div>
         <div class="body">
-          <input
-            id="titleInput"
-            type="text"
-            placeholder="Title"
-            style="width:100%;margin-bottom:12px;padding:10px;border-radius:12px;border:1px solid var(--line);font-size:15px;"
-          />
+          <input id="titleInput" type="text" placeholder="Title" style="margin-bottom:8px;padding:10px;border-radius:10px;border:1px solid var(--line);width:100%;">
           <textarea id="contentArea" placeholder="Write here…"></textarea>
           <div id="preview" class="preview prose" style="display:none;"></div>
         </div>
@@ -244,6 +239,7 @@ const state = {
   image: null,      // single File or null
   existingImageUrl: null, 
   posting: false,
+  title: '',  
 };
 
 /* ----------- els ----------- */
@@ -348,9 +344,8 @@ async function loadEntry() {
     if (!res.ok) throw new Error('Failed to load entry');
     
     const entry = await res.json();
-    if (titleInput) {
-      titleInput.value = entry.title || '';
-    }
+    state.title = entry.title || '';
+    if (titleInput) titleInput.value = state.title;
     
     // Populate form
     const ct = (entry.content_type || '').toLowerCase();
@@ -395,8 +390,8 @@ postBtn.addEventListener('click', async ()=>{
     fd.append('content', contentArea.value || '');
     fd.append('content_type', state.contentType);
     fd.append('visibility', state.visibility);
-    fd.append('title', titleInput.value || '');
-    
+    fd.append('title', (titleInput.value || '').trim());   
+
     if (state.image) {
       fd.append('image', state.image);
     }

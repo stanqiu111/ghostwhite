@@ -196,7 +196,7 @@
             <button class="edit_button" onclick="editEntry()">Edit</button>
           </div>
         </div>
-        <h1 id="entryTitle" class="entry-title"></h1>
+        <h1 id="entryTitle" style="margin:16px 0 8px;font-size:1.6rem;"></h1> 
         <div id="entryContent" class="content"></div>
         <img id="entryImage" class="hero" alt="Entry image">
 
@@ -407,6 +407,11 @@ function renderEntry(e){
   $('#entryAuthorName').textContent = e.author?.displayName || e.author?.display_name || e.author?.username || '—';
   $('#entryTime').textContent = fmtTime(e.published || e.created_at);
 
+  const titleNode = document.getElementById('entryTitle');
+  if (titleNode) {
+    titleNode.textContent = e.title || '';
+  }
+  
   const visIcon = document.getElementById('entryVisibilityIcon');
   if (visIcon) {
     let svg = '';
@@ -469,19 +474,6 @@ function renderEntry(e){
     }
   } catch (err) { console.warn('Failed to update entry meta', err); }
 
-  const titleText = e.title || '';
-  const titleEl = document.getElementById('entryTitle');
-  if (titleEl) {
-    titleEl.textContent = titleText;
-    titleEl.style.display = titleText ? '' : 'none';
-  }
-
-  if (titleText) {
-    document.title = `${titleText} • Éthéré`;
-  } else {
-    document.title = 'Entry • Éthéré';
-  }
-  
   const contentNode = $('#entryContent');
   const contentType = (e.content_type||'text/plain').toLowerCase();
   if (contentType.includes('markdown')) { marked.setOptions({gfm:true,breaks:true}); contentNode.innerHTML = marked.parse(e.content||''); }

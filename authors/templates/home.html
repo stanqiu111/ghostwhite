@@ -781,7 +781,8 @@
       async function fetchFollowStatus(authorId) {
         if (!authorId) return null;
         try {
-          const profile = await api(`authors/${authorId}/`);
+          const serial = extract_serial_from_fqid(authorId);
+          const profile = await api(`authors/${serial}/`);
           return profile?.follow_status || null;
         } catch (err) {
           console.warn('Failed to refresh follow status', err);

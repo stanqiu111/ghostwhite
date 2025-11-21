@@ -150,6 +150,11 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
 
 def send_to_inbox(payload, remote_node, author_id):
     """Send payload to remote author's inbox."""
+    if getattr(remote_node, "is_disabled", False):
+        logger.warning(
+            f"[SEND BLOCKED] Node {remote_node.host_url} is disabled. Skip sending."
+        )
+        return False
     author_serial = extract_serial_from_fqid(author_id)
     base_url = remote_node.host_url.rstrip('/')
     inbox_url = f"{base_url}/api/authors/{author_serial}/inbox"

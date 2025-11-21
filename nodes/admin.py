@@ -14,3 +14,11 @@ class NodeAdmin(admin.ModelAdmin):
     @admin.action(description="Activate selected nodes")
     def activate_nodes(self, request, queryset):
         queryset.update(is_active=True)
+
+    @admin.action(description="Disable selected nodes (block node-to-node APIs)")
+    def disable_nodes(self, request, queryset):
+        queryset.update(is_disabled=True)
+
+    @admin.action(description="Enable selected nodes (unblock node-to-node APIs)")
+    def enable_nodes(self, request, queryset):
+        queryset.update(is_disabled=False)

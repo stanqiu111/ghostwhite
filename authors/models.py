@@ -135,11 +135,17 @@ class Follow(models.Model):
     """
     @transaction.atomic
     def approve(self, actor_author):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[Follow.approve] Approving follow {self.id}: follower={self.follower_id}, following={self.following_id}, current_status={self.status}")
         if not self.can_be_decided_by(actor_author):
+            logger.error(f"[Follow.approve] Permission denied: can_be_decided_by returned False for actor={actor_author.id}")
             raise PermissionError("Not yours to decide or not pending.")
+        logger.info(f"[Follow.approve] Permission check passed, updating status to ACCEPTED")
         self.status = self.ACCEPTED
         self.approved = True
         self.save(update_fields=["status", "approved"])
+        logger.info(f"[Follow.approve] Follow {self.id} saved with status={self.status}, approved={self.approved}")
         return self
 
     @transaction.atomic

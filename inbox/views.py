@@ -203,6 +203,7 @@ class InboxPostView(APIView):
             "follow": self._handle_follow,
             "like": self._handle_like,
             "comment": self._handle_comment,
+            "author": self._handle_author_update,
         }
         
         handler = handler_map.get(obj_type)
@@ -355,6 +356,29 @@ class InboxPostView(APIView):
             Follow.PENDING: "Follow received"
         }
         return Response({"detail": messages[desired_status]}, status=200)
+    
+    def _handle_author_update(self, author, data):
+        """Handle incoming author profile update."""
+        try:
+            remote_author = get_remote_author_from_json_data(data)
+        except ValueError as e:
+            logger.error(f"[INBOX AUTHOR] Failed to get remote author: {e}")
+            return Response({"detail": str(e)}, status=400)
+        
+        updated = False
+        if "displayName" in data and remote_author.display_name != data["displayName"]:
+            remote_author.display_name = data["displayName"]
+            updated = True
+        
+        if "github" in data and remote_author.github_url != data["github"]:
+            remote_author.github_url = data["github"]
+            updated = True
+        
+        if updated:
+            remote_author.save(update_fields=["display_name", "github_url"])
+            logger.info(f"[INBOX AUTHOR] Updated remote author {remote_author.id}")
+        
+        return Response({"detail": "Author update processed"}, status=200)
     
     def _handle_like(self, author, data):
         """Handle incoming like activity

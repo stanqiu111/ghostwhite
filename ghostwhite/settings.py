@@ -74,6 +74,15 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+# drf-spectacular settings
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Social Distribution API",
+    "DESCRIPTION": "API for distributed social networking platform",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+}
+
 SIMPLE_JWT = {
     # Standard access/refresh tokens (not sliding)
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
@@ -176,14 +185,9 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
-#uploading author profile avatar
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
-
 # Media files (user uploads)
 MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -222,3 +226,7 @@ LOGGING = {
         },
     },
 }
+
+# Add at the bottom of the file
+STATIC_ROOT = BASE_DIR / "staticfiles" 
+STATIC_URL = "/static/"

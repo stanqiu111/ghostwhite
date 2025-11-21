@@ -203,6 +203,7 @@ class InboxPostView(APIView):
             "follow": self._handle_follow,
             "like": self._handle_like,
             "comment": self._handle_comment,
+            "author": self._handle_author_update,
         }
         
         handler = handler_map.get(obj_type)
@@ -288,6 +289,7 @@ class InboxPostView(APIView):
     
     def _update_follow_status(self, follow, desired_status):
         """Update follow relationship status and approved flag"""
+        logger.info(f"[INBOX FOLLOW] Updating follow status to {desired_status} for {follow.follower.display_name} -> {follow.following.display_name}")
         if desired_status == Follow.ACCEPTED:
             follow.status = Follow.ACCEPTED
             follow.approved = True
@@ -303,6 +305,7 @@ class InboxPostView(APIView):
     def _handle_follow(self, author, data):
         """Handle incoming follow activity: requests, acceptances, denials, and unfollows
         """
+        logger.info(f"[INBOX FOLLOW] Handling follow activity: {data}")
         try:
             remote_author = get_remote_author_from_json_data(data.get("actor", {}))
         except ValueError as e:
@@ -322,7 +325,8 @@ class InboxPostView(APIView):
                 return Response({"detail": "No follow relationship found"}, status=200)
         
         desired_status = parse_follow_state_from_payload(state_str)
-        
+
+        logger.info(f"[INBOX FOLLOW] Desired status: {desired_status}")
         is_decision = self._is_decision_notification(data, author, desired_status)
         
         if is_decision:
@@ -331,17 +335,20 @@ class InboxPostView(APIView):
                 following=remote_author,
                 defaults={"approved": False, "status": Follow.PENDING}
             )
+            logger.info(f"[INBOX FOLLOW] Follow created: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}")
         else:
             follow, created = Follow.objects.get_or_create(
                 follower=remote_author,
                 following=author,
                 defaults={"approved": False, "status": Follow.PENDING}
             )
-        
+            logger.info(f"[INBOX FOLLOW] Follow created: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}")
         if desired_status == Follow.PENDING and not created:
+            logger.info(f"[INBOX FOLLOW] Updating follow status to pending: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}")
             if follow.status in (Follow.ACCEPTED, Follow.DENIED):
                 self._update_follow_status(follow, Follow.PENDING)
         elif follow.status != desired_status or follow.approved != (desired_status == Follow.ACCEPTED):
+            logger.info(f"[INBOX FOLLOW] Updating follow status to {desired_status}: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}")
             self._update_follow_status(follow, desired_status)
         
         logger.info(f"[INBOX FOLLOW] Processed: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}")
@@ -352,6 +359,29 @@ class InboxPostView(APIView):
             Follow.PENDING: "Follow received"
         }
         return Response({"detail": messages[desired_status]}, status=200)
+    
+    def _handle_author_update(self, author, data):
+        """Handle incoming author profile update."""
+        try:
+            remote_author = get_remote_author_from_json_data(data)
+        except ValueError as e:
+            logger.error(f"[INBOX AUTHOR] Failed to get remote author: {e}")
+            return Response({"detail": str(e)}, status=400)
+        
+        updated = False
+        if "displayName" in data and remote_author.display_name != data["displayName"]:
+            remote_author.display_name = data["displayName"]
+            updated = True
+        
+        if "github" in data and remote_author.github_url != data["github"]:
+            remote_author.github_url = data["github"]
+            updated = True
+        
+        if updated:
+            remote_author.save(update_fields=["display_name", "github_url"])
+            logger.info(f"[INBOX AUTHOR] Updated remote author {remote_author.id}")
+        
+        return Response({"detail": "Author update processed"}, status=200)
     
     def _handle_like(self, author, data):
         """Handle incoming like activity

@@ -55,6 +55,23 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
             return follow_relation.status
         return None
 
+    displayName = serializers.CharField(source="display_name", read_only=True)
+    github = serializers.URLField(source="github_url", read_only=True)
+    profileImage = serializers.SerializerMethodField()
+
+    def get_profileImage(self, obj):
+        """Return profile image URL"""
+        if obj.image:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            from django.conf import settings
+            from utils.fqid import get_local_node
+            local_node = get_local_node()
+            host_url = local_node.host_url.rstrip('/') if local_node else ""
+            return f"{host_url}{obj.image.url}" if host_url else obj.image.url
+        return ""
+
     class Meta:
         model = Author
         fields = [
@@ -63,17 +80,20 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
             "serial",
             "host",
             "username",
-            "display_name",
+            "displayName",
+            "display_name", 
             "bio",
-            "github_url",
-            "web",
+            "github",
+            "github_url",  
+            "profileImage",
             "image",
+            "web",
             "created_at",
             "updated_at",
             "full_url",
             "follow_status",
         ]
-        read_only_fields = ["id", "serial", "created_at", "updated_at", "username", "host", "type", "web", "follow_status"]
+        read_only_fields = ["id", "serial", "created_at", "updated_at", "username", "host", "type", "web", "follow_status", "displayName", "github", "profileImage"]
 
 
 class AuthorRegistrationSerializer(serializers.ModelSerializer):

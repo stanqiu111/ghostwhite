@@ -114,13 +114,13 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
     
     if not created:
         updated = False
-        new_display_name = author_data.get("displayName", "")
-        if new_display_name and author.display_name != new_display_name:
+        new_display_name = author_data.get("displayName")
+        if new_display_name is not None and author.display_name != new_display_name:
             author.display_name = new_display_name
             updated = True
         
-        new_github = author_data.get("github", "")
-        if new_github and author.github_url != new_github:
+        new_github = author_data.get("github")
+        if new_github is not None and author.github_url != new_github:
             author.github_url = new_github
             updated = True
         
@@ -374,6 +374,39 @@ def send_follow_decision_to_remote_node(follow, decision):
 
     send_to_inbox(payload, remote_node, target_author.id)
 
+
+def send_author_update_to_remote_followers(author):
+    """Send author profile update to remote followers."""
+    from utils.fqid import get_local_node
+    local_node = get_local_node()
+    
+    followers = (
+        Follow.objects.filter(
+            following=author,
+            approved=True,
+            status=Follow.ACCEPTED,
+        )
+        .select_related("follower", "follower__node")
+    )
+    remote_followers = [f.follower for f in followers if f.follower.node != local_node]
+    
+    if not remote_followers:
+        return
+    
+    host_url = local_node.host_url.rstrip('/')
+    payload = {
+        "type": "author",
+        "id": author.id,
+        "displayName": author.display_name,
+        "github": author.github_url or "",
+        "profileImage": f"{host_url}{author.image.url}" if author.image else "",
+        "web": f"{host_url}/authors/{author.username}/",
+    }
+    
+    for follower in remote_followers:
+        remote_node = follower.node
+        if remote_node and remote_node.username:
+            send_to_inbox(payload, remote_node, follower.id)
 
 def send_unfollow_to_remote_node(follower, followee):
     """Send unfollow notification to followee if remote."""

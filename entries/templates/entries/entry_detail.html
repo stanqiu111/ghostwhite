@@ -398,8 +398,8 @@ function renderEntry(e){
   const avatar = $('#entryAuthorAvatar');
   avatar.src = (e.author && e.author.image) ? e.author.image : DEFAULT_PFP;
 
-  $('#entryAuthorName').textContent = e.author?.display_name || e.author?.username || '—';
-  $('#entryTime').textContent = fmtTime(e.created_at);
+  $('#entryAuthorName').textContent = e.author?.displayName || e.author?.display_name || e.author?.username || '—';
+  $('#entryTime').textContent = fmtTime(e.published || e.created_at);
 
   const visIcon = document.getElementById('entryVisibilityIcon');
   if (visIcon) {
@@ -431,7 +431,7 @@ function renderEntry(e){
     if (meta) {
       // if template had server-side time, update it to localized formatted time
       const serverTime = meta.querySelector('#entryCreatedAtServer');
-      if (serverTime) serverTime.textContent = fmtTime(e.created_at);
+      if (serverTime) serverTime.textContent = fmtTime(e.published || e.created_at);
 
       // remove any previous badge/link we added earlier
       const existingBadge = meta.querySelector('.badge');
@@ -517,9 +517,9 @@ function renderEntry(e){
   }
 
   const likeCountEl = $('#likeCount');
-  if (likeCountEl) likeCountEl.textContent = (e.like_count ?? e.likes?.length ?? 0);
+  if (likeCountEl) likeCountEl.textContent = (e.like_count ?? e.likes?.count ?? e.likes?.src?.length ?? 0);
   const commentCountEl = $('#commentCount');
-  if (commentCountEl) commentCountEl.textContent = (e.comments?.length ?? 0);
+  if (commentCountEl) commentCountEl.textContent = (e.comments?.count ?? e.comments?.src?.length ?? 0);
 
   const likeChipEl = $('#likeChip');
   if (likeChipEl && IS_AUTHENTICATED) {
@@ -588,7 +588,7 @@ function renderRight(e){
   
   const currentUserIdSerial = extractAuthorSerialFromFqid(currentUserId);
 
-  (e.comments || []).forEach(c => {
+  (e.comments?.src || []).forEach(c => {
     const authorSerial = String(c.author?.serial || '');
     const authorId = String(c.author?.id || '');
     const isMine = authorSerial === currentUserIdSerial || authorId === currentUserId;
@@ -596,11 +596,11 @@ function renderRight(e){
     const node = el(`
       <div class="item" data-id="${c.id}">
         <img class="pfp" style="width:36px;height:36px"
-             src="${(c.author && c.author.image) ? c.author.image : DEFAULT_PFP}" alt="">
+             src="${(c.author && c.author.profileImage) ? c.author.profileImage : DEFAULT_PFP}" alt="">
         <div>
           <div>
-            <strong>${esc(c.author?.display_name || c.author?.username || '—')}</strong>
-            <span class="cmeta">${fmtTime(c.created_at)}</span>
+            <strong>${esc(c.author?.displayName || c.author?.display_name || c.author?.username || '—')}</strong>
+            <span class="cmeta">${fmtTime(c.published || c.created_at)}</span>
           </div>
           <div class="comment-body" style="white-space:pre-wrap;"></div>
           <textarea class="comment-edit" style="display:none;width:100%;min-height:64px;"></textarea>
@@ -627,8 +627,8 @@ function renderRight(e){
     `);
 
     // Fill content safely
-    node.querySelector('.comment-body').textContent = c.content || '';
-    node.querySelector('.comment-edit').value      = c.content || '';
+    node.querySelector('.comment-body').textContent = c.comment || c.content || '';
+    node.querySelector('.comment-edit').value      = c.comment || c.content || '';
 
     // Like toggle (only if button rendered - it is not rendered if not authenticated)
     const likeBtn = node.querySelector('.btn-like');
@@ -700,14 +700,14 @@ function renderRight(e){
   // ===== LIKES TAB =====
   const llist = $('#likesList');
   llist.innerHTML = '';
-  (e.likes || []).forEach(l => {
+  (e.likes?.src || []).forEach(l => {
     llist.append(el(`
       <div class="item">
         <img class="pfp" style="width:36px;height:36px"
              src="${(l.author && l.author.image) ? l.author.image : DEFAULT_PFP}" alt="">
         <div>
-          <div><strong>${esc(l.author?.display_name || l.author?.username || '—')}</strong></div>
-          <div class="cmeta">${fmtTime(l.created_at)}</div>
+          <div><strong>${esc(l.author?.displayName || l.author?.display_name || l.author?.username || '—')}</strong></div>
+          <div class="cmeta">${fmtTime(l.published || l.created_at)}</div>
         </div>
         <div></div>
       </div>

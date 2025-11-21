@@ -234,6 +234,13 @@ class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
         # Create github intergration if github_url is provided
         github_url = self.request.data.get('github_url', None)
         serializer.save()
+        
+        try:
+            from utils.node_communication import send_author_update_to_remote_followers
+            send_author_update_to_remote_followers(author)
+        except Exception as e:
+            logger.error(f"Failed to send author update to remote nodes: {e}")
+        
         if github_url:
             github_username = github_url
             if github_url.startswith('http'):
@@ -470,6 +477,8 @@ class FollowDecisionView(APIView):
         try:
             if decision == "accept":
                 fr.approve(request.user)
+                fr.refresh_from_db()
+                logger.info(f"Follow request approved. Status after approve: {fr.status}, Approved: {fr.approved}, ID: {fr.id}")
                 logger.info(f"Sending follow acceptance to follower {fr.follower_id}")
                 send_follow_decision_to_remote_node(fr, Follow.ACCEPTED)
                 return Response({"detail": "Follow request accepted.", "status": fr.status, "approved": fr.approved}, status=status.HTTP_200_OK)

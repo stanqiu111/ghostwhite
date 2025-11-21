@@ -517,9 +517,9 @@ function renderEntry(e){
   }
 
   const likeCountEl = $('#likeCount');
-  if (likeCountEl) likeCountEl.textContent = (e.like_count ?? e.likes?.length ?? 0);
+  if (likeCountEl) likeCountEl.textContent = (e.like_count ?? e.likes?.count ?? e.likes?.src?.length ?? 0);
   const commentCountEl = $('#commentCount');
-  if (commentCountEl) commentCountEl.textContent = (e.comments?.length ?? 0);
+  if (commentCountEl) commentCountEl.textContent = (e.comments?.count ?? e.comments?.src?.length ?? 0);
 
   const likeChipEl = $('#likeChip');
   if (likeChipEl && IS_AUTHENTICATED) {
@@ -588,7 +588,7 @@ function renderRight(e){
   
   const currentUserIdSerial = extractAuthorSerialFromFqid(currentUserId);
 
-  (e.comments || []).forEach(c => {
+  (e.comments?.src || []).forEach(c => {
     const authorSerial = String(c.author?.serial || '');
     const authorId = String(c.author?.id || '');
     const isMine = authorSerial === currentUserIdSerial || authorId === currentUserId;
@@ -700,7 +700,7 @@ function renderRight(e){
   // ===== LIKES TAB =====
   const llist = $('#likesList');
   llist.innerHTML = '';
-  (e.likes || []).forEach(l => {
+  (e.likes?.src || []).forEach(l => {
     llist.append(el(`
       <div class="item">
         <img class="pfp" style="width:36px;height:36px"

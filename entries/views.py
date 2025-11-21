@@ -254,7 +254,7 @@ class EntryUpdateView(generics.UpdateAPIView):
         entry = serializer.save()
         # Notify remote nodes about the entry update
         try:
-            send_entry_to_remote_nodes(entry)
+            send_entry_to_remote_nodes(entry, force_all_remote=True)
         except Exception as e:
             logger.error(f"Failed to send entry update to remote nodes: {e}")
 
@@ -282,7 +282,7 @@ class EntryDeleteView(generics.DestroyAPIView):
         # Refresh from DB to get updated visibility
         instance.refresh_from_db()
         try:
-            send_entry_to_remote_nodes(instance)
+            send_entry_to_remote_nodes(instance, force_all_remote=True)
         except Exception as e:
             logger.error(f"Failed to send entry deletion to remote nodes: {e}")
 

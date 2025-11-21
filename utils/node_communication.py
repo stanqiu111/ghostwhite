@@ -112,7 +112,7 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
             "node": remote_node,
             "is_active": True,
             "approved": True,
-            "github_url": author_data.get("github", "")
+            "github_url": github_url_value
         }
     )
     

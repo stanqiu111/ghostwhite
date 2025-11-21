@@ -596,10 +596,10 @@ function renderRight(e){
     const node = el(`
       <div class="item" data-id="${c.id}">
         <img class="pfp" style="width:36px;height:36px"
-             src="${(c.author && c.author.image) ? c.author.image : DEFAULT_PFP}" alt="">
+             src="${(c.author && c.author.profileImage) ? c.author.profileImage : DEFAULT_PFP}" alt="">
         <div>
           <div>
-            <strong>${esc(c.author?.display_name || c.author?.username || '—')}</strong>
+            <strong>${esc(c.author?.displayName || c.author?.display_name || c.author?.username || '—')}</strong>
             <span class="cmeta">${fmtTime(c.published || c.created_at)}</span>
           </div>
           <div class="comment-body" style="white-space:pre-wrap;"></div>

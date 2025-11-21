@@ -328,14 +328,14 @@ class InboxPostView(APIView):
         
         if is_decision:
             follow = Follow.objects.filter(
-                follower=remote_author,
-                following=author
+                follower=author,
+                following=remote_author
             ).first()
             
             if not follow:
                 follow, created = Follow.objects.get_or_create(
-                    follower=remote_author,
-                    following=author,
+                    follower=author,
+                    following=remote_author,
                     defaults={"approved": False, "status": Follow.PENDING}
                 )
                 logger.warning(f"[INBOX FOLLOW] Follow not found, created new: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}")

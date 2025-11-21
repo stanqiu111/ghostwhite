@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.http import http_date
 from django.utils.timezone import now
 from django.db.models import Q, Exists, OuterRef, Prefetch
-
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -236,7 +236,9 @@ class EntryCreateView(generics.CreateAPIView):
 class EntryUpdateView(generics.UpdateAPIView):
     serializer_class = EntryCreateSerializer
     permission_classes = [IsAuthenticated]
-
+    parser_classes = [MultiPartParser, FormParser] 
+    lookup_field = "pk" 
+    
     def get_object(self):
         from utils.fqid import find_entry_by_uuid
         pk = self.kwargs['pk']
@@ -247,6 +249,10 @@ class EntryUpdateView(generics.UpdateAPIView):
 
     def get_queryset(self):
         return Entry.objects.filter(deleted_at__isnull=True, author=self.request.user)
+    
+    def update(self, request, *args, **kwargs):
+        kwargs["partial"] = True  # allow missing fields from form
+        return super().update(request, *args, **kwargs)
 
     def perform_update(self, serializer):
         if self.request.user != serializer.instance.author:

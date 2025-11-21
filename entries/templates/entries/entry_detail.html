@@ -398,7 +398,7 @@ function renderEntry(e){
   const avatar = $('#entryAuthorAvatar');
   avatar.src = (e.author && e.author.image) ? e.author.image : DEFAULT_PFP;
 
-  $('#entryAuthorName').textContent = e.author?.display_name || e.author?.username || '—';
+  $('#entryAuthorName').textContent = e.author?.displayName || e.author?.display_name || e.author?.username || '—';
   $('#entryTime').textContent = fmtTime(e.published || e.created_at);
 
   const visIcon = document.getElementById('entryVisibilityIcon');
@@ -706,7 +706,7 @@ function renderRight(e){
         <img class="pfp" style="width:36px;height:36px"
              src="${(l.author && l.author.image) ? l.author.image : DEFAULT_PFP}" alt="">
         <div>
-          <div><strong>${esc(l.author?.display_name || l.author?.username || '—')}</strong></div>
+          <div><strong>${esc(l.author?.displayName || l.author?.display_name || l.author?.username || '—')}</strong></div>
           <div class="cmeta">${fmtTime(l.published || l.created_at)}</div>
         </div>
         <div></div>

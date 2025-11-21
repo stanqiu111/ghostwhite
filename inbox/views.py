@@ -272,17 +272,8 @@ class InboxPostView(APIView):
         logger.info(f"Entry {action} from {remote_author.display_name}")
         return Response({"detail": f"Entry {action}"}, status=200)
     
-    def _is_decision_notification(self, data, author, desired_status):
-        """Check if this is a decision notification."""
-        object_data = data.get("object", {})
-        if not object_data or not isinstance(object_data, dict):
-            return False
-        
-        try:
-            object_author = get_remote_author_from_json_data(object_data)
-            return object_author.id == author.id and desired_status in (Follow.ACCEPTED, Follow.DENIED)
-        except (ValueError, KeyError):
-            return False
+    def _is_decision_notification(self, desired_status):
+        return desired_status in (Follow.ACCEPTED, Follow.DENIED)
     
     def _update_follow_status(self, follow, desired_status):
         """Update follow relationship status and approved flag"""
@@ -324,7 +315,7 @@ class InboxPostView(APIView):
         desired_status = parse_follow_state_from_payload(state_str)
 
         logger.info(f"[INBOX FOLLOW] Desired status: {desired_status}")
-        is_decision = self._is_decision_notification(data, author, desired_status)
+        is_decision = self._is_decision_notification(desired_status)
         logger.info(f"[INBOX FOLLOW] Is decision notification: {is_decision}, author={author.id}, remote_author={remote_author.id if remote_author else 'None'}")
         
         if is_decision:

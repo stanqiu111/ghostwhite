@@ -235,6 +235,8 @@ class AuthorByUsernameView(generics.RetrieveUpdateAPIView):
         github_url = self.request.data.get('github_url', None)
         serializer.save()
         
+        author.refresh_from_db()
+        
         try:
             from utils.node_communication import send_author_update_to_remote_followers
             send_author_update_to_remote_followers(author)

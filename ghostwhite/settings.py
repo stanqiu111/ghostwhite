@@ -28,7 +28,7 @@ SECRET_KEY = "django-insecure-(bonfgro6mhk@l(c3*e_7ly4v_7)#7+fh_@y-q=bs+skerzedg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 CORS_ALLOW_ALL_ORIGINS = False
 
@@ -86,6 +86,7 @@ SIMPLE_JWT = {
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -211,3 +212,7 @@ LOGGING = {
         },
     },
 }
+
+# Add at the bottom of the file
+STATIC_ROOT = BASE_DIR / "staticfiles" 
+STATIC_URL = "/static/"

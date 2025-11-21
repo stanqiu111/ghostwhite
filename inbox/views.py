@@ -325,14 +325,17 @@ class InboxPostView(APIView):
 
         logger.info(f"[INBOX FOLLOW] Desired status: {desired_status}")
         is_decision = self._is_decision_notification(data, author, desired_status)
+        logger.info(f"[INBOX FOLLOW] Is decision notification: {is_decision}, author={author.id}, remote_author={remote_author.id if remote_author else 'None'}")
         
         if is_decision:
+            logger.info(f"[INBOX FOLLOW] Searching for follow: follower={author.id}, following={remote_author.id}")
             follow = Follow.objects.filter(
                 follower=author,
                 following=remote_author
             ).first()
             
             if not follow:
+                logger.warning(f"[INBOX FOLLOW] Follow not found, creating new one: follower={author.id}, following={remote_author.id}")
                 follow, created = Follow.objects.get_or_create(
                     follower=author,
                     following=remote_author,
@@ -341,7 +344,7 @@ class InboxPostView(APIView):
                 logger.warning(f"[INBOX FOLLOW] Follow not found, created new: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}")
             else:
                 created = False
-                logger.info(f"[INBOX FOLLOW] Found existing follow: {follow.follower.display_name} -> {follow.following.display_name}, current_status={follow.status}")
+                logger.info(f"[INBOX FOLLOW] Found existing follow: {follow.follower.display_name} -> {follow.following.display_name}, current_status={follow.status}, approved={follow.approved}")
         else:
             follow, created = Follow.objects.get_or_create(
                 follower=remote_author,
@@ -350,16 +353,20 @@ class InboxPostView(APIView):
             )
             logger.info(f"[INBOX FOLLOW] Follow created: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}")
         
+        logger.info(f"[INBOX FOLLOW] Before update check: status={follow.status}, desired={desired_status}, approved={follow.approved}, should_be_approved={desired_status == Follow.ACCEPTED}, created={created}")
+        
         if desired_status == Follow.PENDING and not created:
             logger.info(f"[INBOX FOLLOW] Updating follow status to pending: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}")
             if follow.status in (Follow.ACCEPTED, Follow.DENIED):
                 self._update_follow_status(follow, Follow.PENDING)
         elif follow.status != desired_status or follow.approved != (desired_status == Follow.ACCEPTED):
-            logger.info(f"[INBOX FOLLOW] Updating follow status to {desired_status}: {follow.follower.display_name} -> {follow.following.display_name}, current_status={follow.status}")
+            logger.info(f"[INBOX FOLLOW] Updating follow status to {desired_status}: {follow.follower.display_name} -> {follow.following.display_name}, current_status={follow.status}, current_approved={follow.approved}")
             self._update_follow_status(follow, desired_status)
             # Refresh to get updated status
             follow.refresh_from_db()
             logger.info(f"[INBOX FOLLOW] After update: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}, approved={follow.approved}")
+        else:
+            logger.info(f"[INBOX FOLLOW] No update needed: status already {follow.status}, approved already {follow.approved}")
         
         logger.info(f"[INBOX FOLLOW] Processed: {follow.follower.display_name} -> {follow.following.display_name}, status={follow.status}")
         

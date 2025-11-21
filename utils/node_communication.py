@@ -99,7 +99,7 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
             raise ValueError(f"Remote node not found: {node_url}")
     
     github_url_value = author_data.get("github") or ""
-    if github_url_value is None:
+    if not github_url_value:
         github_url_value = ""
     
     author, created = Author.objects.get_or_create(

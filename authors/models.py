@@ -57,7 +57,7 @@ class Author(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=150, unique=True)
     display_name = models.CharField(max_length=255)
     bio = models.TextField(blank=True)
-    github_url = models.URLField(blank=True)
+    github_url = models.URLField(blank=True, null=True)
     image = models.ImageField(upload_to="author_images/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

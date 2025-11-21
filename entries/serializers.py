@@ -6,35 +6,97 @@ from django.urls import reverse
 from utils.serializers import UrlBuildingMixin
 class CommentLikeSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     id = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
+    author = AuthorSerializer()
+    published = serializers.DateTimeField(source="created_at", read_only=True)
+    object = serializers.SerializerMethodField()
+
+    def get_type(self, obj):
+        return "like"
+    
+    def get_object(self, obj):
+        """Return the URL of the object that was liked (the comment)"""
+        return obj.comment.id
 
     class Meta:
         model = CommentLike
         fields = [
+            "type",
             "id",
-            "created_at",
+            "author",
+            "published",
+            "object",
         ]
 
     def get_id(self, obj):
-        return self.build_full_url(f"/api/authors/{obj.author.id}/liked/{obj.id}")
+        """Return the like ID using the author's FQID as the base"""
+        # obj.author.id is already a FQID like "http://nodeaaaa/api/authors/111"
+        # obj.id is the integer serial from the database
+        # Result: "http://nodeaaaa/api/authors/111/liked/166"
+        author_base = obj.author.id.rstrip('/')
+        return f"{author_base}/liked/{obj.id}"
 
 class CommentSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     author = AuthorSerializer()
-    likes = CommentLikeSerializer(many=True, read_only=True)
+    likes = serializers.SerializerMethodField()
     like_count = serializers.IntegerField(read_only=True)
     user_has_liked_comment = serializers.SerializerMethodField()
     id = serializers.SerializerMethodField()
     serial = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
+    comment = serializers.CharField(source="content", read_only=True)
+    contentType = serializers.SerializerMethodField()
+    published = serializers.DateTimeField(source="created_at", read_only=True)
+    entry = serializers.SerializerMethodField()
+    web = serializers.SerializerMethodField()
+
+    def get_type(self, obj):
+        return "comment"
+    
+    def get_contentType(self, obj):
+        """Return content type, defaulting to text/plain if not set"""
+        return getattr(obj, 'content_type', 'text/plain')
+    
+    def get_entry(self, obj):
+        """Return the entry URL"""
+        return obj.entry.id
+    
+    def get_web(self, obj):
+        """Return the web URL for the comment"""
+        from utils.fqid import extract_entry_id_from_fqid
+        entry_id = extract_entry_id_from_fqid(obj.entry.id)
+        return self.build_full_url(f"/authors/{obj.entry.author.username}/entries/{entry_id}/")
+    
+    def get_likes(self, obj):
+        """Return likes object with pagination"""
+        request = self.context.get('request')
+        likes_qs = obj.likes.select_related('author').order_by('-created_at')[:5]
+        likes_data = CommentLikeSerializer(likes_qs, many=True, context=self.context).data
+        
+        return {
+            "type": "likes",
+            "id": f"{obj.id}/likes",
+            "web": self.get_web(obj),
+            "page_number": 1,
+            "size": 50,
+            "count": obj.likes.count(),
+            "src": likes_data,
+        }
 
     class Meta:
         model = Comment
         fields = [
+            "type",
             "id",
             "serial",
             "author",
-            "content",
+            "comment",
+            "contentType",
+            "published",
+            "entry",
+            "web",
             "likes",
             "like_count",
-            "created_at",
             "user_has_liked_comment"
         ]
 
@@ -65,22 +127,40 @@ class CommentUpdateSerializer(serializers.ModelSerializer):
 class EntryLikeSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     author = AuthorSerializer()
     id = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
+    published = serializers.DateTimeField(source="created_at", read_only=True)
+    object = serializers.SerializerMethodField()
+    
+    def get_type(self, obj):
+        return "like"
+    
+    def get_object(self, obj):
+        """Return the URL of the object that was liked (the entry)"""
+        return obj.entry.id
+    
     class Meta:
         model = EntryLike
         fields = [
+            "type",
             "id",
-            "created_at",
-            "author"
+            "author",
+            "published",
+            "object"
         ]
 
     def get_id(self, obj):
-        return self.build_full_url(f"/api/authors/{obj.author.id}/liked/{obj.id}")
+        """Return the like ID using the author's FQID as the base"""
+        # obj.author.id is already a FQID like "http://nodeaaaa/api/authors/111"
+        # obj.id is the integer serial from the database
+        # Result: "http://nodeaaaa/api/authors/111/liked/166"
+        author_base = obj.author.id.rstrip('/')
+        return f"{author_base}/liked/{obj.id}"
 
 class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
     author = AuthorSerializer()
     node = NodeSerializer()
-    comments = CommentSerializer(many=True)
-    likes = EntryLikeSerializer(many=True, read_only=True)
+    comments = serializers.SerializerMethodField()
+    likes = serializers.SerializerMethodField()
     like_count = serializers.IntegerField(read_only=True)
     is_image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
@@ -89,58 +169,112 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
 
     id = serializers.SerializerMethodField()
     serial = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
+    title = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    contentType = serializers.CharField(source="content_type", read_only=True)
+    published = serializers.DateTimeField(source="created_at", read_only=True)
+    web = serializers.SerializerMethodField()
+
+    def get_type(self, obj):
+        return "entry"
+    
+    def get_title(self, obj):
+        """Return title - can be empty string or derived from content"""
+        return ""
+    
+    def get_description(self, obj):
+        """Return brief description of the entry"""
+        if obj.content:
+            return obj.content[:100] if len(obj.content) > 100 else obj.content
+        return ""
+    
+    def get_web(self, obj):
+        """Return the web URL for the entry"""
+        from utils.fqid import extract_entry_id_from_fqid
+        entry_id = extract_entry_id_from_fqid(obj.id)
+        return self.build_full_url(f"/authors/{obj.author.username}/entries/{entry_id}/")
+    
+    def get_likes(self, obj):
+        """Return likes object with pagination"""
+        request = self.context.get('request')
+        # Spec says ~5 likes per entry to reduce API calls, but size is 50 for pagination
+        likes_qs = obj.likes.select_related('author').order_by('-created_at')[:5]
+        likes_data = EntryLikeSerializer(likes_qs, many=True, context=self.context).data
+        
+        return {
+            "type": "likes",
+            "id": f"{obj.id}/likes",
+            "web": self.get_web(obj),
+            "page_number": 1,
+            "size": 50,
+            "count": obj.likes.count(),
+            "src": likes_data,
+        }
 
     class Meta:
         model = Entry
         fields = [
+            "type",
             "id",
             "serial",
+            "title",
+            "description",
+            "web",
             "author",
             "content",
-            "content_type",
+            "contentType",
+            "published",
             "visibility",
-            "created_at",
-            "updated_at",
-            "deleted_at",
-            "node",
-            "like_count", 
-            "likes",
             "comments",
-            "image",
-            "is_image",
-            "image_url",    
-            "comments",    
-            "source",
-            "source_url",
+            "likes",
+            "like_count",
         ]
     def get_comments(self, obj: Entry):
+        """Return comments object with pagination"""
         request = self.context.get("request")
-        # start with a selectable, ordered queryset for efficiency/consistency
         qs = obj.comments.select_related("author").order_by("-created_at")
 
         # Staff can see everything
         if request and getattr(request.user, "is_staff", False):
-            return CommentSerializer(qs, many=True, context=self.context).data
+            pass
+        else:
+            visibility = (obj.visibility or "").lower()
+            if visibility == "friends_only":
+                if not request or not request.user.is_authenticated:
+                    return {
+                        "type": "comments",
+                        "id": f"{obj.id}/comments",
+                        "web": self.get_web(obj),
+                        "page_number": 1,
+                        "size": 5,
+                        "count": 0,
+                        "src": [],
+                    }
 
-        visibility = (obj.visibility or "").lower()
-        if visibility == "friends_only":
-            # Anonymous: hide all
-            if not request or not request.user.is_authenticated:
-                return []
+                viewer = request.user
+                # Author sees all
+                if viewer == obj.author:
+                    pass
+                # Friends see all
+                elif self._is_friend(obj.author, viewer):
+                    pass
+                else:
+                    qs = qs.filter(author=viewer)
 
-            viewer = request.user
-            # Author sees all
-            if viewer == obj.author:
-                pass  # keep qs
-            # Friends see all
-            elif self._is_friend(obj.author, viewer):
-                pass  # keep qs
-            else:
-                # Not a friend: show only viewer's own comments
-                qs = qs.filter(author=viewer)
-
-        # public/unlisted: no extra filtering
-        return CommentSerializer(qs, many=True, context=self.context).data
+        # Get first page of comments (5 per page)
+        comments_page = qs[:5]
+        comments_data = CommentSerializer(comments_page, many=True, context=self.context).data
+        
+        return {
+            "type": "comments",
+            "id": f"{obj.id}/comments",
+            "web": self.get_web(obj),
+            "page_number": 1,
+            "size": 5,
+            "count": qs.count(),
+            "src": comments_data,
+        }
 
     @staticmethod
     def _is_friend(owner, viewer) -> bool:
@@ -151,9 +285,9 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         # Delay import to avoid circulars if your Follow model is in another app
         from authors.models import Follow  # <-- change path if different
         return (
-            Follow.objects.filter(follower=viewer, followee=owner, status="accepted").exists()
+            Follow.objects.filter(follower=viewer, following=owner, status="accepted").exists()
             and
-            Follow.objects.filter(follower=owner, followee=viewer, status="accepted").exists()
+            Follow.objects.filter(follower=owner, following=viewer, status="accepted").exists()
         )
 
     def get_id(self, obj):
@@ -200,12 +334,21 @@ class EntryRetrieveSerializer(UrlBuildingMixin, serializers.ModelSerializer):
         return request.build_absolute_uri(url) if request else url
 
     def get_visibility(self, obj):
+        """Return visibility in uppercase format as per spec"""
         request = self.context.get("request")
         if request and getattr(request.user, "is_staff", False):
-            return obj.visibility
-        if obj.visibility == "DELETED":
-            return "private"
-        return obj.visibility
+            vis = obj.visibility
+        elif obj.visibility == "DELETED":
+            vis = "DELETED"
+        else:
+            vis = obj.visibility
+        
+        if vis:
+            vis_upper = vis.upper()
+            if vis_upper == "FRIENDS_ONLY":
+                return "FRIENDS"
+            return vis_upper
+        return vis
 
 class EntryCreateSerializer(serializers.ModelSerializer):
     """Having a separate serializer  for creating because we don't need all info for creating an entry"""

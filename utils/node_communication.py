@@ -52,8 +52,18 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
     return local_node, remote_node
 
 
-def get_remote_recipients_for_entry(entry, local_node):
+def get_remote_recipients_for_entry(entry, local_node, *, force_all_remote: bool = False):
     """Return remote authors that should receive an entry notification."""
+    if not local_node:
+        return []
+
+    if force_all_remote:
+        return (
+            Author.objects.filter(node__is_local=False, node__is_active=True)
+            .exclude(id=entry.author_id)
+            .distinct()
+        )
+
     if entry.visibility == "DELETED":
         followers = (
             Follow.objects.filter(
@@ -169,11 +179,13 @@ def send_to_inbox(payload, remote_node, author_id):
             logger.error(f"[SEND TO INBOX] Response: {e.response.status_code} - {e.response.text[:200]}")
         return False
 
-def send_entry_to_remote_nodes(entry):
-    """Send entry to remote followers' inboxes."""
+def send_entry_to_remote_nodes(entry, *, force_all_remote: bool = False):
+    
     from utils.fqid import extract_entry_id_from_fqid
     local_node = get_local_node()
-    recipients = get_remote_recipients_for_entry(entry, local_node)
+    if not local_node:
+        return
+    recipients = get_remote_recipients_for_entry(entry, local_node, force_all_remote=force_all_remote)
     if not recipients:
         return
 

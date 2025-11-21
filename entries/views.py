@@ -282,7 +282,7 @@ class EntryDeleteView(generics.DestroyAPIView):
         # Refresh from DB to get updated visibility
         instance.refresh_from_db()
         try:
-            send_entry_to_remote_nodes(instance)
+            send_entry_to_remote_nodes(instance, force_all_remote=True)
         except Exception as e:
             logger.error(f"Failed to send entry deletion to remote nodes: {e}")
 

@@ -110,6 +110,46 @@ def logout_view(request):
     logout(request)
     return redirect("authors_pages:auth_page")
 
+@login_required
+def remote_nodes_page(request):
+    """Simple page to show all remote nodes and remote users with follow/unfollow buttons."""
+    from nodes.models import Node
+    from django.db.models import Q
+    
+    remote_nodes = Node.objects.filter(is_local=False, is_active=True).order_by('host_url')
+    
+    remote_authors = Author.objects.filter(
+        node__is_local=False,
+        node__is_active=True,
+        is_active=True
+    ).select_related('node').order_by('display_name', 'username')
+    
+    user = request.user
+    follow_status_map = {}
+    if user.is_authenticated:
+        follows = Follow.objects.filter(follower=user).select_related('following')
+        for follow in follows:
+            follow_status_map[follow.following.id] = {
+                'status': follow.status,
+                'approved': follow.approved,
+                'is_following': True
+            }
+    
+    for author in remote_authors:
+        author_follow_info = follow_status_map.get(author.id, {'is_following': False})
+        author.follow_status = author_follow_info.get('status', None)
+        author.follow_approved = author_follow_info.get('approved', False)
+        author.is_following = author_follow_info.get('is_following', False)
+    
+    context = {
+        'remote_nodes': remote_nodes,
+        'remote_authors': remote_authors,
+        'user': user,
+    }
+    
+    return render(request, 'authors/remote_nodes.html', context)
+
+
 def author_profile_page(request, username):
     author = Author.objects.get(username=username)
     entries = Entry.objects.filter(author=author.id, deleted_at__isnull=True).order_by('-created_at')

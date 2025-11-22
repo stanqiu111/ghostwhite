@@ -1,0 +1,346 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Nodes & Users - ÉTHÉRÉ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .nav-link {
+            color: #0066cc;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+        
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+        
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .node-list, .user-list {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .node-item {
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        
+        .node-url {
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 5px;
+        }
+        
+        .node-status {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #666;
+            flex-shrink: 0;
+        }
+        
+        .user-info {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .user-username {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .user-node {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .follow-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .follow-btn.follow {
+            background: #0066cc;
+            color: white;
+        }
+        
+        .follow-btn.follow:hover {
+            background: #0052a3;
+        }
+        
+        .follow-btn.unfollow {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .follow-btn.unfollow:hover {
+            background: #d0d0d0;
+        }
+        
+        .follow-btn.pending {
+            background: #ffa500;
+            color: white;
+            cursor: not-allowed;
+        }
+        
+        .follow-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .empty-message {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Remote Nodes & Users</h1>
+            <div>
+                <a href="/home/" class="nav-link">← Home</a>
+                <span>Welcome, {{ user.displayName|default:user.display_name|default:user.username }}</span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Remote Nodes ({{ remote_nodes.count }})</h2>
+            {% if remote_nodes %}
+                <div class="node-list">
+                    {% for node in remote_nodes %}
+                        <div class="node-item">
+                            <div class="node-url">{{ node.host_url }}</div>
+                            <div class="node-status">
+                                Status: {% if node.is_active %}Active{% else %}Inactive{% endif %}
+                                {% if node.username %} | Authenticated{% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-message">No remote nodes found.</div>
+            {% endif %}
+        </div>
+        
+        <div class="section">
+            <h2>Remote Users ({{ remote_authors.count }})</h2>
+            {% if remote_authors %}
+                <div class="user-list">
+                    {% for author in remote_authors %}
+                        <div class="user-item" data-author-id="{{ author.id }}">
+                            <div class="user-avatar">
+                                {% if author.image %}
+                                    <img src="{{ author.image.url }}" alt="{{ author.display_name|default:author.username }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                                {% else %}
+                                    {{ author.displayName|default:author.display_name|default:author.username|first|upper }}
+                                {% endif %}
+                            </div>
+                            <div class="user-info">
+                                <div class="user-name">{{ author.displayName|default:author.display_name|default:author.username }}</div>
+                                <div class="user-username">@{{ author.username }}</div>
+                                <div class="user-node">Node: {{ author.node.host_url }}</div>
+                            </div>
+                            <button 
+                                class="follow-btn {% if author.is_following %}{% if author.follow_approved %}unfollow{% else %}pending{% endif %}{% else %}follow{% endif %}"
+                                data-author-id="{{ author.id }}"
+                                data-author-name="{{ author.displayName|default:author.display_name|default:author.username }}"
+                                onclick="handleFollowUnfollow(this)"
+                            >
+                                {% if author.is_following %}
+                                    {% if author.follow_approved %}
+                                        Unfollow
+                                    {% else %}
+                                        Pending
+                                    {% endif %}
+                                {% else %}
+                                    Follow
+                                {% endif %}
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-message">No remote users found.</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        // API helper function (similar to home.html)
+        async function api(endpoint, options = {}) {
+            const token = localStorage.getItem('access_token');
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers,
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const response = await fetch(`/api/${endpoint}`, {
+                ...options,
+                headers,
+                credentials: 'include',
+            });
+            
+            if (!response.ok) {
+                const text = await response.text();
+                let error;
+                try {
+                    error = JSON.parse(text);
+                } catch {
+                    error = { detail: text || `HTTP ${response.status}` };
+                }
+                throw new Error(`${response.status} ${error.detail || error.error || 'Unknown error'}`);
+            }
+            
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return await response.json();
+            }
+            return await response.text();
+        }
+        
+        // Extract UUID from FQID
+        function extractSerialFromFqid(fqid) {
+            if (!fqid) return fqid;
+            const match = fqid.match(/\/api\/authors\/([^\/]+)/);
+            return match ? match[1] : fqid;
+        }
+        
+        // Handle follow/unfollow button click
+        async function handleFollowUnfollow(btn) {
+            const authorId = btn.dataset.authorId;
+            const authorName = btn.dataset.authorName || 'this user';
+            
+            if (!authorId) return;
+            
+            const isFollowing = btn.classList.contains('unfollow');
+            const isPending = btn.classList.contains('pending');
+            
+            // Don't allow action if pending
+            if (isPending) {
+                alert(`Follow request to ${authorName} is pending approval.`);
+                return;
+            }
+            
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            
+            try {
+                let serialId = extractSerialFromFqid(authorId);
+                
+                if (isFollowing) {
+                    // Unfollow
+                    const confirmed = confirm(`Are you sure you want to unfollow ${authorName}?`);
+                    if (!confirmed) {
+                        btn.disabled = false;
+                        return;
+                    }
+                    
+                    btn.textContent = 'Unfollowing...';
+                    await api(`authors/${serialId}/follow/`, { method: 'DELETE' });
+                    btn.textContent = 'Follow';
+                    btn.classList.remove('unfollow');
+                    btn.classList.add('follow');
+                } else {
+                    // Follow
+                    btn.textContent = 'Sending...';
+                    await api(`authors/${serialId}/follow/`, { method: 'POST', body: '{}' });
+                    btn.textContent = 'Pending';
+                    btn.classList.remove('follow');
+                    btn.classList.add('pending');
+                }
+            } catch (error) {
+                btn.textContent = originalText;
+                alert(error.message || 'Operation failed. Please try again.');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
+

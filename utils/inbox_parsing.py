@@ -20,14 +20,24 @@ def parse_follow_state_from_payload(state_str):
     return state_map.get(state_str.lower() if state_str else "", Follow.PENDING)
 
 
-def get_remote_author_from_json_data(remote_author_json_data):
-    """Get or create remote author from JSON data."""
+def get_remote_author_from_json_data(remote_author_json_data, return_created=False):
+    """Get or create remote author from JSON data.
+    
+    Args:
+        remote_author_json_data: Dict containing author data with 'id' field
+        return_created: If True, returns (author, created) tuple, else just author
+    
+    Returns:
+        Author object, or (Author, bool) tuple if return_created=True
+    """
     author_fqid = remote_author_json_data.get("id", "")
     if not author_fqid:
         raise ValueError("Author ID missing")
     
     try:
-        remote_author, _ = get_or_create_remote_author(author_fqid, remote_author_json_data)
+        remote_author, created = get_or_create_remote_author(author_fqid, remote_author_json_data)
+        if return_created:
+            return remote_author, created
         return remote_author
     except ValueError as e:
         logger.error(f"Failed to get/create remote author: {e}")

@@ -271,9 +271,11 @@ def send_comment_to_remote_node(comment, entry, state=None):
     log_prefix = "[SEND COMMENT]"
     local_node = get_local_node()
     entry_author = Author.objects.select_related('node').get(pk=entry.author.pk)
+    entry = Entry.objects.select_related('node', 'author', 'author__node').get(pk=entry.pk)
     
     entry_url = get_entry_url(entry, entry_author)
     if not entry_url:
+        logger.warning(f"{log_prefix} Could not determine entry URL for entry {entry.id}")
         return
     
     host_url = local_node.host_url.rstrip('/')

@@ -369,27 +369,29 @@ class InboxPostView(APIView):
         return Response({"detail": messages[desired_status]}, status=200)
     
     def _handle_author_update(self, author, data):
-        """Handle incoming author profile update."""
+        """Handle incoming author profile update - create or update remote author."""
+        logger.info(f"[INBOX AUTHOR] Received author update. Author data: {data.get('id', 'MISSING')}")
+        
         try:
-            remote_author = get_remote_author_from_json_data(data)
+            remote_author, created = get_remote_author_from_json_data(data, return_created=True)
+            
+            updated_fields = []
+            
+            if "profileImage" in data:
+                profile_image_url = data["profileImage"]
+                if profile_image_url:
+                    logger.debug(f"[INBOX AUTHOR] Profile image URL received: {profile_image_url}")
+            
+            if created:
+                logger.info(f"[INBOX AUTHOR] Created remote author: {remote_author.id}, display_name: {remote_author.display_name}")
+            else:
+                logger.info(f"[INBOX AUTHOR] Updated remote author: {remote_author.id}, display_name: {remote_author.display_name}")
+            
+            return Response({"detail": "Author update processed"}, status=200)
+            
         except ValueError as e:
-            logger.error(f"[INBOX AUTHOR] Failed to get remote author: {e}")
+            logger.error(f"[INBOX AUTHOR] Failed to process author update: {e}")
             return Response({"detail": str(e)}, status=400)
-        
-        updated = False
-        if "displayName" in data and remote_author.display_name != data["displayName"]:
-            remote_author.display_name = data["displayName"]
-            updated = True
-        
-        if "github" in data and remote_author.github_url != data["github"]:
-            remote_author.github_url = data["github"]
-            updated = True
-        
-        if updated:
-            remote_author.save(update_fields=["display_name", "github_url"])
-            logger.info(f"[INBOX AUTHOR] Updated remote author {remote_author.id}")
-        
-        return Response({"detail": "Author update processed"}, status=200)
     
     def _handle_like(self, author, data):
         """Handle incoming like activity

@@ -50,13 +50,14 @@ def get_entry_url(entry, entry_author):
     
     entry_uuid = extract_entry_id_from_fqid(entry.id)
     author_serial = extract_serial_from_fqid(entry_author.id)
-    entry_author_node = entry_author.node
     
-    if not entry_author_node:
-        logger.warning(f"Entry {entry.id} has no source_url and entry author has no node")
+    entry_node = entry.node if hasattr(entry, 'node') and entry.node else entry_author.node
+    
+    if not entry_node:
+        logger.warning(f"Entry {entry.id} has no source_url and neither entry nor author has a node")
         return None
     
-    node_host = entry_author_node.host_url.rstrip('/')
+    node_host = entry_node.host_url.rstrip('/')
     return f"{node_host}/api/authors/{author_serial}/entries/{entry_uuid}"
 
 

@@ -444,20 +444,31 @@ class InboxPostView(APIView):
     
     def _handle_comment(self, author, data):
         """Handle incoming comment activity"""
+        logger.info(f"[COMMENT HANDLER] Received comment activity. Full payload keys: {list(data.keys())}")
+        logger.info(f"[COMMENT HANDLER] Comment author data: {data.get('author', {})}")
+        logger.info(f"[COMMENT HANDLER] Comment ID: {data.get('id', 'MISSING')}")
+        logger.info(f"[COMMENT HANDLER] Entry URL: {data.get('entry', 'MISSING')}")
+        logger.info(f"[COMMENT HANDLER] State: {data.get('state', 'none')}")
+        
         try:
             remote_author = get_remote_author_from_json_data(data.get("author", {}))
+            logger.info(f"[COMMENT HANDLER] Parsed remote author: {remote_author.id}, display_name: {remote_author.display_name}")
         except ValueError as e:
+            logger.error(f"[COMMENT HANDLER] Failed to parse remote author: {e}")
             return Response({"detail": str(e)}, status=400)
 
         state = (data.get("state") or "").lower()
         comment_url = data.get("id")
 
         if state in {"deleted", "updated"}:
+            logger.info(f"[COMMENT HANDLER] Processing {state} comment")
             if not comment_url:
                 return Response({"detail": "Comment ID missing"}, status=400)
             try:
                 comment = find_comment_by_url(comment_url)
+                logger.info(f"[COMMENT HANDLER] Found comment: {comment.id}")
             except Comment.DoesNotExist:
+                logger.warning(f"[COMMENT HANDLER] Comment not found for URL: {comment_url}")
                 if state == "deleted":
                     return Response({"detail": "Comment removed"}, status=200)
                 return Response({"detail": "Comment not found"}, status=404)
@@ -474,13 +485,17 @@ class InboxPostView(APIView):
 
         entry_url = data.get("entry")
         if not entry_url:
+            logger.error("[COMMENT HANDLER] Entry URL missing from payload")
             return Response({"detail": "Entry URL missing"}, status=400)
 
+        logger.info(f"[COMMENT HANDLER] Attempting to find entry for URL: {entry_url}")
         try:
             entry = find_entry_by_url(entry_url)
-        except Entry.DoesNotExist:
-            logger.warning(f"Comment: Entry not found for URL: {entry_url}")
-            return Response({"detail": "Entry not found"}, status=404)
+            logger.info(f"[COMMENT HANDLER] Found entry: {entry.id}, author: {entry.author.id}")
+        except Entry.DoesNotExist as e:
+            logger.error(f"[COMMENT HANDLER] Entry not found for URL: {entry_url}")
+            logger.error(f"[COMMENT HANDLER] Error: {e}")
+            return Response({"detail": "Entry not found locally"}, status=200)
 
         Comment.objects.create(
             entry=entry,

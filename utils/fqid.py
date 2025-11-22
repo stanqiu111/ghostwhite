@@ -164,20 +164,50 @@ def parse_entry_fqid(entry_fqid):
 
 def find_entry_by_url(entry_url):
     """Find entry by URL, trying source_url first, then parsing ID from URL."""
+    logger.info(f"[FIND ENTRY] Looking up entry for URL: {entry_url}")
+    
     try:
-        return Entry.objects.select_related('author', 'author__node').get(source_url=entry_url)
+        entry = Entry.objects.select_related('author', 'author__node').get(source_url=entry_url)
+        logger.info(f"[FIND ENTRY] Found by source_url: {entry.id}")
+        return entry
     except Entry.DoesNotExist:
+        logger.debug(f"[FIND ENTRY] No entry with source_url={entry_url}")
         pass
     
     try:
-        entry_uuid, author_fqid, _ = parse_entry_fqid(entry_url)
+        entry_uuid, author_fqid, node_url = parse_entry_fqid(entry_url)
+        logger.info(f"[FIND ENTRY] Parsed - UUID: {entry_uuid}, Author FQID: {author_fqid}, Node URL: {node_url}")
+        
         entries = Entry.objects.filter(author_id=author_fqid).select_related('author', 'author__node')
+        logger.info(f"[FIND ENTRY] Found {entries.count()} entries with author_id={author_fqid}")
+        
         for entry in entries:
-            if extract_entry_id_from_fqid(entry.id) == str(entry_uuid):
+            extracted_uuid = extract_entry_id_from_fqid(entry.id)
+            logger.debug(f"[FIND ENTRY] Checking entry {entry.id}, extracted UUID: {extracted_uuid}, target UUID: {entry_uuid}")
+            if extracted_uuid == str(entry_uuid):
+                logger.info(f"[FIND ENTRY] Found match by author_fqid and UUID: {entry.id}")
                 return entry
+        
+        logger.warning(f"[FIND ENTRY] No entry found with author_id={author_fqid} and UUID={entry_uuid}")
+        
+        logger.info(f"[FIND ENTRY] Trying UUID-only match across all entries")
+        all_entries = Entry.objects.select_related('author', 'author__node').all()
+        logger.info(f"[FIND ENTRY] Searching through {all_entries.count()} total entries")
+        
+        for entry in all_entries:
+            extracted_uuid = extract_entry_id_from_fqid(entry.id)
+            if extracted_uuid == str(entry_uuid):
+                logger.info(f"[FIND ENTRY] Found entry {entry.id} by UUID-only match (cross-node). Entry author: {entry.author.id}")
+                return entry
+        
+        logger.error(f"[FIND ENTRY] No entry found with UUID {entry_uuid} in entire database")
         raise Entry.DoesNotExist(f"Entry not found for URL: {entry_url}")
-    except (ValueError, Entry.DoesNotExist):
-        raise Entry.DoesNotExist(f"Entry not found for URL: {entry_url}")
+    except ValueError as e:
+        logger.error(f"[FIND ENTRY] Failed to parse entry URL: {entry_url}, error: {e}")
+        raise Entry.DoesNotExist(f"Entry not found for URL: {entry_url}") from e
+    except Entry.DoesNotExist as e:
+        logger.error(f"[FIND ENTRY] Entry not found: {e}")
+        raise
 
 
 def find_entry_by_uuid(entry_uuid, author_fqid=None):

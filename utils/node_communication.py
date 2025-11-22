@@ -149,12 +149,16 @@ def get_or_create_remote_author(author_fqid, author_data, remote_node=None):
 
 
 def send_to_inbox(payload, remote_node, author_id):
-    """Send payload to remote author's inbox."""
+    """
+    Send payload to remote author's inbox. We use local node to authenticate
+    """
     if getattr(remote_node, "is_disabled", False):
         logger.warning(
             f"[SEND BLOCKED] Node {remote_node.host_url} is disabled. Skip sending."
         )
         return False
+    
+    local_node = get_local_node()
     author_serial = extract_serial_from_fqid(author_id)
     base_url = remote_node.host_url.rstrip('/')
     inbox_url = f"{base_url}/api/authors/{author_serial}/inbox"
@@ -162,17 +166,13 @@ def send_to_inbox(payload, remote_node, author_id):
     logger.info(f"[SEND TO INBOX] {payload.get('type', 'unknown')} -> {inbox_url}")
     
     try:
-        if not remote_node.username or not remote_node.password:
-            logger.error(f"[SEND TO INBOX] Remote node {remote_node.host_url} credentials not set")
-            return False
-
         logger.info(f"[SEND TO INBOX] Payload: {payload} inbox_url: {inbox_url}")
-        logger.info(f"[SEND TO INBOX] Using remote credentials for node: {remote_node.host_url}")
+        logger.info(f"[SEND TO INBOX] Using local node credentials ({local_node.username}) to authenticate to: {remote_node.host_url}")
 
         response = requests.post(
             inbox_url,
             json=payload,
-            auth=HTTPBasicAuth(remote_node.username, remote_node.password),
+            auth=HTTPBasicAuth(local_node.username, local_node.password),
             headers={"Content-Type": "application/json"},
             timeout=10
         )

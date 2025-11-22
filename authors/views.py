@@ -281,10 +281,18 @@ class AuthorPublicGetUpdate(generics.RetrieveUpdateAPIView):
         try:
             return Author.objects.get(id=author_id)
         except Author.DoesNotExist:
+            from utils.fqid import extract_serial_from_fqid
+            uuid_part = author_id
+            authors = Author.objects.all()
+            for author in authors:
+                if extract_serial_from_fqid(author.id) == uuid_part:
+                    return author
+            
             try:
                 return Author.objects.get(username=author_id)
             except Author.DoesNotExist:
-                raise Author.DoesNotExist(f"Author not found with id/username: {author_id}")
+                from rest_framework.exceptions import NotFound
+                raise NotFound(f"Author not found with id/username: {author_id}")
 
     def perform_update(self, serializer):
         author = self.get_object()

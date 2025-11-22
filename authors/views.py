@@ -312,12 +312,11 @@ class AuthorPagination(PageNumberPagination):
 
 class AuthorListView(generics.ListAPIView):
     #list all authors with pagination
-    queryset = Author.objects.all().order_by("username")
     serializer_class = AuthorSerializer
     pagination_class = AuthorPagination
     queryset = (
         Author.objects
-        .filter(is_active=True, is_staff=False, is_superuser=False)
+        .filter(is_active=True, is_staff=False, is_superuser=False, node__is_local=True)
         .order_by('username')
     )
 

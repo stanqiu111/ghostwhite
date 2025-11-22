@@ -26,16 +26,18 @@ def serialize_author_for_node_communication(author):
     else:
         author_host_url = host_url
     
-    profile_image = ""
+    profile_image = None
     if author.image:
         profile_image = f"{host_url.rstrip('/')}{author.image.url}"
+    
+    github_url_value = author.github_url if author.github_url else None
     
     return {
         "type": "author",
         "id": author_fqid,
         "host": f"{author_host_url}api/",
         "displayName": author.display_name or author.username,
-        "github": author.github_url or "",
+        "github": github_url_value,
         "profileImage": profile_image,
         "web": f"{author_host_url}authors/{author.username}/" if author.username else "",
     }

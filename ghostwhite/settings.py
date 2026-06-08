@@ -18,9 +18,6 @@ import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media' 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -52,7 +49,6 @@ INSTALLED_APPS = [
     "authors",
     "nodes",
     "entries",
-    "interactions",
     "inbox",
     # authentication
     "rest_framework",
@@ -231,6 +227,3 @@ LOGGING = {
     },
 }
 
-# Add at the bottom of the file
-STATIC_ROOT = BASE_DIR / "staticfiles" 
-STATIC_URL = "/static/"

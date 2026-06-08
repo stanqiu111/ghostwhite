@@ -26,7 +26,6 @@ from entries.models import Entry
 from .models import Author, Follow, GitHubIntegration
 from .serializers import AuthorSerializer, AuthorRegistrationSerializer, FollowRequestSerializer
 from .permissions import IsApproved
-from .forms import GitHubIntegrationForm
 from .github import sync_github_events
 from utils.node_communication import send_follow_request_to_remote_node, send_follow_decision_to_remote_node, send_unfollow_to_remote_node
 
@@ -128,14 +127,13 @@ def remote_nodes_page(request):
     
     user = request.user
     follow_status_map = {}
-    if user.is_authenticated:
-        follows = Follow.objects.filter(follower=user).select_related('following')
-        for follow in follows:
-            follow_status_map[follow.following.id] = {
-                'status': follow.status,
-                'approved': follow.approved,
-                'is_following': True
-            }
+    follows = Follow.objects.filter(follower=user).select_related('following')
+    for follow in follows:
+        follow_status_map[follow.following.id] = {
+            'status': follow.status,
+            'approved': follow.approved,
+            'is_following': True
+        }
     
     for author in remote_authors:
         author_follow_info = follow_status_map.get(author.id, {'is_following': False})

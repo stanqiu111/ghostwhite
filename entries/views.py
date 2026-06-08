@@ -78,14 +78,6 @@ def visible_comments_queryset_for(user):
         )
     )
 
-    author_follows_me = Follow.objects.filter(
-        follower=OuterRef("author_id"), following=user
-    ).filter(Q(status=Follow.ACCEPTED) | Q(approved=True))
-
-    return qs.annotate(
-        is_from_following=Exists(i_follow_author),
-        is_following_me=Exists(author_follows_me),
-    )
 
 class EntryImageView(APIView):
     """

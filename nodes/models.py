@@ -15,6 +15,11 @@ class Node(models.Model):
     password = models.CharField(max_length=255, blank=True)  # For remote node auth
 
 
+    def save(self, *args, **kwargs):
+        if self.host_url and not self.host_url.endswith('/'):
+            self.host_url = self.host_url + '/'
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{'Local' if self.is_local else 'External'} Node: {self.host_url}"
     

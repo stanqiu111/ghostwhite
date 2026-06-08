@@ -209,12 +209,12 @@ class InboxPostView(APIView):
         handler = handler_map.get(obj_type)
 
         if handler:
-            return handler(author, request.data)
+            return handler(author, request.data, request.user)
         
         logger.warning(f"Inbox: Unknown activity type: {obj_type}")
         return Response({"detail": f"Unknown type: {obj_type}"}, status=400)
     
-    def _handle_entry(self, author, data):
+    def _handle_entry(self, author, data, sending_node):
         """Handle incoming entry activity (create, update, or delete)
         Here the unique key is the entry_fqid, so we can use it to get the entry if it already exists or create a new one
         However, we need to check if the author exists in the local database, else we should return an error
@@ -222,11 +222,18 @@ class InboxPostView(APIView):
         entry_fqid = data.get("id")
         if not entry_fqid:
             return Response({"detail": "Entry ID missing"}, status=400)
-        
+
         try:
             remote_author = get_remote_author_from_json_data(data.get("author", {}))
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
+
+        if remote_author.node != sending_node:
+            logger.warning(
+                f"[INBOX ENTRY] Author node mismatch: claimed {remote_author.node.host_url}, "
+                f"authenticated as {sending_node.host_url}"
+            )
+            return Response({"detail": "Author node does not match authenticated node"}, status=403)
         
         visibility = data.get("visibility", "PUBLIC").upper()
         
@@ -290,7 +297,7 @@ class InboxPostView(APIView):
         
         follow.save(update_fields=["status", "approved"])
     
-    def _handle_follow(self, author, data):
+    def _handle_follow(self, author, data, sending_node):
         """Handle incoming follow activity: requests, acceptances, denials, and unfollows
         """
         logger.info(f"[INBOX FOLLOW] Handling follow activity: {data}")
@@ -299,6 +306,13 @@ class InboxPostView(APIView):
         except ValueError as e:
             logger.error(f"[INBOX FOLLOW] Failed to get remote author: {e}")
             return Response({"detail": str(e)}, status=400)
+
+        if remote_author.node != sending_node:
+            logger.warning(
+                f"[INBOX FOLLOW] Actor node mismatch: claimed {remote_author.node.host_url}, "
+                f"authenticated as {sending_node.host_url}"
+            )
+            return Response({"detail": "Actor node does not match authenticated node"}, status=403)
 
         state_str = data.get("state") or Follow.PENDING
         
@@ -368,7 +382,7 @@ class InboxPostView(APIView):
         }
         return Response({"detail": messages[desired_status]}, status=200)
     
-    def _handle_author_update(self, author, data):
+    def _handle_author_update(self, author, data, sending_node):
         """Handle incoming author profile update - create or update remote author."""
         logger.info(f"[INBOX AUTHOR] Received author update. Author data: {data.get('id', 'MISSING')}")
         
@@ -393,13 +407,20 @@ class InboxPostView(APIView):
             logger.error(f"[INBOX AUTHOR] Failed to process author update: {e}")
             return Response({"detail": str(e)}, status=400)
     
-    def _handle_like(self, author, data):
+    def _handle_like(self, author, data, sending_node):
         """Handle incoming like activity
         Here we can do like actions on entry or comment so we need to check which one are we performing action on"""
         try:
             remote_author = get_remote_author_from_json_data(data.get("author", {}))
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
+
+        if remote_author.node != sending_node:
+            logger.warning(
+                f"[INBOX LIKE] Author node mismatch: claimed {remote_author.node.host_url}, "
+                f"authenticated as {sending_node.host_url}"
+            )
+            return Response({"detail": "Author node does not match authenticated node"}, status=403)
         
         object_url = data.get("object")
         if not object_url:
@@ -444,7 +465,7 @@ class InboxPostView(APIView):
         logger.info(f"Comment like received from {remote_author.display_name} for comment {comment.id}")
         return Response({"detail": "Comment like received"}, status=200)
     
-    def _handle_comment(self, author, data):
+    def _handle_comment(self, author, data, sending_node):
         """Handle incoming comment activity"""
         logger.info(f"[COMMENT HANDLER] Received comment activity. Full payload keys: {list(data.keys())}")
         logger.info(f"[COMMENT HANDLER] Comment author data: {data.get('author', {})}")
@@ -458,6 +479,13 @@ class InboxPostView(APIView):
         except ValueError as e:
             logger.error(f"[COMMENT HANDLER] Failed to parse remote author: {e}")
             return Response({"detail": str(e)}, status=400)
+
+        if remote_author.node != sending_node:
+            logger.warning(
+                f"[COMMENT HANDLER] Author node mismatch: claimed {remote_author.node.host_url}, "
+                f"authenticated as {sending_node.host_url}"
+            )
+            return Response({"detail": "Author node does not match authenticated node"}, status=403)
 
         state = (data.get("state") or "").lower()
         comment_url = data.get("id")
@@ -476,10 +504,16 @@ class InboxPostView(APIView):
                 return Response({"detail": "Comment not found"}, status=404)
 
             if state == "deleted":
+                if comment.author != remote_author:
+                    logger.warning(f"[COMMENT HANDLER] Delete rejected: sender is not comment author")
+                    return Response({"detail": "Permission denied"}, status=403)
                 comment.delete()
                 logger.info("Comment deleted via remote request: %s", comment_url)
                 return Response({"detail": "Comment deleted"}, status=200)
 
+            if comment.author != remote_author:
+                logger.warning(f"[COMMENT HANDLER] Update rejected: sender is not comment author")
+                return Response({"detail": "Permission denied"}, status=403)
             comment.content = data.get("comment", comment.content)
             comment.save(update_fields=["content"])
             logger.info("Comment updated via remote request: %s", comment_url)
@@ -499,14 +533,17 @@ class InboxPostView(APIView):
             logger.error(f"[COMMENT HANDLER] Error: {e}")
             return Response({"detail": "Entry not found locally"}, status=200)
 
-        Comment.objects.create(
-            entry=entry,
-            author=remote_author,
-            content=data.get("comment", ""),
+        _, created = Comment.objects.get_or_create(
             source_url=comment_url,
+            defaults={
+                "entry": entry,
+                "author": remote_author,
+                "content": data.get("comment", ""),
+            },
         )
-        logger.info(f"Comment received from {remote_author.display_name} on entry {entry.id}")
-        return Response({"detail": "Comment received"}, status=201)
+        status_code = 201 if created else 200
+        logger.info(f"Comment {'received' if created else 'already exists'} from {remote_author.display_name} on entry {entry.id}")
+        return Response({"detail": "Comment received"}, status=status_code)
 
 
 @login_required

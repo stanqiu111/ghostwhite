@@ -34,9 +34,12 @@ def _validate_and_get_remote_node(target_author, log_prefix=""):
         return None, None
     
     local_node = get_local_node()
-    
+    if not local_node:
+        logger.error(f"{log_prefix} Local node not configured, cannot validate remote node")
+        return None, None
+
     is_local = (
-        target_author.node.id == local_node.id or 
+        target_author.node.id == local_node.id or
         target_author.node.host_url.rstrip('/') == local_node.host_url.rstrip('/') or
         target_author.node.is_local
     )
@@ -93,7 +96,7 @@ def get_remote_recipients_for_entry(entry, local_node, *, force_all_remote: bool
 
 def notify_all_remote_authors(payload, local_node, author_id):
     """Notify all remote nodes (excluding local node) about an activity."""
-    remote_nodes = Node.objects.filter(is_local=False).exclude(id=local_node.id)
+    remote_nodes = Node.objects.filter(is_local=False, is_active=True, is_disabled=False).exclude(id=local_node.id)
     for remote_node in remote_nodes:
         if remote_node.username:
             send_to_inbox(payload, remote_node, author_id)
@@ -159,6 +162,9 @@ def send_to_inbox(payload, remote_node, author_id):
         return False
     
     local_node = get_local_node()
+    if not local_node:
+        logger.error("[SEND TO INBOX] Local node not configured, cannot authenticate outbound request")
+        return False
     author_serial = extract_serial_from_fqid(author_id)
     base_url = remote_node.host_url.rstrip('/')
     inbox_url = f"{base_url}/api/authors/{author_serial}/inbox"
@@ -270,6 +276,9 @@ def send_comment_to_remote_node(comment, entry, state=None):
     """Send comment to entry author and other remote recipients."""
     log_prefix = "[SEND COMMENT]"
     local_node = get_local_node()
+    if not local_node:
+        logger.error(f"{log_prefix} Local node not configured, cannot send comment")
+        return
     entry_author = Author.objects.select_related('node').get(pk=entry.author.pk)
     entry = Entry.objects.select_related('node', 'author', 'author__node').get(pk=entry.pk)
     

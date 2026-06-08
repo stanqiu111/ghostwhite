@@ -5,6 +5,7 @@ import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError
@@ -63,6 +64,7 @@ class AuthorRetrieveUpdateView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 @csrf_exempt
+@require_POST
 def handle_login(request):
     """Handle login - creates BOTH session so the next time we load the front end, if user is authenticated, they will be redirected to home and returns JWT"""
     if request.method == "POST":

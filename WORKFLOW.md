@@ -137,7 +137,7 @@ POST /api/authors/<author_id>/follow/
 ### Accept / Deny
 ```
 POST /api/authors/follows/<id>/decision/
-{ "decision": "accepted" }   ← or "denied"
+{ "decision": "accept" }   ← or "deny"
 ```
 - Only the followee can decide
 - If follower is **remote**: sends decision back to their inbox

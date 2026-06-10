@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.http import http_date
 from django.utils.timezone import now
 from django.db.models import Q, Exists, OuterRef, Prefetch
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -146,7 +146,6 @@ class EntryImageView(APIView):
 
 class EntryListView(generics.ListAPIView):
     serializer_class = EntryRetrieveSerializer
-    authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -228,7 +227,7 @@ class EntryCreateView(generics.CreateAPIView):
 class EntryUpdateView(generics.UpdateAPIView):
     serializer_class = EntryCreateSerializer
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser] 
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     lookup_field = "pk" 
     
     def get_object(self):

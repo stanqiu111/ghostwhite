@@ -3,97 +3,32 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Profile Setting Page</title>
-  <link rel="stylesheet" href="{% static 'authors/profile.css' %}">
+  <title>{% if is_own_profile %}Profile Settings{% else %}{{ author.display_name|default:author.username }} - ÉTHÉRÉ{% endif %}</title>
+  <link rel="stylesheet" href="{% static 'authors/profile.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=3">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/main.css' %}">
 </head>
 <body>
   <div class="header">
     <div class="header-content">
       <div class="logo" onclick="navigateToHome()">ÉTHÉRÉ</div>
-      <div class="search-bar">
-        <input type="text" class="search-input" placeholder="Search..." />
-        <button class="search-clear">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M10.0003 18.9583C5.05866 18.9583 1.04199 14.9416 1.04199 9.99996C1.04199 5.05829 5.05866 1.04163 10.0003 1.04163C14.942 1.04163 18.9587 5.05829 18.9587 9.99996C18.9587 14.9416 14.942 18.9583 10.0003 18.9583ZM10.0003 2.29163C5.75033 2.29163 2.29199 5.74996 2.29199 9.99996C2.29199 14.25 5.75033 17.7083 10.0003 17.7083C14.2503 17.7083 17.7087 14.25 17.7087 9.99996C17.7087 5.74996 14.2503 2.29163 10.0003 2.29163Z"
-              fill="#909090"
-            />
-            <path
-              d="M7.64147 12.9834C7.48314 12.9834 7.3248 12.925 7.1998 12.8C6.95814 12.5584 6.95814 12.1584 7.1998 11.9167L11.9165 7.20005C12.1581 6.95838 12.5581 6.95838 12.7998 7.20005C13.0415 7.44172 13.0415 7.84172 12.7998 8.08338L8.08314 12.8C7.96647 12.925 7.7998 12.9834 7.64147 12.9834Z"
-              fill="#909090"
-            />
-            <path
-              d="M12.3581 12.9834C12.1998 12.9834 12.0415 12.925 11.9165 12.8L7.1998 8.08338C6.95814 7.84172 6.95814 7.44172 7.1998 7.20005C7.44147 6.95838 7.84147 6.95838 8.08314 7.20005L12.7998 11.9167C13.0415 12.1584 13.0415 12.5584 12.7998 12.8C12.6748 12.925 12.5165 12.9834 12.3581 12.9834Z"
-              fill="#909090"
-            />
-          </svg>
-        </button>
-      </div>
+      <div style="flex:1"></div>
       <div class="header-actions">
         <button class="header-btn" title="Add Entry" onclick="navigateToCreateEntry()">
-          <svg
-            width="27"
-            height="27"
-            viewBox="0 0 27 27"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M18 14.3438H9C8.53875 14.3438 8.15625 13.9613 8.15625 13.5C8.15625 13.0387 8.53875 12.6562 9 12.6562H18C18.4613 12.6562 18.8438 13.0387 18.8438 13.5C18.8438 13.9613 18.4613 14.3438 18 14.3438Z"
-              fill="black"
-            />
-            <path
-              d="M13.5 18.8438C13.0388 18.8438 12.6562 18.4612 12.6562 18V9C12.6562 8.53875 13.0388 8.15625 13.5 8.15625C13.9612 8.15625 14.3438 8.53875 14.3438 9V18C14.3438 18.4612 13.9612 18.8438 13.5 18.8438Z"
-              fill="black"
-            />
-            <path
-              d="M16.875 25.5938H10.125C4.01625 25.5938 1.40625 22.9837 1.40625 16.875V10.125C1.40625 4.01625 4.01625 1.40625 10.125 1.40625H16.875C22.9837 1.40625 25.5938 4.01625 25.5938 10.125V16.875C25.5938 22.9837 22.9837 25.5938 16.875 25.5938ZM10.125 3.09375C4.93875 3.09375 3.09375 4.93875 3.09375 10.125V16.875C3.09375 22.0613 4.93875 23.9062 10.125 23.9062H16.875C22.0613 23.9062 23.9062 22.0613 23.9062 16.875V10.125C23.9062 4.93875 22.0613 3.09375 16.875 3.09375H10.125Z"
-              fill="black"
-            />
+          <svg width="27" height="27" viewBox="0 0 27 27" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 14.3438H9C8.53875 14.3438 8.15625 13.9613 8.15625 13.5C8.15625 13.0387 8.53875 12.6562 9 12.6562H18C18.4613 12.6562 18.8438 13.0387 18.8438 13.5C18.8438 13.9613 18.4613 14.3438 18 14.3438Z" fill="black"/>
+            <path d="M13.5 18.8438C13.0388 18.8438 12.6562 18.4612 12.6562 18V9C12.6562 8.53875 13.0388 8.15625 13.5 8.15625C13.9612 8.15625 14.3438 8.53875 14.3438 9V18C14.3438 18.4612 13.9612 18.8438 13.5 18.8438Z" fill="black"/>
+            <path d="M16.875 25.5938H10.125C4.01625 25.5938 1.40625 22.9837 1.40625 16.875V10.125C1.40625 4.01625 4.01625 1.40625 10.125 1.40625H16.875C22.9837 1.40625 25.5938 4.01625 25.5938 10.125V16.875C25.5938 22.9837 22.9837 25.5938 16.875 25.5938ZM10.125 3.09375C4.93875 3.09375 3.09375 4.93875 3.09375 10.125V16.875C3.09375 22.0613 4.93875 23.9062 10.125 23.9062H16.875C22.0613 23.9062 23.9062 22.0613 23.9062 16.875V10.125C23.9062 4.93875 22.0613 3.09375 16.875 3.09375H10.125Z" fill="black"/>
           </svg>
         </button>
-        <button class="header-btn" title="Notifications">
-          <svg
-            width="30"
-            height="27"
-            viewBox="0 0 30 27"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M13.5 7.245V10.9912"
-              stroke="#292D32"
-              stroke-width="1.5"
-              stroke-miterlimit="10"
-              stroke-linecap="round"
-            />
-            <path
-              d="M23.1636 17.0663C23.9849 18.4388 23.3324 20.2163 21.8136 20.7225C16.4361 22.5113 10.6199 22.5113 5.24236 20.7225C3.62236 20.1825 3.00361 18.54 3.89236 17.0663L5.32111 14.6813C5.71486 14.0288 6.02986 12.87 6.02986 12.1163V9.75375C6.02986 5.6025 9.38236 2.25 13.5224 2.25C17.6399 2.25 21.0149 5.625 21.0149 9.7425V12.105C21.0149 12.3075 21.0374 12.5325 21.0711 12.7688"
-              stroke="#292D32"
-              stroke-width="1.5"
-              stroke-miterlimit="10"
-              stroke-linecap="round"
-            />
-            <path
-              d="M17.2464 21.1725C17.2464 23.2312 15.5589 24.9187 13.5002 24.9187C12.4764 24.9187 11.5314 24.4912 10.8564 23.8162C10.1814 23.1412 9.75391 22.1962 9.75391 21.1725"
-              stroke="#292D32"
-              stroke-width="1.5"
-              stroke-miterlimit="10"
-            />
-            <path
-              d="M29.4999 3.27266C29.4999 4.62827 28.401 5.72721 27.0454 5.72721C25.6898 5.72721 24.5908 4.62827 24.5908 3.27266C24.5908 1.91705 25.6898 0.818115 27.0454 0.818115C28.401 0.818115 29.4999 1.91705 29.4999 3.27266Z"
-              fill="#C01A1A"
-            />
+        <button class="header-btn" title="Notifications" onclick="window.location.href='/inbox/'" style="position:relative">
+          <svg width="30" height="27" viewBox="0 0 30 27" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13.5 7.245V10.9912" stroke="#292D32" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round"/>
+            <path d="M23.1636 17.0663C23.9849 18.4388 23.3324 20.2163 21.8136 20.7225C16.4361 22.5113 10.6199 22.5113 5.24236 20.7225C3.62236 20.1825 3.00361 18.54 3.89236 17.0663L5.32111 14.6813C5.71486 14.0288 6.02986 12.87 6.02986 12.1163V9.75375C6.02986 5.6025 9.38236 2.25 13.5224 2.25C17.6399 2.25 21.0149 5.625 21.0149 9.7425V12.105C21.0149 12.3075 21.0374 12.5325 21.0711 12.7688" stroke="#292D32" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round"/>
+            <path d="M17.2464 21.1725C17.2464 23.2312 15.5589 24.9187 13.5002 24.9187C12.4764 24.9187 11.5314 24.4912 10.8564 23.8162C10.1814 23.1412 9.75391 22.1962 9.75391 21.1725" stroke="#292D32" stroke-width="1.5" stroke-miterlimit="10"/>
           </svg>
+          <span id="profileNotifDot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#C01A1A;border:1.5px solid #fff;"></span>
         </button>
         <button class="logout-btn" onclick="logout()">Log out</button>
       </div>
@@ -101,11 +36,15 @@
   </div>
 
   <main class="layout">
+
+    <!-- ── Left: Profile Card ── -->
     <section class="profile-card">
+
+      {% if is_own_profile %}
       <figure class="mainAvatar">
-       <img class="avatar lg" id="mainAvatar" 
-            src="" data-fallback="{% static 'authors/avatar1.jpg' %}"
-            alt="User Avatar">
+        <img class="avatar lg" id="mainAvatar"
+             src="" data-fallback="{% static 'authors/avatar1.jpg' %}"
+             alt="User Avatar">
         <div class="avatar-overlay">
           <button id="uploadBtn" type="button" class="upload-btn">
             <svg width="20" height="20" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -115,7 +54,6 @@
         </div>
         <input type="file" id="avatarInput" accept="image/*" style="display:none;">
       </figure>
-      
 
       <section class="profile-stats">
         <h2 class="profile-name" id="profile-name"></h2>
@@ -125,15 +63,11 @@
             <span class="label">Entries</span>
           </li>
           <li id="statFollowers">
-            <span class="num">
-              {{ follower_count }}
-            </span><br>
+            <span class="num">{{ follower_count }}</span><br>
             <span class="label">Followers</span>
           </li>
           <li id="statFollowing">
-            <span class="num">
-              {{ following_count }}
-            </span><br>
+            <span class="num">{{ following_count }}</span><br>
             <span class="label">Following</span>
           </li>
         </ul>
@@ -156,9 +90,7 @@
               </div>
             </li>
           {% empty %}
-            <li class="empty-state">
-              Nothing
-            </li>
+            <li class="empty-state">Nothing</li>
           {% endfor %}
         </ul>
       </section>
@@ -167,7 +99,6 @@
         <h3>Followers</h3>
         <ul class="friend-grid">
           {% for fr in request_user_followers %}
-            {# fr.follower 가 실제 Author 객체 #}
             <li class="friend-item" onclick="navigateToPublicProfile('{{ fr.follower.username }}')">
               <div class="friend-avatar">
                 {% if fr.follower.image %}
@@ -181,9 +112,7 @@
               </div>
             </li>
           {% empty %}
-            <li class="empty-state">
-              No followers yet
-            </li>
+            <li class="empty-state">No followers yet</li>
           {% endfor %}
         </ul>
       </section>
@@ -192,7 +121,6 @@
         <h3>Following</h3>
         <ul class="friend-grid">
           {% for fr in request_user_following %}
-            {# fr.following 이 실제 Author 객체 #}
             <li class="friend-item" onclick="navigateToPublicProfile('{{ fr.following.username }}')">
               <div class="friend-avatar">
                 {% if fr.following.image %}
@@ -206,15 +134,113 @@
               </div>
             </li>
           {% empty %}
-            <li class="empty-state">
-              Not following anyone yet
-            </li>
+            <li class="empty-state">Not following anyone yet</li>
           {% endfor %}
         </ul>
       </section>
+
+      {% else %}{# ── public profile ── #}
+
+      <figure class="mainAvatar">
+        {% if author.image %}
+          <img class="avatar lg" src="{{ author.image.url }}" alt="{{ author.display_name }}">
+        {% else %}
+          <img class="avatar lg" src="{% static 'images/default_pfp.png' %}" alt="{{ author.display_name }}">
+        {% endif %}
+      </figure>
+
+      <section class="profile-stats">
+        <h2 class="profile-name">{{ author.display_name|default:author.username }}</h2>
+        <ul class="stats">
+          <li>
+            <span class="num">{{ entry_count }}</span><br>
+            <span class="label">Entries</span>
+          </li>
+          <li>
+            <span class="num">{{ author_follower_count }}</span><br>
+            <span class="label">Followers</span>
+          </li>
+          <li>
+            <span class="num">{{ author_following_count }}</span><br>
+            <span class="label">Following</span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="friends">
+        <h3>Friends</h3>
+        <ul class="friend-grid">
+          {% for friend in author_friends %}
+            <li class="friend-item" onclick="navigateToPublicProfile('{{ friend.username }}')">
+              <div class="friend-avatar">
+                {% if friend.image %}
+                  <img src="{{ friend.image.url }}" alt="{{ friend.display_name }}">
+                {% else %}
+                  <img src="{% static 'images/default_pfp.png' %}" alt="{{ friend.display_name }}">
+                {% endif %}
+              </div>
+              <div class="friend-name" title="{{ friend.display_name }}">
+                {{ friend.display_name|default:friend.username }}
+              </div>
+            </li>
+          {% empty %}
+            <li class="empty-state">Nothing</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="friends">
+        <h3>Followers</h3>
+        <ul class="friend-grid">
+          {% for fr in author_followers_list %}
+            <li class="friend-item" onclick="navigateToPublicProfile('{{ fr.follower.username }}')">
+              <div class="friend-avatar">
+                {% if fr.follower.image %}
+                  <img src="{{ fr.follower.image.url }}" alt="{{ fr.follower.display_name }}">
+                {% else %}
+                  <img src="{% static 'images/default_pfp.png' %}" alt="{{ fr.follower.display_name }}">
+                {% endif %}
+              </div>
+              <div class="friend-name" title="{{ fr.follower.display_name }}">
+                {{ fr.follower.display_name|default:fr.follower.username }}
+              </div>
+            </li>
+          {% empty %}
+            <li class="empty-state">No followers yet</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="friends">
+        <h3>Following</h3>
+        <ul class="friend-grid">
+          {% for fr in author_following_list %}
+            <li class="friend-item" onclick="navigateToPublicProfile('{{ fr.following.username }}')">
+              <div class="friend-avatar">
+                {% if fr.following.image %}
+                  <img src="{{ fr.following.image.url }}" alt="{{ fr.following.display_name }}">
+                {% else %}
+                  <img src="{% static 'images/default_pfp.png' %}" alt="{{ fr.following.display_name }}">
+                {% endif %}
+              </div>
+              <div class="friend-name" title="{{ fr.following.display_name }}">
+                {{ fr.following.display_name|default:fr.following.username }}
+              </div>
+            </li>
+          {% empty %}
+            <li class="empty-state">Not following anyone yet</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      {% endif %}
     </section>
 
+    <!-- ── Right: Profile Detail ── -->
     <section class="profile-detail">
+
+      {% if is_own_profile %}
+
       <h2>Profile Details</h2>
 
       <form id="profileForm">
@@ -222,20 +248,16 @@
           <label>Username
             <input id="username" name="username" disabled autocomplete="username">
           </label>
-
           <label>Display name
             <input id="display_name" name="display_name" required>
           </label>
-
           <label>Github URL
             <input id="github_url" name="github_url" placeholder="https://github.com/username">
           </label>
-
           <label>Bio
             <textarea id="bio" name="bio"></textarea>
           </label>
         </section>
-
         <button id="saveBtn" class="saveBtn" type="submit">Save</button>
       </form>
 
@@ -253,112 +275,130 @@
             {% else %}
               <li><img src="{% static 'images/no_image.png' %}" alt="No image"></li>
             {% endif %}
-
           {% endfor %}
           <li class="upload-tile no-image">
             <button class="upload-btn" type="button">
-                <svg width="35" height="35" viewBox="0 0 24 24" fill="none"
-                xmlns="http://www.w3.org/2000/svg">
-                <path d="M18 6C17.39 6 16.83 5.65 16.55 5.11L15.83 3.66C15.37 2.75 14.17 2 13.15 2H10.86C9.83005 2 8.63005 2.75 8.17005 3.66L7.45005 5.11C7.17004 5.65 6.61005 6 6.00005 6C3.83005 6 2.11005 7.83 2.25005 9.99L2.77005 18.25C2.89005 20.31 4.00005 22 6.76005 22H17.24C20 22 21.1 20.31 21.23 18.25L21.75 9.99C21.89 7.83 20.17 6 18 6ZM10.5 7.25H13.5C13.91 7.25 14.25 7.59 14.25 8C14.25 8.41 13.91 8.75 13.5 8.75H10.5C10.09 8.75 9.75005 8.41 9.75005 8C9.75005 7.59 10.09 7.25 10.5 7.25ZM12 18.12C10.14 18.12 8.62005 16.61 8.62005 14.74C8.62005 12.87 10.13 11.36 12 11.36C13.87 11.36 15.38 12.87 15.38 14.74C15.38 16.61 13.86 18.12 12 18.12Z"
-                    fill="white" />
-                </svg>
+              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 6C17.39 6 16.83 5.65 16.55 5.11L15.83 3.66C15.37 2.75 14.17 2 13.15 2H10.86C9.83005 2 8.63005 2.75 8.17005 3.66L7.45005 5.11C7.17004 5.65 6.61005 6 6.00005 6C3.83005 6 2.11005 7.83 2.25005 9.99L2.77005 18.25C2.89005 20.31 4.00005 22 6.76005 22H17.24C20 22 21.1 20.31 21.23 18.25L21.75 9.99C21.89 7.83 20.17 6 18 6ZM10.5 7.25H13.5C13.91 7.25 14.25 7.59 14.25 8C14.25 8.41 13.91 8.75 13.5 8.75H10.5C10.09 8.75 9.75005 8.41 9.75005 8C9.75005 7.59 10.09 7.25 10.5 7.25ZM12 18.12C10.14 18.12 8.62005 16.61 8.62005 14.74C8.62005 12.87 10.13 11.36 12 11.36C13.87 11.36 15.38 12.87 15.38 14.74C15.38 16.61 13.86 18.12 12 18.12Z" fill="white"/>
+              </svg>
             </button>
           </li>
         </ul>
       </section>
 
+      {% else %}{# ── public profile ── #}
+
+      <h2>Profile Details</h2>
+
+      <section class="profile-fields">
+        <label>Username
+          <div class="field-value">{{ author.username }}</div>
+        </label>
+        <label>Display name
+          <div class="field-value">{{ author.display_name|default:author.username }}</div>
+        </label>
+        <label>Github URL
+          {% if author.github_url %}
+            <a class="field-value field-link" href="{{ author.github_url }}" target="_blank" rel="noopener">{{ author.github_url }}</a>
+          {% else %}
+            <div class="field-value field-empty">—</div>
+          {% endif %}
+        </label>
+        <label>Bio
+          <div class="field-value field-bio">{{ author.bio|default:"No bio yet." }}</div>
+        </label>
+      </section>
+
+      {% if request.user.is_authenticated and request.user.id != author.id %}
+      <button id="followBtn" class="followBtn hidden">Follow</button>
+      {% endif %}
+
+      <hr>
+
+      <section class="entries">
+        <div class="entries-header">
+          <h3>Entries</h3>
+          <a href="/authors/{{ author.username }}/">View All</a>
+        </div>
+        <ul class="gallery">
+          {% for entry in entries|slice:":5" %}
+            <li onclick="navigateToEntry('{{ entry.id }}')">
+              {% if entry.image %}
+                <img src="{{ entry.image.url }}" alt="Entry">
+              {% elif entry.image_url %}
+                <img src="{{ entry.image_url }}" alt="Entry">
+              {% else %}
+                <img src="{% static 'images/no_image.png' %}" alt="No image">
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      {% endif %}
     </section>
   </main>
 
   <script src="{% static 'js/api.js' %}"></script>
   <script src="{% static 'js/common.js' %}"></script>
+
+  {% if is_own_profile %}
   <script>
-    //Extracts the username from the current URL, e.g. /authors/makima/settings/ --> "makiam".Used to know whose profile to fetch.
     function getUsernameFromPath() {
       const m = location.pathname.match(/\/authors\/([^\/]+)\/settings\/?$/);
       return m ? decodeURIComponent(m[1]) : null;
     }
 
-    // Check if user is authorized and is the author of the profile, if not redirect to home
     (async function checkAuthorization() {
-      // if doesnt have token then redirect to home
       const token = localStorage.getItem("access_token");
-      if (!token) {
-        window.location.href = "/home/";
-        return;
-      }
-
+      if (!token) { window.location.href = "/home/"; return; }
       const usernameInUrl = getUsernameFromPath();
-      if (!usernameInUrl) {
-        window.location.href = "/home/";
-        return;
-      }
-
+      if (!usernameInUrl) { window.location.href = "/home/"; return; }
       try {
-        const meRes = await fetch('/api/authors/author_profile/', {
-          headers: getHeaders(),
-          credentials: 'same-origin'
+        const meRes = await apiFetch('/api/authors/author_profile/', {
+          headers: getHeaders(), credentials: 'same-origin'
         });
-
-        if (!meRes.ok || meRes.status === 401) {
-          window.location.href = "/home/";
-          return;
-        }
-
+        if (!meRes.ok || meRes.status === 401) { window.location.href = "/home/"; return; }
         const me = await meRes.json();
-        const currentUsername = me.username;
-
-        if (currentUsername !== usernameInUrl) {
-          window.location.href = "/home/";
-          return;
-        }
-
+        if (me.username !== usernameInUrl) { window.location.href = "/home/"; return; }
         initializePage();
       } catch (err) {
-        // Network error or other issue - redirect for safety
-        console.error('Authorization check failed:', err);
         window.location.href = "/home/";
       }
     })();
 
     function initializePage() {
       const API = {
-        getProfile(username) {    //get author info
-          return fetch(`/api/authors/${encodeURIComponent(username)}/`, {
-            headers: getHeaders(),
-            credentials: 'same-origin'
+        getProfile(username) {
+          return apiFetch(`/api/authors/${encodeURIComponent(username)}/`, {
+            headers: getHeaders(), credentials: 'same-origin'
           });
         },
-        updateProfile(username, body) {    // update author info
-          return fetch(`/api/authors/${encodeURIComponent(username)}/`, {
-            method: 'PUT',
-            headers: getHeaders(),
-            body: JSON.stringify(body),
-            credentials: 'same-origin'
+        updateProfile(username, body) {
+          return apiFetch(`/api/authors/${encodeURIComponent(username)}/`, {
+            method: 'PUT', headers: getHeaders(),
+            body: JSON.stringify(body), credentials: 'same-origin'
           });
         }
       };
 
-      //upload avatar
       const uploadBtn   = document.getElementById('uploadBtn');
       const avatarInput = document.getElementById('avatarInput');
       const mainAvatar  = document.getElementById('mainAvatar');
-      let selectedAvatarFile = null;  // keep selected file for later upload
+      let selectedAvatarFile = null;
 
       if (uploadBtn && avatarInput && mainAvatar) {
         uploadBtn.addEventListener('click', () => avatarInput.click());
         avatarInput.addEventListener('change', (e) => {
           const file = e.target.files && e.target.files[0];
           if (!file) return;
-          selectedAvatarFile = file;           // remember for Save
+          selectedAvatarFile = file;
           const reader = new FileReader();
-          reader.onload = () => { mainAvatar.src = reader.result; }; // instant preview only
+          reader.onload = () => { mainAvatar.src = reader.result; };
           reader.readAsDataURL(file);
-          // Do not upload here; upload happens on Save
         });
       }
 
-      //  preloads an image and only replaces the avatar once the new image is confirmed to load correctly
       function swapAvatar(imgEl, url) {
         if (!imgEl || !url) return;
         const tmp = new Image();
@@ -366,140 +406,72 @@
         tmp.src = url;
       }
 
-      // Fetch and display author profile info from backend API
       async function getProfile() {
         const usernameInUrl = getUsernameFromPath();
-        if (!usernameInUrl) {
-          console.error('Cannot parse username from URL.');
-          return;     //If username cannot be parsed from URL, stop and log error
-        }
-
+        if (!usernameInUrl) return;
         try {
-          const r = await API.getProfile(usernameInUrl);    //get author profile
-
-          if (r.status === 401){
-            window.location = '/authors/auth/';  //back to auth page if 401
-            return;
-          }
-          if (!r.ok) {
-            const errText = await r.text();
-            console.error('Failed to load profile:', r.status, errText);
-            alert('Failed to load profile details.');
-            return;
-          }
-
-          const d = await r.json();  //parse author profile to Json
-
+          const r = await API.getProfile(usernameInUrl);
+          if (r.status === 401) { window.location = '/authors/auth/'; return; }
+          if (!r.ok) { alert('Failed to load profile details.'); return; }
+          const d = await r.json();
           document.getElementById('username').value = d.username || usernameInUrl || '';
           document.getElementById('profile-name').textContent = d.displayName || d.display_name || d.username || usernameInUrl || '';
           document.getElementById('display_name').value = d.displayName || d.display_name || d.username || usernameInUrl || '';
           document.getElementById('github_url').value = d.github || d.github_url || '';
           document.getElementById('bio').value = d.bio || '';
-
           const main = document.getElementById('mainAvatar');
-          const small = document.getElementById('smallAvatar');
           const fallbackSrc = main?.dataset?.fallback || "{% static 'authors/avatar1.jpg' %}";
-
           const imageUrl = d.profileImage || d.image;
-          if (imageUrl) {
-            swapAvatar(main, imageUrl);
-            if (small) {
-              swapAvatar(small, imageUrl)
-            };
-          } else {
-            // no uploaded avatar -> use static fallback for both
-            swapAvatar(main, fallbackSrc);
-            if (small) {
-              swapAvatar(small, fallbackSrc)
-            };
-          }
+          swapAvatar(main, imageUrl || fallbackSrc);
         } catch (err) {
           console.error(err);
           alert('Network error. Please try again.');
         }
       }
-      
-      //handle profile save(update info & avatar uploading)
+
       document.getElementById('profileForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        // Extract username from URL to know which author profile to update( /api/authors/<username>/json/)
         const usernameInUrl = getUsernameFromPath();
-        if (!usernameInUrl) {
-          alert('Invalid profile URL.');
-          return;
-        }
+        if (!usernameInUrl) { alert('Invalid profile URL.'); return; }
         const body = {
           display_name: document.getElementById('display_name').value,
           github_url: document.getElementById('github_url').value,
           bio: document.getElementById('bio').value
         };
-
         const saveBtn = document.getElementById('saveBtn');
         const prevText = saveBtn.textContent;
-        saveBtn.disabled = true; //Prevent double submission
-        
+        saveBtn.disabled = true;
         try {
-          //Send PUT request to update profile info
-          const r = await API.updateProfile(usernameInUrl, body);   
-
-          saveBtn.disabled = false; //enable after response
+          const r = await API.updateProfile(usernameInUrl, body);
+          saveBtn.disabled = false;
           saveBtn.textContent = prevText;
-
-          if (r.status === 401) {
-            window.location = '/authors/auth/';
-            return;
-          }
-          if (!r.ok) {
-            const errText = await r.text();
-            console.error('Update failed:', r.status, errText);
-            alert('Failed to save. Please try again.');
-            return;
-          }
-
-          // If an avatar file was selected, upload it after profile update
+          if (r.status === 401) { window.location = '/authors/auth/'; return; }
+          if (!r.ok) { alert('Failed to save. Please try again.'); return; }
           if (selectedAvatarFile) {
             const fd = new FormData();
-            // For PUT, we need to send ALL fields, not just the image
             fd.append("username", document.getElementById('username').value);
             fd.append("display_name", document.getElementById('display_name').value);
             fd.append("github_url", document.getElementById('github_url').value);
             fd.append("bio", document.getElementById('bio').value);
             fd.append("image", selectedAvatarFile);
-            
-            const up = await fetch(`/api/authors/${encodeURIComponent(usernameInUrl)}/`, {
-              method: "PUT",
-              headers: getHeadersWithNoContentType(),
-              body: fd,
-              credentials: "same-origin"
+            const up = await apiFetch(`/api/authors/${encodeURIComponent(usernameInUrl)}/`, {
+              method: "PUT", headers: getHeadersWithNoContentType(),
+              body: fd, credentials: "same-origin"
             });
-            
-            if (!up.ok) {
-              const t = await up.text();
-              console.error("Avatar upload failed", up.status, t);
-              alert("Avatar upload failed");
-              return;    // stop here; don't overwrite preview with old data
-            }
+            if (!up.ok) { alert("Avatar upload failed"); return; }
             const data = await up.json();
             const imageUrl = data.profileImage || data.image;
-            if (imageUrl) {
-              swapAvatar(document.getElementById('mainAvatar'), imageUrl);
-              const smallAvatar = document.getElementById('smallAvatar');
-              if (smallAvatar) swapAvatar(smallAvatar, imageUrl);
-            }
-            selectedAvatarFile = null;   // clear after successful upload
+            if (imageUrl) swapAvatar(document.getElementById('mainAvatar'), imageUrl);
+            selectedAvatarFile = null;
           }
-          
           await getProfile();
         } catch (err) {
           saveBtn.disabled = false;
           saveBtn.textContent = prevText;
-          console.error(err);
           alert('Network error. Please try again.');
         }
       });
 
-      // Load profile data
       getProfile();
     }
 
@@ -507,6 +479,150 @@
       window.location.href = `/authors/${username}/`;
     }
   </script>
-  
+
+  {% else %}{# ── public profile JS ── #}
+  <script>
+    const isAuthenticated = {{ request.user.is_authenticated|yesno:"true,false" }};
+    const userId = {% if request.user.id %}"{{ request.user.id }}"{% else %}null{% endif %};
+    const authorId = {% if author.id %}"{{ author.id }}"{% else %}null{% endif %};
+
+    function extract_entry_serial_from_fqid(fqid) {
+      if (!fqid) return fqid;
+      if (typeof fqid !== 'string') fqid = String(fqid);
+      if (fqid.includes('/entries/')) return fqid.split('/entries/')[1].split('/')[0].split('?')[0];
+      return fqid;
+    }
+    function extract_serial_from_fqid(fqid) {
+      if (!fqid) return fqid;
+      if (typeof fqid !== 'string') fqid = String(fqid);
+      if (fqid.includes('/api/authors/')) return fqid.split('/api/authors/')[1].split('/')[0].split('?')[0];
+      return fqid;
+    }
+    function navigateToEntry(entryId) {
+      if (!isAuthenticated) { window.location.href = '/authors/auth/'; return; }
+      window.location.href = `/entries/${extract_entry_serial_from_fqid(entryId)}/`;
+    }
+    function navigateToPublicProfile(username) {
+      window.location.href = `/authors/${username}/`;
+    }
+
+    const API = {
+      getAuthorByUsername(u) {
+        return apiFetch(`/api/authors/${encodeURIComponent(u)}/`, { headers: getHeaders(), credentials: 'same-origin' });
+      },
+      getMe() {
+        return apiFetch(`/api/authors/author_profile/`, { headers: getHeaders(), credentials: 'same-origin' });
+      },
+      follow(id) {
+        if (id.includes('/api/authors/')) id = extract_serial_from_fqid(id);
+        return apiFetch(`/api/authors/${id}/follow/`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({}), credentials: 'same-origin' });
+      },
+      unfollow(id) {
+        if (id.includes('/api/authors/')) id = extract_serial_from_fqid(id);
+        return apiFetch(`/api/authors/${id}/follow/`, { method: 'DELETE', headers: getHeaders(), credentials: 'same-origin' });
+      }
+    };
+
+    let meUsername = null, currentProfile = null;
+
+    async function init() {
+      if (isAuthenticated) {
+        try {
+          const r = await API.getMe();
+          if (r.ok) meUsername = (await r.json()).username;
+        } catch (e) {}
+      }
+      try {
+        const r = await API.getAuthorByUsername("{{ author.username }}");
+        if (r.status === 401) { window.location = '/authors/auth/'; return; }
+        if (!r.ok) return;
+        currentProfile = await r.json();
+        if (isAuthenticated) setupFollowButton(currentProfile);
+      } catch (e) { console.error(e); }
+    }
+
+    function setupFollowButton(profile) {
+      const btn = document.getElementById('followBtn');
+      if (!btn) return;
+      if (meUsername && profile.username && meUsername === profile.username) { btn.classList.add('hidden'); return; }
+      btn.classList.remove('hidden', 'following', 'requested', 'unfollow');
+      btn.disabled = false;
+      const s = profile.follow_status;
+      if (s === 'accepted') {
+        btn.textContent = 'Unfollow'; btn.classList.add('unfollow');
+        btn.onclick = () => handleUnfollow(profile, btn);
+      } else if (s === 'pending') {
+        btn.textContent = 'Requested'; btn.classList.add('requested');
+        btn.disabled = true; btn.onclick = null;
+      } else {
+        btn.textContent = 'Follow'; btn.onclick = () => handleFollow(profile, btn);
+      }
+    }
+
+    async function handleFollow(profile, btn) {
+      if (!profile.id) return;
+      btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Sending...';
+      try {
+        const res = await API.follow(profile.id);
+        if (res.status === 201 || res.status === 409 || res.status === 400) {
+          btn.textContent = 'Requested'; btn.classList.add('requested');
+          btn.disabled = true; btn.onclick = null; currentProfile.follow_status = 'pending';
+        } else if (res.status === 401) { window.location = '/authors/auth/'; }
+        else { btn.textContent = orig; btn.disabled = false; }
+      } catch (e) { btn.textContent = orig; btn.disabled = false; }
+    }
+
+    async function handleUnfollow(profile, btn) {
+      if (!profile.serial) return;
+      if (!confirm(`Unfollow ${profile.username || 'this author'}?`)) return;
+      btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Unfollowing...';
+      try {
+        const res = await API.unfollow(profile.id);
+        if (res.status === 204 || res.status === 200) {
+          btn.textContent = 'Follow'; btn.classList.remove('unfollow', 'requested');
+          btn.disabled = false; btn.onclick = () => handleFollow(profile, btn);
+        } else if (res.status === 401) { window.location = '/authors/auth/'; }
+        else { btn.textContent = orig; btn.disabled = false; }
+      } catch (e) { btn.textContent = orig; btn.disabled = false; }
+    }
+
+    let pollInterval;
+    async function refreshFollowStatus() {
+      if (!currentProfile?.username) return;
+      try {
+        const r = await API.getAuthorByUsername(currentProfile.username);
+        if (r.ok) {
+          const u = await r.json();
+          if (currentProfile.follow_status !== u.follow_status) {
+            currentProfile.follow_status = u.follow_status;
+            setupFollowButton(currentProfile);
+          }
+        }
+      } catch (e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (isAuthenticated) {
+        await init();
+        if (currentProfile && meUsername && currentProfile.username !== meUsername)
+          pollInterval = setInterval(refreshFollowStatus, 5000);
+      }
+    });
+    window.addEventListener('beforeunload', () => { if (pollInterval) clearInterval(pollInterval); });
+  </script>
+  {% endif %}
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        if (!getAccessToken()) return;
+        const res = await apiFetch('/api/inbox/notifications/?limit=1');
+        if (!res.ok) return;
+        const data = await res.json();
+        const dot = document.getElementById('profileNotifDot');
+        if (dot && (data.unread_count || 0) > 0) dot.style.display = 'block';
+      } catch (e) {}
+    });
+  </script>
 </body>
 </html>

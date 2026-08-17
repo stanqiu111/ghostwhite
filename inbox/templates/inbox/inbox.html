@@ -169,31 +169,7 @@
   <div class="header">
       <div class="header-content">
         <div class="logo" onclick="navigateToHome()">ÉTHÉRÉ</div>
-        <div class="search-bar">
-          <input type="text" class="search-input" placeholder="Search..." />
-          <button class="search-clear">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M10.0003 18.9583C5.05866 18.9583 1.04199 14.9416 1.04199 9.99996C1.04199 5.05829 5.05866 1.04163 10.0003 1.04163C14.942 1.04163 18.9587 5.05829 18.9587 9.99996C18.9587 14.9416 14.942 18.9583 10.0003 18.9583ZM10.0003 2.29163C5.75033 2.29163 2.29199 5.74996 2.29199 9.99996C2.29199 14.25 5.75033 17.7083 10.0003 17.7083C14.2503 17.7083 17.7087 14.25 17.7087 9.99996C17.7087 5.74996 14.2503 2.29163 10.0003 2.29163Z"
-                fill="#909090"
-              />
-              <path
-                d="M7.64147 12.9834C7.48314 12.9834 7.3248 12.925 7.1998 12.8C6.95814 12.5584 6.95814 12.1584 7.1998 11.9167L11.9165 7.20005C12.1581 6.95838 12.5581 6.95838 12.7998 7.20005C13.0415 7.44172 13.0415 7.84172 12.7998 8.08338L8.08314 12.8C7.96647 12.925 7.7998 12.9834 7.64147 12.9834Z"
-                fill="#909090"
-              />
-              <path
-                d="M12.3581 12.9834C12.1998 12.9834 12.0415 12.925 11.9165 12.8L7.1998 8.08338C6.95814 7.84172 6.95814 7.44172 7.1998 7.20005C7.44147 6.95838 7.84147 6.95838 8.08314 7.20005L12.7998 11.9167C13.0415 12.1584 13.0415 12.5584 12.7998 12.8C12.6748 12.925 12.5165 12.9834 12.3581 12.9834Z"
-                fill="#909090"
-              />
-            </svg>
-          </button>
-        </div>
+        <div style="flex:1"></div>
         <div class="header-actions">
           <button class="header-btn" title="Add Entry" onclick="navigateToCreateEntry()">
             <svg
@@ -246,10 +222,6 @@
                 stroke-width="1.5"
                 stroke-miterlimit="10"
               />
-              <path
-                d="M29.4999 3.27266C29.4999 4.62827 28.401 5.72721 27.0454 5.72721C25.6898 5.72721 24.5908 4.62827 24.5908 3.27266C24.5908 1.91705 25.6898 0.818115 27.0454 0.818115C28.401 0.818115 29.4999 1.91705 29.4999 3.27266Z"
-                fill="#C01A1A"
-              />
             </svg>
           </button>
           <button class="logout-btn" onclick="logout()">Log out</button>
@@ -275,11 +247,9 @@
   <script>
     // home / create 에서 쓰는 헬퍼 그대로
     async function api(path, opts={}) {
-      const res = await fetch(`/api${path}`, {
-        credentials: 'same-origin',
-        ...opts,
-        headers: { ...(opts.headers||{}), ...getHeaders() }
-      });
+      // apiFetch adds CSRF + bearer + same-origin cookies and auto-refreshes
+      // the access token on a 401, so calls survive token expiry.
+      const res = await apiFetch(`/api${path}`, opts);
       let data = null; try{ data = await res.json(); }catch{}
       if (!res.ok) throw new Error(data?.detail || `${res.status} ${res.statusText}`);
       return data;

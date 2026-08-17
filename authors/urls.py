@@ -4,7 +4,6 @@ from . import views
 from .views import AuthorPublicGetUpdate, AuthorListView, AuthorByUsernameView
 from .views import FollowRequestView, FollowRequestsListView, FollowDecisionView
 from .views import SyncMyGithubReposView
-from django.views.generic import TemplateView
 from entries.views import EntryImageView
 from inbox.views import InboxPostView
 
@@ -26,7 +25,5 @@ urlpatterns = [
     path("sync-repos/", views.SyncMyGithubReposView.as_view(), name="sync_github_repos"),
     path("<str:author_id>/", AuthorPublicGetUpdate.as_view(), name="author_public"),
     path("<str:username>/", AuthorByUsernameView.as_view(), name="author_by_username"),
-    # static/explicit routes must come before the catch-all username route
     path("logout/", views.logout_view, name="logout"),
-    path("authors/<str:username>/", TemplateView.as_view(template_name="authors/author_public.html"), name="author_public_page"),
 ]

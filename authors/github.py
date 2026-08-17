@@ -116,7 +116,7 @@ def sync_github_events(author, github_username, access_token=None, *, limit=50):
             continue
         seen_event_ids.add(event_id)
 
-        if Entry.objects.filter(source="github", source_id=event_id).exists():
+        if Entry.objects.filter(author=author, source="github", source_id=event_id).exists():
             continue
 
         entry_data = map_event_to_entry(event, author)

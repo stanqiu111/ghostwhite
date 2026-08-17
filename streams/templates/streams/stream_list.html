@@ -1,0 +1,47 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Live Streams</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <link rel="stylesheet" href="{% static 'streams/streams.css' %}">
+  <script src="{% static 'js/common.js' %}"></script>
+</head>
+
+<body class="streams-page">
+  <div class="header">
+    <div class="header-content">
+      <div class="logo" onclick="navigateToHome()">ÉTHÉRÉ</div>
+      <div class="header-actions">
+        <button class="logout-btn" onclick="logout()">Log out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="streams-container">
+    <div class="streams-page-head">
+      <h1>Live now</h1>
+      <a class="stream-btn" href="{% url 'streams_pages:stream-create-page' %}">Go live</a>
+    </div>
+
+    {% if streams %}
+    <div class="streams-grid">
+      {% for stream in streams %}
+      <a class="stream-card" href="{% url 'streams_pages:stream-detail-page' stream.serial %}">
+        <div class="stream-card-top">
+          <span class="stream-badge stream-badge-live">Live</span>
+          <span class="stream-card-meta">{{ stream.started_at|date:"M j, g:i A" }}</span>
+        </div>
+        <h2 class="stream-card-title">{{ stream.title }}</h2>
+        <div class="stream-card-meta">{{ stream.owner.display_name|default:stream.owner.username }}</div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="streams-empty">No one is live right now. Be the first — go live!</div>
+    {% endif %}
+  </div>
+</body>
+</html>

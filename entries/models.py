@@ -45,8 +45,8 @@ class Entry(models.Model):
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["source", "source_id"],
-                name="unique_source_sourceid"
+                fields=["author", "source", "source_id"],
+                name="unique_author_source_sourceid"
             )
         ]
         indexes = [

@@ -1,0 +1,349 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" id="htmlRoot">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Settings — ÉTHÉRÉ</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f8f9fa;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: white;
+      border-bottom: 1px solid #e8e8e8;
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      cursor: pointer;
+      color: #111;
+    }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .theme-toggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 8px;
+      color: #333;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+    }
+    .theme-toggle:hover { background: rgba(0,0,0,0.07); }
+    .logout-btn {
+      background: white;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #333;
+    }
+    .logout-btn:hover { background: #f5f5f5; }
+
+    /* ── Page layout ── */
+    .page-wrap {
+      max-width: 680px;
+      margin: 40px auto;
+      padding: 0 20px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111;
+    }
+
+    /* ── Toast messages ── */
+    .messages { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .msg {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .msg-success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .msg-error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+    /* ── Settings card ── */
+    .settings-card {
+      background: white;
+      border-radius: 14px;
+      padding: 28px 32px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+    .settings-card h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    /* ── Form elements ── */
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    .settings-input {
+      width: 100%;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      color: #111;
+      background: #fafafa;
+      transition: border-color 0.15s, background 0.15s;
+      outline: none;
+    }
+    .settings-input:focus {
+      border-color: #0d9488;
+      background: white;
+    }
+    textarea.settings-input { resize: vertical; min-height: 80px; }
+
+    /* image preview */
+    .avatar-preview {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 10px;
+      border: 2px solid #e8e8e8;
+    }
+    .field-file input[type="file"] { font-size: 13px; color: #555; }
+
+    /* error list under field */
+    .field-errors { list-style: none; margin-top: 4px; }
+    .field-errors li { font-size: 12px; color: #b91c1c; }
+
+    /* ── Submit button ── */
+    .save-btn {
+      background: #0d9488;
+      color: white;
+      border: none;
+      border-radius: 9px;
+      padding: 11px 28px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 4px;
+    }
+    .save-btn:hover { background: #0f766e; }
+
+    /* ── Dark mode ── */
+    [data-theme="dark"] body { background: #121212; color: #e8e8e8; }
+    [data-theme="dark"] .header { background: #1a1a1a; border-color: #2a2a2a; }
+    [data-theme="dark"] .logo { color: #f5f5f5; }
+    [data-theme="dark"] .theme-toggle { color: #e8e8e8; }
+    [data-theme="dark"] .theme-toggle:hover { background: rgba(255,255,255,0.1); }
+    [data-theme="dark"] .logout-btn { background: #2a2a2a; color: #e8e8e8; border-color: #444; }
+    [data-theme="dark"] .logout-btn:hover { background: #333; }
+    [data-theme="dark"] .settings-card { background: #1e1e1e; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+    [data-theme="dark"] .settings-card h2 { color: #f0f0f0; border-color: #2a2a2a; }
+    [data-theme="dark"] h1 { color: #f0f0f0; }
+    [data-theme="dark"] .field label { color: #aaa; }
+    [data-theme="dark"] .settings-input { background: #2a2a2a; border-color: #3a3a3a; color: #e8e8e8; }
+    [data-theme="dark"] .settings-input:focus { border-color: #0d9488; background: #333; }
+    [data-theme="dark"] .avatar-preview { border-color: #3a3a3a; }
+    [data-theme="dark"] .msg-success { background: #052e16; color: #4ade80; border-color: #166534; }
+    [data-theme="dark"] .msg-error   { background: #2d0000; color: #f87171; border-color: #7f1d1d; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo" onclick="window.location.href='/home/'">ÉTHÉRÉ</div>
+    <div class="header-actions">
+      <button class="theme-toggle" id="themeToggle" title="Toggle dark mode" onclick="toggleTheme()">
+        <svg id="themeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+      <button class="logout-btn" onclick="window.location.href='{% url 'authors_pages:logout' %}'">Log out</button>
+    </div>
+  </div>
+
+  <div class="page-wrap">
+    <h1>Settings</h1>
+
+    {% if messages %}
+    <ul class="messages">
+      {% for msg in messages %}
+      <li class="msg {% if msg.tags == 'success' %}msg-success{% else %}msg-error{% endif %}">{{ msg }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <!-- Profile Settings -->
+    <div class="settings-card">
+      <h2>Profile</h2>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="profile"/>
+
+        <div class="field">
+          <label for="id_display_name">Display name</label>
+          {{ profile_form.display_name }}
+          {% if profile_form.display_name.errors %}
+          <ul class="field-errors">{% for e in profile_form.display_name.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="field">
+          <label for="id_bio">Bio</label>
+          {{ profile_form.bio }}
+          {% if profile_form.bio.errors %}
+          <ul class="field-errors">{% for e in profile_form.bio.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="field">
+          <label for="id_github_url">GitHub URL</label>
+          {{ profile_form.github_url }}
+          {% if profile_form.github_url.errors %}
+          <ul class="field-errors">{% for e in profile_form.github_url.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="field field-file">
+          <label>Profile picture</label>
+          {% if request.user.image %}
+          <img src="{{ request.user.image.url }}" alt="Current avatar" class="avatar-preview" id="avatarPreview"/>
+          {% else %}
+          <img src="{% static 'images/default_pfp.png' %}" alt="Default avatar" class="avatar-preview" id="avatarPreview"/>
+          {% endif %}
+          <div>{{ profile_form.image }}</div>
+          {% if profile_form.image.errors %}
+          <ul class="field-errors">{% for e in profile_form.image.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <button type="submit" class="save-btn">Save profile</button>
+      </form>
+    </div>
+
+    <!-- Account Settings -->
+    <div class="settings-card">
+      <h2>Account</h2>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="email"/>
+
+        <div class="field">
+          <label for="id_email">Email address</label>
+          {{ email_form.email }}
+          {% if email_form.email.errors %}
+          <ul class="field-errors">{% for e in email_form.email.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <button type="submit" class="save-btn">Update email</button>
+      </form>
+    </div>
+
+    <!-- Security -->
+    <div class="settings-card">
+      <h2>Security</h2>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="password"/>
+
+        <div class="field">
+          <label for="id_current_password">Current password</label>
+          {{ password_form.current_password }}
+          {% if password_form.current_password.errors %}
+          <ul class="field-errors">{% for e in password_form.current_password.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="field">
+          <label for="id_new_password1">New password</label>
+          {{ password_form.new_password1 }}
+          {% if password_form.new_password1.errors %}
+          <ul class="field-errors">{% for e in password_form.new_password1.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="field">
+          <label for="id_new_password2">Confirm new password</label>
+          {{ password_form.new_password2 }}
+          {% if password_form.new_password2.errors %}
+          <ul class="field-errors">{% for e in password_form.new_password2.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <button type="submit" class="save-btn">Change password</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Apply saved theme before paint
+    (function() {
+      const dark = localStorage.getItem('theme') === 'dark';
+      if (dark) document.getElementById('htmlRoot').setAttribute('data-theme', 'dark');
+      updateIcon(dark);
+    })();
+
+    function updateIcon(dark) {
+      const icon = document.getElementById('themeIcon');
+      if (!icon) return;
+      icon.innerHTML = dark
+        ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+        : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+    }
+
+    function toggleTheme() {
+      const root = document.getElementById('htmlRoot');
+      const dark = root.getAttribute('data-theme') !== 'dark';
+      root.setAttribute('data-theme', dark ? 'dark' : '');
+      localStorage.setItem('theme', dark ? 'dark' : 'light');
+      updateIcon(dark);
+    }
+
+    // Preview image before upload
+    const imgInput = document.getElementById('id_image');
+    if (imgInput) {
+      imgInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = e => {
+            const preview = document.getElementById('avatarPreview');
+            if (preview) preview.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+  </script>
+</body>
+</html>

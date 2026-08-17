@@ -103,17 +103,24 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
 class AuthorRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True)
+    email = serializers.EmailField(required=True)
 
     class Meta:
         model = Author
         fields = [
             "username",
             "display_name",
+            "email",
             "password",
             "password2",
             "bio",
             "github_url",
         ]
+
+    def validate_email(self, value):
+        if Author.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("An account with this email already exists.")
+        return value.lower()
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password2"]:
@@ -122,7 +129,7 @@ class AuthorRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         from utils.fqid import get_local_node
-        password2 = validated_data.pop("password2")
+        validated_data.pop("password2")
         local_node = get_local_node()
         validated_data["node"] = local_node
 

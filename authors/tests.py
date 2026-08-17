@@ -173,6 +173,7 @@ class SignupApprovalTests(APITestCase):
         payload = {
             "username": "pending_user",
             "display_name": "Pending User",
+            "email": "pending_user@example.com",
             # include all common password field names to satisfy different serializers
             "password": "Aa123456!",
             "password2": "Aa123456!",
@@ -182,7 +183,8 @@ class SignupApprovalTests(APITestCase):
         url = "/api/authors/register/"
         res = self.client.post(url, data=payload, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(res.data.get("status"), "pending")
+        # email verification flow: account starts pending until verified + approved
+        self.assertEqual(res.data.get("status"), "pending_verification")
         # no tokens should be issued on signup
         self.assertNotIn("access", res.data)
         self.assertNotIn("refresh", res.data)
@@ -255,6 +257,7 @@ class SignupExtraApprovalTests(APITestCase):
         payload = {
             "username": "pending_user_extra",
             "display_name": "Pending User Extra",
+            "email": "pending_user_extra@example.com",
             "password": "Aa123456!",
             "password2": "Aa123456!",
             "node": self.node.id,
@@ -262,8 +265,8 @@ class SignupExtraApprovalTests(APITestCase):
         url = "/api/authors/register/"
         res = self.client.post(url, data=payload, format="json")
         self.assertIn(res.status_code, (status.HTTP_201_CREATED, status.HTTP_200_OK))
-        # status should be "pending" and no tokens
-        self.assertEqual(res.data.get("status"), "pending")
+        # email verification flow: status is "pending_verification" and no tokens
+        self.assertEqual(res.data.get("status"), "pending_verification")
         self.assertNotIn("access", res.data)
         self.assertNotIn("refresh", res.data)
         # row exists and is unapproved
@@ -614,6 +617,111 @@ class UnfollowAPITests(APITestCase):
         self.assertEqual(res2.status_code, status.HTTP_404_NOT_FOUND)
 
 
+
+
+class SettingsPageTests(TestCase):
+    """Tests for /authors/settings/ account-management page."""
+
+    def setUp(self):
+        self.node, _ = Node.objects.get_or_create(
+            is_local=True, defaults={"host_url": "http://testserver"}
+        )
+        self.user = User.objects.create_user(
+            username="settingsuser",
+            password="OldPass123!",
+            display_name="Settings User",
+            node=self.node,
+        )
+        self.user.approved = True
+        self.user.is_active = True
+        self.user.email = "settings@example.com"
+        self.user.is_email_verified = True
+        self.user.save(update_fields=["approved", "is_active", "email", "is_email_verified"])
+
+    def _login(self):
+        self.client.login(username="settingsuser", password="OldPass123!")
+
+    def test_unauthenticated_redirects_to_login(self):
+        res = self.client.get("/authors/settings/")
+        self.assertIn(res.status_code, (301, 302))
+        self.assertIn("/authors/auth/", res["Location"])
+
+    def test_authenticated_can_load_settings_page(self):
+        self._login()
+        res = self.client.get("/authors/settings/")
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Settings")
+
+    def test_update_email_success(self):
+        self._login()
+        res = self.client.post("/authors/settings/", {
+            "action": "email",
+            "email": "newemail@example.com",
+        })
+        self.assertIn(res.status_code, (200, 302))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "newemail@example.com")
+
+    def test_update_email_duplicate_rejected(self):
+        other = User.objects.create_user(
+            username="otheruser", password="pass", node=self.node
+        )
+        other.email = "taken@example.com"
+        other.save(update_fields=["email"])
+
+        self._login()
+        self.client.post("/authors/settings/", {
+            "action": "email",
+            "email": "taken@example.com",
+        })
+        self.user.refresh_from_db()
+        self.assertNotEqual(self.user.email, "taken@example.com")
+
+    def test_password_change_success(self):
+        self._login()
+        self.client.post("/authors/settings/", {
+            "action": "password",
+            "current_password": "OldPass123!",
+            "new_password1": "NewSecure456!",
+            "new_password2": "NewSecure456!",
+        })
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewSecure456!"))
+
+    def test_password_change_wrong_current_rejected(self):
+        self._login()
+        self.client.post("/authors/settings/", {
+            "action": "password",
+            "current_password": "wrongpass",
+            "new_password1": "NewSecure456!",
+            "new_password2": "NewSecure456!",
+        })
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("OldPass123!"))
+
+    def test_session_persists_after_password_change(self):
+        self._login()
+        self.client.post("/authors/settings/", {
+            "action": "password",
+            "current_password": "OldPass123!",
+            "new_password1": "NewSecure456!",
+            "new_password2": "NewSecure456!",
+        })
+        follow_res = self.client.get("/authors/settings/")
+        self.assertEqual(follow_res.status_code, 200)
+
+    def test_profile_change_does_not_alter_id_or_fqid(self):
+        self._login()
+        original_id = self.user.id
+        self.client.post("/authors/settings/", {
+            "action": "profile",
+            "display_name": "New Name",
+            "bio": "Hello world",
+            "github_url": "",
+        })
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.id, original_id)
+        self.assertEqual(self.user.display_name, "New Name")
 
 
 class SyncGitHubEventsTests(TestCase):

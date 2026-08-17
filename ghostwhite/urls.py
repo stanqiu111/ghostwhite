@@ -34,6 +34,8 @@ urlpatterns = [
     path("api/authors/", include("authors.urls")),
     path("api/", include(("entries.urls", "entries"), namespace="entries_api")),
     path("", include(("entries.page_urls", "entries_pages"), namespace="entries_pages")),
+    path("api/", include(("streams.urls", "streams"), namespace="streams_api")),
+    path("", include(("streams.page_urls", "streams_pages"), namespace="streams_pages")),
     path("authors/", include(("authors.page_urls", "authors"), namespace="authors_pages")),
     path("api/inbox/", include("inbox.urls", namespace="inbox")),
     path("inbox/", inbox_page, name="inbox-page"),

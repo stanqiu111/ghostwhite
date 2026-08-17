@@ -5,6 +5,7 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 import uuid
+import secrets
 from nodes.models import Node
 from django.utils import timezone
 from django.conf import settings
@@ -63,6 +64,9 @@ class Author(AbstractBaseUser, PermissionsMixin):
     updated_at = models.DateTimeField(auto_now=True)
     node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="authors")
     approved = models.BooleanField(default=False)
+    last_seen_notifications_at = models.DateTimeField(null=True, blank=True)
+    email = models.EmailField(unique=True, null=True, blank=True)
+    is_email_verified = models.BooleanField(default=False)
 
     # required by Django Admin
     is_active = models.BooleanField(default=False)
@@ -213,3 +217,25 @@ class GitHubIntegration(models.Model):
 
     def __str__(self):
         return f"GitHub Integration for {self.author} ({self.github_username})"
+
+
+class EmailVerificationToken(models.Model):
+    author = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="email_verification_token",
+    )
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @classmethod
+    def create_for(cls, author):
+        token_str = secrets.token_urlsafe(32)
+        obj, _ = cls.objects.update_or_create(
+            author=author,
+            defaults={"token": token_str},
+        )
+        return obj
+
+    def __str__(self):
+        return f"Verification token for {self.author.username}"

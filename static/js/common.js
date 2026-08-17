@@ -1,10 +1,9 @@
 // nav bar functions
 function logout() {
-// Clear JWT tokens from localStorage
-localStorage.removeItem("access_token");
-localStorage.removeItem("refresh_token");
-localStorage.removeItem("user_id");
-localStorage.removeItem("username");
+// Clear every JWT token variant (current + legacy) and identity keys.
+// Self-contained so it works on pages that don't load api.js (e.g. streams).
+["access_token", "refresh_token", "access", "refresh", "user_id", "username"]
+  .forEach((k) => localStorage.removeItem(k));
 
 window.location.href = "/authors/logout/";
 }

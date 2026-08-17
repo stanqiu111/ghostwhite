@@ -1,0 +1,62 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Go Live</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <link rel="stylesheet" href="{% static 'streams/streams.css' %}">
+  <script src="{% static 'js/common.js' %}"></script>
+</head>
+
+<body class="streams-page">
+  <div class="header">
+    <div class="header-content">
+      <div class="logo" onclick="navigateToHome()">ÉTHÉRÉ</div>
+      <div class="header-actions">
+        <button class="logout-btn" onclick="logout()">Log out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="streams-container">
+    <div class="stream-form-card">
+      <div class="streams-page-head">
+        <h1>Go live</h1>
+      </div>
+
+      <form method="post" action="{% url 'streams_pages:stream-create-page' %}">
+        {% csrf_token %}
+
+        <div class="stream-form-field">
+          <label for="streamTitle">Title</label>
+          <input type="text" id="streamTitle" name="title" maxlength="200"
+                 value="{{ form_data.title|default:'' }}" placeholder="What are you streaming?" required>
+          {% if errors.title %}
+          <div class="stream-form-error">{{ errors.title.0 }}</div>
+          {% endif %}
+        </div>
+
+        <div class="stream-form-field">
+          <label for="streamDescription">Description (optional)</label>
+          <textarea id="streamDescription" name="description"
+                    placeholder="Tell viewers what to expect">{{ form_data.description|default:'' }}</textarea>
+          {% if errors.description %}
+          <div class="stream-form-error">{{ errors.description.0 }}</div>
+          {% endif %}
+        </div>
+
+        {% if errors.non_field_errors %}
+        <div class="stream-form-error">{{ errors.non_field_errors.0 }}</div>
+        {% endif %}
+
+        <div class="stream-form-actions">
+          <button type="submit" class="stream-btn">Go live</button>
+          <a class="stream-form-cancel" href="{% url 'streams_pages:stream-list-page' %}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

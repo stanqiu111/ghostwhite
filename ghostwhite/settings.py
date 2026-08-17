@@ -22,12 +22,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-(bonfgro6mhk@l(c3*e_7ly4v_7)#7+fh_@y-q=bs+skerzedg"
+# Set DJANGO_SECRET_KEY in the environment. The insecure fallback exists only so
+# that a fresh checkout runs with DEBUG on; it is refused when DEBUG is off.
+DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-local-development-key-do-not-use-in-production"
+    else:
+        raise RuntimeError(
+            "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is not 1. "
+            "Generate one with: python -c \"from django.core.management.utils "
+            "import get_random_secret_key; print(get_random_secret_key())\""
+        )
 
-ALLOWED_HOSTS = ['*']
+# Comma-separated list, e.g. "example.herokuapp.com,www.example.com"
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "*" if DEBUG else "").split(",")
+    if h.strip()
+]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = "/static/"
 CORS_ALLOW_ALL_ORIGINS = False
@@ -50,6 +65,7 @@ INSTALLED_APPS = [
     "nodes",
     "entries",
     "inbox",
+    "streams",
     # authentication
     "rest_framework",
     "rest_framework_simplejwt",
@@ -193,6 +209,22 @@ MEDIA_ROOT = BASE_DIR / "media"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ── Email (Gmail SMTP) ──
+# In development, emails print to the console (no credentials needed).
+# In production, set EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# and provide EMAIL_HOST_USER / EMAIL_HOST_PASSWORD (Gmail App Password).
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get("EMAIL_HOST_USER", "noreply@ethere.app")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:8765")
 
 
 LOGGING = {

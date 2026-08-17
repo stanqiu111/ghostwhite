@@ -6,10 +6,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.db import IntegrityError
 from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings as django_settings
+from django.urls import reverse
 
 from rest_framework import generics, status, permissions
 from rest_framework.views import APIView
@@ -23,7 +27,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied
 
 from entries.models import Entry
-from .models import Author, Follow, GitHubIntegration
+from .models import Author, Follow, GitHubIntegration, EmailVerificationToken
 from .serializers import AuthorSerializer, AuthorRegistrationSerializer, FollowRequestSerializer
 from .permissions import IsApproved
 from .github import sync_github_events
@@ -44,18 +48,106 @@ class AuthorRegistrationView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        refresh = RefreshToken.for_user(user)  # create refresh token for the user
+        if user.email:
+            token_obj = EmailVerificationToken.create_for(user)
+            verify_path = reverse("authors_pages:verify_email", args=[token_obj.token])
+            base_url = getattr(django_settings, "FRONTEND_URL", request.build_absolute_uri("/").rstrip("/"))
+            verification_url = f"{base_url}{verify_path}"
+            send_mail(
+                subject="Verify your ÉTHÉRÉ email address",
+                message=(
+                    f"Hi {user.display_name},\n\n"
+                    f"Click the link below to verify your email address:\n{verification_url}\n\n"
+                    "This link expires once used. If you did not sign up, ignore this email."
+                ),
+                from_email=django_settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f0;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
+
+        <!-- Logo header -->
+        <tr>
+          <td align="center" style="padding-bottom:24px;">
+            <span style="font-size:28px;font-weight:800;letter-spacing:-0.5px;color:#111;">ÉTHÉRÉ</span>
+          </td>
+        </tr>
+
+        <!-- Card -->
+        <tr>
+          <td style="background:#ffffff;border-radius:16px;padding:48px 40px;box-shadow:0 4px 24px rgba(0,0,0,0.07);">
+
+            <!-- Greeting -->
+            <p style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111;">
+              Confirm your email address
+            </p>
+            <p style="margin:0 0 28px;font-size:15px;color:#555;line-height:1.6;">
+              Hi <strong>{user.display_name}</strong>,<br>
+              Thanks for joining ÉTHÉRÉ! Click the button below to verify your email address and activate your account.
+            </p>
+
+            <!-- CTA button -->
+            <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+              <tr>
+                <td align="center" style="background:#0d9488;border-radius:10px;">
+                  <a href="{verification_url}"
+                     style="display:inline-block;padding:14px 36px;font-size:16px;font-weight:700;
+                            color:#ffffff;text-decoration:none;border-radius:10px;
+                            background:#0d9488;">
+                    Verify my email
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Fallback link -->
+            <p style="margin:0 0 6px;font-size:13px;color:#888;">
+              Button not working? Copy and paste this link into your browser:
+            </p>
+            <p style="margin:0 0 28px;font-size:12px;word-break:break-all;">
+              <a href="{verification_url}" style="color:#0d9488;">{verification_url}</a>
+            </p>
+
+            <hr style="border:none;border-top:1px solid #f0f0f0;margin:0 0 24px;">
+
+            <p style="margin:0;font-size:12px;color:#aaa;line-height:1.6;">
+              This link can only be used once. If you did not create an account on ÉTHÉRÉ, you can safely ignore this email.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td align="center" style="padding-top:24px;">
+            <p style="margin:0;font-size:12px;color:#aaa;">
+              © 2026 ÉTHÉRÉ &nbsp;·&nbsp; You're receiving this because you signed up at ÉTHÉRÉ.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>""",
+                fail_silently=True,
+            )
 
         return Response(
-        {
-            "status": "pending",
-            "user": AuthorSerializer(user).data
-        },
-        status=status.HTTP_201_CREATED,
-    )
+            {"status": "pending_verification", "user": AuthorSerializer(user).data},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class AuthorRetrieveUpdateView(generics.RetrieveUpdateAPIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
     serializer_class = AuthorSerializer
 
@@ -74,8 +166,14 @@ def handle_login(request):
             author_obj = Author.objects.get(username=username)
         except Author.DoesNotExist:
             author_obj = None
-        if author_obj is not None and not getattr(author_obj, "approved", False):
-            return JsonResponse({"error": "Account pending admin approval."}, status=403)
+        if author_obj is not None:
+            if author_obj.email and not author_obj.is_email_verified:
+                return JsonResponse(
+                    {"error": "Please verify your email address before logging in. Check your inbox."},
+                    status=403,
+                )
+            if not getattr(author_obj, "approved", False):
+                return JsonResponse({"error": "Account pending admin approval."}, status=403)
 
         user = authenticate(request, username=username, password=password)
 
@@ -96,11 +194,26 @@ def handle_login(request):
 
 
 def login_view(request):
-    """Display login page OR redirect to home if already logged in"""
-    if request.user.is_authenticated:
-        return redirect("home")
+    """Display login page. If already authenticated, show who is logged in."""
+    already_logged_in = request.user.is_authenticated
+    return render(request, "authors/login.html", {
+        "already_logged_in": already_logged_in,
+        "logged_in_username": getattr(request.user, "username", "") if already_logged_in else "",
+    })
 
-    return render(request, "authors/login.html")
+
+def verify_email_view(request, token):
+    """GET /authors/verify-email/<token>/ — verify email address from link in email"""
+    try:
+        token_obj = EmailVerificationToken.objects.select_related("author").get(token=token)
+        author = token_obj.author
+        if not author.is_email_verified:
+            author.is_email_verified = True
+            author.save(update_fields=["is_email_verified"])
+        token_obj.delete()
+        return render(request, "authors/verify_email.html", {"success": True, "username": author.username})
+    except EmailVerificationToken.DoesNotExist:
+        return render(request, "authors/verify_email.html", {"success": False})
 
 
 def logout_view(request):
@@ -213,13 +326,21 @@ def author_profile_page(request, username):
         except Follow.DoesNotExist:
             follow_status = None
 
-    author_friends = Follow.get_friends(author)[:5]
+    author_friends = Follow.get_friends(author)
+
+    # Build followers / following lists for the public profile, excluding mutual friends
+    author_all_followers = Follow.objects.filter(following=author, approved=True).select_related('follower')
+    author_all_following = Follow.objects.filter(follower=author, approved=True).select_related('following')
+    author_friend_ids = set(f.id for f in author_friends)
+    author_followers_list = author_all_followers.exclude(follower_id__in=author_friend_ids)
+    author_following_list = author_all_following.exclude(following_id__in=author_friend_ids)
 
     if request.path.endswith('/settings/'):
         return render(
             request,
             "authors/profile_page.html",
             {
+                'is_own_profile': True,
                 'top_5_entries': top_5_entries,
                 'entry_count': entry_count,
                 'follower_count': request_user_follower_count,
@@ -232,19 +353,18 @@ def author_profile_page(request, username):
     else:
         return render(
             request,
-            "authors/author_public.html",
+            "authors/profile_page.html",
             {
+                'is_own_profile': False,
                 'author': author,
                 "entries": entries,
                 "entry_count": entry_count,
-                "request_user_entry_count": request_user_entry_count,
-                "request_user_follower_count": request_user_follower_count,
-                "request_user_following_count": request_user_following_count,
                 "author_follower_count": author_follower_count,
                 "author_following_count": author_following_count,
                 "follow_status": follow_status,
                 "author_friends": author_friends,
-                "request_user_friends": request_user_friends,
+                "author_followers_list": author_followers_list,
+                "author_following_list": author_following_list,
             }
         )
 
@@ -577,3 +697,50 @@ class SyncMyGithubReposView(APIView):
             "created": activity_result["created"],
             "processed_events": activity_result["processed"],
         })
+
+
+@login_required(login_url="/authors/auth/")
+def settings_view(request):
+    from .forms import ProfileSettingsForm, EmailChangeForm, PasswordChangeForm as PwChangeForm
+
+    user = request.user
+    profile_form = ProfileSettingsForm(instance=user)
+    email_form = EmailChangeForm(user=user, initial={"email": user.email or ""})
+    password_form = PwChangeForm(user=user)
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "profile":
+            profile_form = ProfileSettingsForm(request.POST, request.FILES, instance=user)
+            if profile_form.is_valid():
+                profile_form.save()
+                messages.success(request, "Profile updated.")
+            else:
+                messages.error(request, "Please fix the errors below.")
+
+        elif action == "email":
+            email_form = EmailChangeForm(request.POST, user=user)
+            if email_form.is_valid():
+                user.email = email_form.cleaned_data["email"]
+                user.is_email_verified = False
+                user.save(update_fields=["email", "is_email_verified"])
+                messages.success(request, "Email updated. Please verify your new address.")
+            else:
+                messages.error(request, "Please fix the errors below.")
+
+        elif action == "password":
+            password_form = PwChangeForm(request.POST, user=user)
+            if password_form.is_valid():
+                user.set_password(password_form.cleaned_data["new_password1"])
+                user.save(update_fields=["password"])
+                update_session_auth_hash(request, user)
+                messages.success(request, "Password changed successfully.")
+            else:
+                messages.error(request, "Please fix the errors below.")
+
+    return render(request, "authors/settings.html", {
+        "profile_form": profile_form,
+        "email_form": email_form,
+        "password_form": password_form,
+    })

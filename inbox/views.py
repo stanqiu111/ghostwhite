@@ -2,6 +2,8 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.authentication import SessionAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.db.models import Q, Exists, OuterRef
 from authors.models import Author, Follow
 from authors.serializers import AuthorSerializer
@@ -107,6 +109,7 @@ class MyNotificationsView(APIView):
        최신순으로 합쳐서 반환.
     """
 
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -114,17 +117,22 @@ class MyNotificationsView(APIView):
         limit = int(request.query_params.get("limit", 20))
         include_self = request.query_params.get("include_self") == "1"
 
+        cutoff = user.last_seen_notifications_at
+
         # 내가 쓴, soft-delete 안 된 글들
         my_entries = Entry.objects.filter(
             author=user,
             deleted_at__isnull=True,
         ).values_list("id", flat=True)
 
+        base_like_filter = {"entry_id__in": my_entries}
+        base_comment_filter = {"entry_id__in": my_entries}
+
         # 내 글에 달린 좋아요들
         like_qs = (
             EntryLike.objects
             .select_related("author", "entry", "entry__author")
-            .filter(entry_id__in=my_entries)
+            .filter(**base_like_filter)
             .order_by("-created_at")
         )
 
@@ -132,7 +140,7 @@ class MyNotificationsView(APIView):
         comment_qs = (
             Comment.objects
             .select_related("author", "entry", "entry__author")
-            .filter(entry_id__in=my_entries)
+            .filter(**base_comment_filter)
             .order_by("-created_at")
         )
 
@@ -140,6 +148,15 @@ class MyNotificationsView(APIView):
         if not include_self:
             like_qs = like_qs.exclude(author=user)
             comment_qs = comment_qs.exclude(author=user)
+
+        # Unread count: items newer than last_seen_notifications_at
+        if cutoff:
+            unread_count = (
+                like_qs.filter(created_at__gt=cutoff).count()
+                + comment_qs.filter(created_at__gt=cutoff).count()
+            )
+        else:
+            unread_count = like_qs.count() + comment_qs.count()
 
         # 개별로 limit를 걸고
         like_qs = like_qs[:limit]
@@ -172,7 +189,18 @@ class MyNotificationsView(APIView):
         items.sort(key=lambda x: x["created"], reverse=True)
         items = items[:limit]
 
-        return Response({"type": "notifications", "items": items})
+        return Response({"type": "notifications", "items": items, "unread_count": unread_count})
+
+
+class MarkNotificationsReadView(APIView):
+    """POST /api/inbox/notifications/mark-read/ — stamp last_seen_notifications_at = now"""
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        request.user.last_seen_notifications_at = timezone.now()
+        request.user.save(update_fields=["last_seen_notifications_at"])
+        return Response({"success": True, "unread_count": 0})
     
 
 class InboxPostView(APIView):

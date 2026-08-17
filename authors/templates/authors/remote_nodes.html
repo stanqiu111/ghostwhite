@@ -246,24 +246,12 @@
         </div>
     </div>
     
+    <script src="{% static 'js/api.js' %}"></script>
     <script>
-        // API helper function (similar to home.html)
+        // API helper function (similar to home.html) — delegates to apiFetch
+        // for CSRF, bearer auth, and automatic token refresh on 401.
         async function api(endpoint, options = {}) {
-            const token = localStorage.getItem('access_token');
-            const headers = {
-                'Content-Type': 'application/json',
-                ...options.headers,
-            };
-            
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            
-            const response = await fetch(`/api/${endpoint}`, {
-                ...options,
-                headers,
-                credentials: 'include',
-            });
+            const response = await apiFetch(`/api/${endpoint}`, options);
             
             if (!response.ok) {
                 const text = await response.text();

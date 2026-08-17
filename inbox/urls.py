@@ -1,13 +1,12 @@
 from django.urls import path
-from .views import FollowingActivityView, MyNotificationsView, inbox_page
+from .views import FollowingActivityView, MyNotificationsView, MarkNotificationsReadView, inbox_page
 
 app_name = "inbox"
 
 urlpatterns = [
     path("following-activity/", FollowingActivityView.as_view(), name="following-activity"),
-    # 홈/인박스에서 쓰는 새 엔드포인트
-    path("notifications/", MyNotificationsView.as_view(),
-         name="my-notifications"),
-         
+    # mark-read must come before notifications/ to avoid URL shadowing
+    path("notifications/mark-read/", MarkNotificationsReadView.as_view(), name="mark-notifications-read"),
+    path("notifications/", MyNotificationsView.as_view(), name="my-notifications"),
     path("", inbox_page, name="inbox-page"),
 ]

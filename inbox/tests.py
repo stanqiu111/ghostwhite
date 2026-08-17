@@ -2,9 +2,10 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from authors.models import Author, Follow
-from entries.models import Entry, Comment
+from entries.models import Entry, Comment, EntryLike
 from nodes.models import Node
 from django.utils import timezone
+from datetime import timedelta
 import uuid
 import json
 from base64 import b64encode
@@ -334,3 +335,103 @@ class InboxTests(TestCase):
         self.assertTrue(Entry.objects.filter(content="test entry payload").exists())
         self.assertTrue(Entry.objects.filter(content="test unlisted entry payload").exists())
         self.assertTrue(Entry.objects.filter(content="test friends_only entry payload").exists())
+
+
+class NotificationReadStateTests(TestCase):
+    def setUp(self):
+        # Reuse nodes created by migration (avoid MultipleObjectsReturned in build_fqid)
+        self.local_node = Node.objects.filter(is_local=True).first()
+        if not self.local_node:
+            self.local_node = Node.objects.create(
+                host_url="https://local-node.example.com/",
+                is_local=True,
+                username="localuser",
+                password="localpass",
+            )
+        self.remote_node = Node.objects.create(
+            host_url="https://remote-node.example.com/",
+            is_local=False,
+            username="remoteuser2",
+            password="remotepass2",
+        )
+        # Use create() directly (like InboxTests) to avoid build_fqid's Node.get() call
+        self.owner = Author.objects.create(
+            id=str(uuid.uuid4()),
+            username="owner_notif",
+            display_name="Owner",
+            node=self.local_node,
+            is_active=True,
+            approved=True,
+        )
+        self.other = Author.objects.create(
+            id=str(uuid.uuid4()),
+            username="other_notif",
+            display_name="Other",
+            node=self.remote_node,
+            is_active=True,
+            approved=True,
+        )
+        self.entry = Entry.objects.create(
+            id=uuid.uuid4(),
+            author=self.owner,
+            node=self.local_node,
+            content="My post",
+            visibility="public",
+            content_type="text/plain",
+        )
+        self.client = Client()
+        self.client.force_login(self.owner)
+        self.notif_url = reverse("inbox:my-notifications")
+        self.mark_read_url = reverse("inbox:mark-notifications-read")
+
+    def _like(self, author=None):
+        liker = author or self.other
+        obj, _ = EntryLike.objects.get_or_create(entry=self.entry, author=liker)
+        return obj
+
+    def test_unread_count_when_last_seen_is_null(self):
+        # All existing notifications are unread when last_seen is null
+        self._like()
+        res = self.client.get(self.notif_url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["unread_count"], 1)
+
+    def test_mark_read_sets_unread_count_to_zero(self):
+        # After calling mark-read, unread_count becomes 0
+        self._like()
+        res = self.client.post(self.mark_read_url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["unread_count"], 0)
+        # Re-fetching confirms count stays 0
+        res2 = self.client.get(self.notif_url)
+        self.assertEqual(res2.json()["unread_count"], 0)
+
+    def test_new_activity_after_mark_read_is_unread(self):
+        # A like created AFTER mark-read appears as unread
+        self._like()
+        self.client.post(self.mark_read_url)
+        # Create a like from a new author (avoid unique constraint) after the cutoff
+        third = Author.objects.create(
+            id=str(uuid.uuid4()),
+            username="third_notif",
+            display_name="Third",
+            node=self.remote_node,
+            is_active=True,
+            approved=True,
+        )
+        new_like = EntryLike.objects.create(entry=self.entry, author=third)
+        EntryLike.objects.filter(pk=new_like.pk).update(
+            created_at=timezone.now() + timedelta(seconds=1)
+        )
+        res = self.client.get(self.notif_url)
+        self.assertEqual(res.json()["unread_count"], 1)
+
+    def test_refresh_does_not_restore_old_read_notifications(self):
+        # Notifications older than last_seen_notifications_at stay at count 0 on refresh
+        self._like()
+        self.client.post(self.mark_read_url)
+        # Refresh — no new activity
+        res = self.client.get(self.notif_url)
+        self.assertEqual(res.json()["unread_count"], 0)
+        # Items are still returned (for display), but unread_count is 0
+        self.assertGreaterEqual(len(res.json()["items"]), 1)

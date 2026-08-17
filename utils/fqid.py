@@ -106,6 +106,28 @@ def extract_comment_id_from_fqid(comment_fqid):
         return str(comment_fqid).split('/commented/')[-1].split('/')[0].split('?')[0]
     return str(comment_fqid)
 
+
+def build_stream_fqid(author_id, stream_uuid):
+    host_url = _get_local_host_url()
+    if not host_url:
+        return None
+    author_id = extract_serial_from_fqid(author_id)
+    return f"{host_url}api/authors/{author_id}/streams/{stream_uuid}"
+
+
+def extract_stream_id_from_fqid(stream_fqid):
+    if '/streams/' in str(stream_fqid):
+        return str(stream_fqid).split('/streams/')[-1].split('/')[0].split('?')[0]
+    return str(stream_fqid)
+
+
+def find_stream_by_uuid(stream_uuid):
+    """Look up a Stream by the UUID segment of its FQID."""
+    from streams.models import Stream  # lazy: streams.models imports this module in save()
+    return Stream.objects.select_related('owner', 'node').get(
+        id__endswith=f"/streams/{stream_uuid}"
+    )
+
 def build_remote_url(host_url, author_id):
     """Build remote author URL for inbox endpoint."""
     author_id = extract_serial_from_fqid(author_id)

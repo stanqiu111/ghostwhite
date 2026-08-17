@@ -338,9 +338,7 @@ async function loadEntry() {
   if (!IS_EDITING) return;
   
   try {
-    const res = await fetch(`/api/entries/${ENTRY_ID}/`, {
-      headers: getHeaders(),
-    });
+    const res = await apiFetch(`/api/entries/${ENTRY_ID}/`);
     if (!res.ok) throw new Error('Failed to load entry');
     
     const entry = await res.json();
@@ -399,14 +397,10 @@ postBtn.addEventListener('click', async ()=>{
     const url = IS_EDITING ? `/api/entries/${ENTRY_ID}/update/` : '/api/entries/create/';
     const method = IS_EDITING ? 'PUT' : 'POST';
 
-    const headers = getHeadersWithNoContentType();
-    headers['X-CSRFToken'] = getCSRFToken();
-    headers['X-Requested-With'] = 'XMLHttpRequest';
-    
-    const res = await fetch(url, {
+    // apiFetch adds CSRF + bearer and (for FormData) omits Content-Type so the
+    // browser sets the multipart boundary; it also refreshes on a 401.
+    const res = await apiFetch(url, {
       method: method,
-      headers: headers,
-      credentials: 'same-origin',
       body: fd
     });
 

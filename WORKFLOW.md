@@ -9,8 +9,9 @@
 6. [Inbox & Feed](#inbox--feed)
 7. [Node Federation (Node-to-Node)](#node-federation-node-to-node)
 8. [GitHub Integration](#github-integration)
-9. [Visibility Rules](#visibility-rules)
-10. [ID System (FQIDs)](#id-system-fqids)
+9. [Live Streams](#live-streams)
+10. [Visibility Rules](#visibility-rules)
+11. [ID System (FQIDs)](#id-system-fqids)
 
 ---
 
@@ -27,11 +28,11 @@ Browser
         └── Basic Auth        ← remote nodes only (username:password)
 
 Django Apps:
-  authors      → users, follows, GitHub integration
+  authors      → users, follows, GitHub integration, email verification
   entries      → posts, comments, likes
   nodes        → federated node registry
-  inbox        → receives activity from remote nodes
-  interactions → author-to-author interactions
+  inbox        → receives activity from remote nodes, notifications
+  streams      → live streams, WebRTC signaling relay, bullet curtain
   utils        → FQID helpers, node communication, inbox parsing
 ```
 
@@ -338,6 +339,75 @@ GitHub public events are fetched and converted to `Entry` objects:
 
 ---
 
+## Live Streams
+
+Lifecycle MVP built with spec-kit (`specs/002-live-stream/`); screen-sharing added in `specs/003-screen-share/` — real video via **WebRTC** (browser-to-browser, video only, audio off), with the server acting purely as a **REST signaling relay** (short polling, no Django Channels, no media server, zero new dependencies). No federation of streams yet, but IDs are FQID-based so it can be added without migration.
+
+### Stream Model (`streams` app)
+- FQID pk: `http://<host>/api/authors/<author-uuid>/streams/<stream-uuid>`
+- `owner` (Author FK), `node` (Node FK), `title`, `description`, `status` (`live`/`ended`), `started_at`, `ended_at`
+- DB partial unique constraint: **at most one live stream per owner**
+- `end()` is idempotent — ending an ended stream is a no-op
+
+### API (session or JWT auth, all require login)
+```
+GET  /api/streams/                 ← active (live) streams only
+POST /api/streams/                 ← start a stream { "title": "...", "description": "..." }
+GET  /api/streams/<uuid>/          ← retrieve (live or ended)
+POST /api/streams/<uuid>/end/      ← end stream (owner only → 403 otherwise; idempotent)
+```
+- Validation lives in `StreamSerializer`: title required, "You already have a live stream." on a second live stream
+- Response shape follows the platform contract: `type: "stream"`, `id` = FQID, `serial` = UUID
+- Ending a stream also **purges all queued signaling messages** for it
+
+### Screen-Share Signaling API (WebRTC relay)
+```
+POST /api/streams/<uuid>/signals/                      ← send one signal
+GET  /api/streams/<uuid>/signals/?role=streamer        ← owner polls inbound signals (403 for non-owners)
+GET  /api/streams/<uuid>/signals/?role=viewer&peer_id= ← viewer polls signals addressed to its peer_id
+```
+- POST body: `{ "kind": "join|offer|answer|candidate|bye", "direction": "to_streamer|to_viewer", "peer_id": "<≤64 chars>", "payload": { … ≤32 KB } }`
+- **Owner-only broadcasting enforced server-side**: `direction=to_viewer` from a non-owner → 403 (`StreamSignalSerializer`); kind/direction coherence (`offer`→to_viewer, `join`/`answer`→to_streamer) → 400
+- **Ended stream → 410 Gone** on both POST and GET; unknown stream → 404
+- Polling is **consume-on-read** (each signal delivered exactly once, inside `transaction.atomic()`), plus a 5-minute TTL sweep of stale rows on every poll
+- `StreamSignal` rows are ephemeral transport — FK `stream`/`sender` injected server-side, never client-writable, never exposed with FQIDs
+
+### Bullet Curtain (danmaku) API (`specs/004-stream-video-controls/`)
+```
+POST /api/streams/<uuid>/bullets/               ← send { "content": "≤120 chars" } → 201
+GET  /api/streams/<uuid>/bullets/?after=<id>    ← cursor poll: rows with id > after, ascending, ≤50
+GET  /api/streams/<uuid>/bullets/?latest=1      ← bootstrap: 30 most recent (ascending) + cursor
+```
+- `StreamBulletMessage`: persistent content (stream FK, sender FK, content ≤120, created_at; index `bullet_cursor_idx`) — **NOT consumed on read** (broadcast, every watcher polls with its own id cursor) and **NOT purged on stream end** (kept as interaction history)
+- Ended stream → **410** both verbs; unknown → 404; unauthenticated → 401/403; empty/oversized content → 400 (`StreamBulletMessageSerializer`)
+- XSS: content stored raw and returned verbatim as JSON; rendering is `textContent`-only in `bullets.js` — never HTML
+
+### Player Controls & Overlay (browser)
+- `bullets.js` — `BulletCurtain`: 1.5 s cursor polling, 6 overlay lanes (3 on narrow screens, LRU-assigned, overflow shed from display only), CSS-transform fly-across animation, send form with ≥1 s client throttle, curtain on/off toggle (off = display only; cursor keeps advancing so re-enable shows only new messages). Overlay is `pointer-events: none` — can never block controls. Fully isolated from `screenshare.js`.
+- `player_controls.js` — volume slider + mute for viewers, **hidden unless the received stream has an audio track** (current streams are video-only, so hidden by default — no fake controls); display modes Auto/Fit/Fill (object-fit) and Theater (wider player column), all CSS-only, fullscreen-compatible.
+
+### Screen-Share Browser Flow (`streams/static/streams/`)
+- `signaling.js` — transport only: `postSignal()` / `pollSignals()` with CSRF + optional JWT header; 410 → typed `StreamEndedError`. Swap this file to move to WebSockets later.
+- `screenshare.js` — `Broadcaster` (owner): `getDisplayMedia({video, audio:false})` → local preview + On-air badge; one `RTCPeerConnection` per viewer (P2P mesh, Google STUN); polls `role=streamer` every 1.5 s; on `join` → offer, trickle ICE; Stop button, browser-native stop bar, End-stream button, and `beforeunload` all funnel into `stop()` (close PCs + `bye` per peer).
+- `screenshare.js` — `Player` (viewer): random `peer_id`, `join` heartbeat every 10 s while waiting; state machine **waiting → connecting → live** (+ `ended`, `error` with Retry); on `bye`/PC drop while the stream is still live → back to waiting; on 410 → confirm via stream GET → ended state without reload.
+- Owner controls (`Share screen`) render server-side only for the owner of a live stream.
+
+### Pages
+```
+/streams/            ← live-now grid, empty state, "Go live" button
+/streams/create/     ← start-stream form (server-rendered POST)
+/streams/<uuid>/     ← detail: streamer, title, description, Live/Ended badge,
+                       placeholder player <div data-stream-serial> (media extension point),
+                       End button rendered server-side only for the owner
+```
+- "Live" button in the home header links to `/streams/`
+- Ended streams disappear from the active list but their detail pages stay reachable
+
+### Tests
+`streams/tests.py` — 74 tests (model lifecycle, create/list/retrieve/end API, page auth redirects, owner-only permission at API + template level, signaling permissions/scoping/consume-on-read, full handshake relay simulation, hijack attempts, end-purge, TTL sweep, bullet creation/validation/auth/410/404, XSS verbatim round-trip, cursor + bootstrap polling, non-consumption, template rendering per role), all against the real test DB. WebRTC media path and overlay visuals are verified manually via the quickstarts in `specs/003-screen-share/` and `specs/004-stream-video-controls/`.
+
+---
+
 ## Visibility Rules
 
 | Visibility     | Who can see it                                |
@@ -364,6 +434,7 @@ All objects use Fully Qualified IDs (FQIDs) to work across nodes.
 | Author  | `http://<host>/api/authors/<uuid>`                                 |
 | Entry   | `http://<host>/api/authors/<author-uuid>/entries/<entry-uuid>`     |
 | Comment | `http://<host>/api/authors/<author-uuid>/commented/<comment-uuid>` |
+| Stream  | `http://<host>/api/authors/<author-uuid>/streams/<stream-uuid>`    |
 
 Utilities in `utils/fqid.py`:
 - `build_fqid(author_id)` — build author FQID

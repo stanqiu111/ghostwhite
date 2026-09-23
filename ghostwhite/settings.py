@@ -75,6 +75,11 @@ INSTALLED_APPS = [
 
 AUTH_USER_MODEL = "authors.Author"
 
+# Without this, @login_required sends logged-out visitors to Django's default
+# /accounts/login/, which this project does not route -- they got a 404 instead
+# of the sign-in page.
+LOGIN_URL = "/authors/auth/"
+
 # How to set up JWT For Django https://django-rest-framework-simplejwt.readthedocs.io/en/latest/
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -133,6 +138,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "ghostwhite.context_processors.nav",
             ],
         },
     },

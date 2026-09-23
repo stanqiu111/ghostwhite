@@ -13,7 +13,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 
 from authors.models import Follow, Author
-from .models import Entry, Comment, EntryLike, CommentLike
+from .models import Entry, Comment, EntryLike, CommentLike, EntryView
 from .serializers import EntryRetrieveSerializer, EntryCreateSerializer
 from utils.node_communication import (
     send_entry_to_remote_nodes,
@@ -173,21 +173,35 @@ class EntryRetrieveView(generics.RetrieveAPIView):
 
     serializer_class = EntryRetrieveSerializer
     permission_classes = [AllowAny]
-    
+
     def get_object(self):
         from utils.fqid import find_entry_by_uuid
         pk = self.kwargs['pk']
         try:
-            return find_entry_by_uuid(pk)
+            entry = find_entry_by_uuid(pk)
         except Entry.DoesNotExist:
             raise Http404()
-    
+        # find_entry_by_uuid() resolves the FQID from a bare UUID, which the
+        # default lookup cannot do -- but it also skips the queryset, so the
+        # visibility rules in get_queryset() have to be re-applied here or
+        # knowing an id is enough to read a friends-only or deleted entry.
+        if not self.get_queryset().filter(pk=entry.pk).exists():
+            raise Http404()
+        # Counted here rather than in the page view: the page is only a shell
+        # and this is the request that actually hands over the content.
+        EntryView.record(entry, self.request)
+        return entry
+
     def get_queryset(self):
         user = self.request.user
-        
+
         # if user is anonymouse - when user clicks on public link , we should still show the entry
+        # (unlisted is link-shareable by design, same as the authenticated
+        # branch below; friends_only and deleted entries stay sealed)
         if not user.is_authenticated:
-            return Entry.objects.filter(visibility='public').select_related("author", "node")
+            return Entry.objects.filter(
+                visibility__in=['public', 'unlisted'], deleted_at__isnull=True
+            ).select_related("author", "node")
 
         base = Entry.objects.filter(deleted_at__isnull=True).select_related("author", "node")
 

@@ -149,14 +149,41 @@ class MyNotificationsView(APIView):
             like_qs = like_qs.exclude(author=user)
             comment_qs = comment_qs.exclude(author=user)
 
+        # Follow activity. Previously absent entirely, so a user was never told
+        # someone had asked to follow them, nor that their own request was
+        # accepted -- the only signal was the follow button's 5s poll while the
+        # page happened to be open.
+        # Same predicate as FollowRequestsListView (authors/views.py): status
+        # and approved are two fields for one concept, and if a row ever has
+        # status=PENDING with approved=True the bell would show a request that
+        # has no card in the Follow requests panel -- an unread badge the user
+        # could never clear.
+        follow_request_qs = (
+            Follow.objects
+            .select_related("follower")
+            .filter(following=user, approved=False, status=Follow.PENDING)
+            .order_by("-created_at")
+        )
+        follow_accepted_qs = (
+            Follow.objects
+            .select_related("following")
+            .filter(follower=user, status=Follow.ACCEPTED, decided_at__isnull=False)
+            .order_by("-decided_at")
+        )
+
         # Unread count: items newer than last_seen_notifications_at
         if cutoff:
             unread_count = (
                 like_qs.filter(created_at__gt=cutoff).count()
                 + comment_qs.filter(created_at__gt=cutoff).count()
+                + follow_request_qs.filter(created_at__gt=cutoff).count()
+                + follow_accepted_qs.filter(decided_at__gt=cutoff).count()
             )
         else:
-            unread_count = like_qs.count() + comment_qs.count()
+            unread_count = (
+                like_qs.count() + comment_qs.count()
+                + follow_request_qs.count() + follow_accepted_qs.count()
+            )
 
         # 개별로 limit를 걸고
         like_qs = like_qs[:limit]
@@ -183,6 +210,28 @@ class MyNotificationsView(APIView):
                 "object_id": str(cm.entry.id),
                 "object_url": cm.entry.get_absolute_url(),
                 "comment_preview": cm.content[:80],
+            })
+
+        for fr in follow_request_qs[:limit]:
+            items.append({
+                "type": "follow_request",
+                "verb": "wants to follow you",
+                "created": fr.created_at.isoformat(),
+                "actor": AuthorSerializer(fr.follower, context={"request": request}).data,
+                "follow_id": str(fr.id),
+                "object_id": None,
+                "object_url": f"/authors/{fr.follower.username}/",
+            })
+
+        for fa in follow_accepted_qs[:limit]:
+            items.append({
+                "type": "follow_accepted",
+                "verb": "accepted your follow request",
+                "created": fa.decided_at.isoformat(),
+                "actor": AuthorSerializer(fa.following, context={"request": request}).data,
+                "follow_id": str(fa.id),
+                "object_id": None,
+                "object_url": f"/authors/{fa.following.username}/",
             })
 
         # created 기준으로 최신 순 정렬 후 전체 limit 적용
@@ -322,8 +371,15 @@ class InboxPostView(APIView):
         else:  # PENDING
             follow.status = Follow.PENDING
             follow.approved = False
-        
-        follow.save(update_fields=["status", "approved"])
+
+        # Stamp the decision time on this path too. Follow.approve()/deny()
+        # set it for local decisions; without it here, a follow accepted on a
+        # remote node would never produce the "accepted your follow request"
+        # notification, which keys off decided_at.
+        follow.decided_at = (
+            timezone.now() if desired_status in (Follow.ACCEPTED, Follow.DENIED) else None
+        )
+        follow.save(update_fields=["status", "approved", "decided_at"])
     
     def _handle_follow(self, author, data, sending_node):
         """Handle incoming follow activity: requests, acceptances, denials, and unfollows

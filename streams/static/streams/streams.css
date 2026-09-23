@@ -9,9 +9,7 @@
 
 .streams-page {
   margin: 0;
-  background: #f8f8fa;
-  color: #0f172a;
-  font: 16px/1.45 system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Ground, colour and family all come from the tokens in main.css. */
   min-height: 100vh;
 }
 
@@ -145,12 +143,12 @@
 }
 
 .streams-empty {
-  background: #fff;
-  border: 1px dashed #d1d5db;
-  border-radius: 16px;
+  background: var(--gw-surface);
+  border: 1px dashed var(--gw-border-str);
+  border-radius: var(--gw-radius-md);
   padding: 48px 20px;
   text-align: center;
-  color: #6b7280;
+  color: var(--gw-text-dim);
 }
 
 /* ── Stream detail ── */

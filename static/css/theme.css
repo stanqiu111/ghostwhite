@@ -1,0 +1,151 @@
+/*
+ * Shared dark theme.
+ *
+ * Each page carries its own inline <style> block with hardcoded light colours,
+ * and those rules come after main.css in the cascade. Every selector here is
+ * therefore qualified with html[data-theme="dark"], which outranks a page's
+ * bare `body {}` / `.card {}` on specificity rather than order.
+ *
+ * The theme is applied by initTheme() in common.js, which sets data-theme on
+ * <html> from localStorage before first paint.
+ */
+
+html[data-theme="dark"] {
+  color-scheme: dark;            /* native controls, scrollbars, caret */
+
+  /* Redefines the same tokens declared in main.css :root -- nothing here
+     invents a new name, so any component styled through a token themes
+     itself. Not a naive inversion: the accent is lifted for contrast on a
+     dark ground and the surfaces keep the same cool bias as in light. */
+  --gw-bg:         #101217;
+  --gw-surface:    #191c23;
+  --gw-surface-2:  #222631;
+  --gw-border:     #2b303b;
+  --gw-border-str: #3a4150;
+
+  --gw-text:       #e7e9ee;
+  --gw-text-dim:   #99a1b0;
+  --gw-text-faint: #757d8b;
+
+  --gw-accent:      #6ba2ff;
+  --gw-accent-hover:#87b4ff;
+  --gw-accent-soft: #1d2a42;
+  --gw-on-accent:   #0b1020;
+
+  --gw-live:     #ef4b5b;
+  --gw-live-dim: #c93a48;
+  --gw-warn-bg:  #3a2c10;
+  --gw-warn-fg:  #f0b657;
+  --gw-danger:   #f0616e;
+
+  --gw-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --gw-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+/* ── base ── */
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background: var(--gw-bg) !important;
+  color: var(--gw-text);
+}
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] label,
+html[data-theme="dark"] strong { color: var(--gw-text); }
+
+html[data-theme="dark"] a { color: var(--gw-accent); }
+html[data-theme="dark"] hr { border-color: var(--gw-border); }
+
+/* ── chrome ── */
+html[data-theme="dark"] .header,
+html[data-theme="dark"] .navbar {
+  background: var(--gw-surface);
+  border-bottom-color: var(--gw-border);
+}
+html[data-theme="dark"] .logo { color: var(--gw-text); }
+
+html[data-theme="dark"] .header-btn svg path,
+html[data-theme="dark"] .header-btn svg circle,
+html[data-theme="dark"] .header-btn svg rect { stroke: var(--gw-text); }
+
+/* ── surfaces: every card-ish container across the apps ── */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .entry-card,
+html[data-theme="dark"] .profile-card,
+html[data-theme="dark"] .profile-detail,
+html[data-theme="dark"] .settings-card,
+html[data-theme="dark"] .stream-card,
+html[data-theme="dark"] .stream-detail-card,
+html[data-theme="dark"] .node-card,
+html[data-theme="dark"] .notif-item,
+html[data-theme="dark"] .comment,
+html[data-theme="dark"] .suggestion-item {
+  background: var(--gw-surface);
+  border-color: var(--gw-border);
+  color: var(--gw-text);
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .empty-state,
+html[data-theme="dark"] .field-help,
+html[data-theme="dark"] .muted,
+html[data-theme="dark"] .entry-meta,
+html[data-theme="dark"] .notif-meta,
+html[data-theme="dark"] .profile-restricted-note,
+html[data-theme="dark"] .stream-detail-meta { color: var(--gw-text-dim); }
+
+html[data-theme="dark"] .entry-content,
+html[data-theme="dark"] .field-value,
+html[data-theme="dark"] .notif-actor { color: var(--gw-text); }
+
+html[data-theme="dark"] .profile-locked {
+  background: var(--gw-surface-2);
+  color: var(--gw-text-dim);
+}
+
+/* ── form controls ── */
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select,
+html[data-theme="dark"] .settings-input {
+  background: var(--gw-surface-2);
+  color: var(--gw-text);
+  border-color: var(--gw-border);
+}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder { color: var(--gw-text-dim); }
+
+/* ── generic buttons (branded ones keep their own colour) ── */
+html[data-theme="dark"] .follow-btn,
+html[data-theme="dark"] .feed-tab,
+html[data-theme="dark"] .stream-btn,
+html[data-theme="dark"] .saveBtn,
+html[data-theme="dark"] .save-btn {
+  background: var(--gw-surface-2);
+  color: var(--gw-text);
+  border-color: var(--gw-border);
+}
+html[data-theme="dark"] .feed-tab.active {
+  background: var(--gw-accent);
+  color: #0b1020;
+  border-color: var(--gw-accent);
+}
+
+/* ── misc ── */
+
+html[data-theme="dark"] .theme-toggle:hover { background: var(--gw-surface-2); }
+
+html[data-theme="dark"] .trending-badge {
+  background: var(--gw-warn-bg);
+  color: var(--gw-warn-fg);
+}
+
+/* Dark ground for both html and body, matching main.css's light pairing. */
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background: var(--gw-bg) !important;
+  color: var(--gw-text);
+}

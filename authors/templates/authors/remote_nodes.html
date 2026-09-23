@@ -13,9 +13,6 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f8f9fa;
-            color: #333;
             padding: 20px;
         }
         
@@ -24,17 +21,13 @@
             margin: 0 auto;
         }
         
-        .header {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        .page-head {
+            margin: 0 0 20px;
         }
-        
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
+
+        .page-head h1 {
+            font-size: var(--gw-text-2xl);
+            margin: 0;
         }
         
         .nav-link {
@@ -48,18 +41,20 @@
         }
         
         .section {
-            background: white;
+            background: var(--gw-surface);
+            color: var(--gw-text);
             padding: 20px;
-            border-radius: 12px;
+            border-radius: var(--gw-radius-md);
             margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--gw-shadow-sm);
         }
         
         .section h2 {
-            font-size: 20px;
+            font-size: var(--gw-text-xl);
+            color: var(--gw-text);
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #f0f0f0;
+            border-bottom: 1px solid var(--gw-border);
         }
         
         .node-list, .user-list {
@@ -170,18 +165,22 @@
         .empty-message {
             text-align: center;
             padding: 40px;
-            color: #999;
+            color: var(--gw-text-dim);
         }
     </style>
+  <link rel="icon" href="{% static 'images/favicon.svg' %}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=5">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
+  <script src="{% static 'js/common.js' %}?v=5"></script>
 </head>
 <body>
+    {% include "partials/header.html" %}
     <div class="container">
-        <div class="header">
-            <h1>Remote Nodes & Users</h1>
-            <div>
-                <a href="/home/" class="nav-link">← Home</a>
-                <span>Welcome, {{ user.displayName|default:user.display_name|default:user.username }}</span>
-            </div>
+        <div class="page-head">
+            <h1>Remote nodes &amp; users</h1>
         </div>
         
         <div class="section">
@@ -246,7 +245,7 @@
         </div>
     </div>
     
-    <script src="{% static 'js/api.js' %}"></script>
+    <script src="{% static 'js/api.js' %}?v=5"></script>
     <script>
         // API helper function (similar to home.html) — delegates to apiFetch
         // for CSRF, bearer auth, and automatic token refresh on 401.

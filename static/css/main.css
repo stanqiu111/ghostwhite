@@ -1,3 +1,135 @@
+/* ═══════════════════════════════════════════════════════════════
+ * ÉTHÉRÉ design tokens
+ *
+ * One source of truth for type, colour, spacing, radius and shadow.
+ * Before this existed the platform carried 116 distinct hex values, 9
+ * font-family declarations across 4 families, 10 border radii and 8 shadows,
+ * so each page looked like a different product.
+ *
+ * Dark values for these same tokens live in theme.css.
+ * ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Type ───────────────────────────────────────────────────
+     Inter everywhere. It was already the house face on the profile
+     page; the rest of the platform fell back to the system UI font,
+     which is what made the pages look unrelated. */
+  --gw-font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+             Helvetica, Arial, sans-serif;
+  --gw-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Type scale. Steps are distinct enough to read as hierarchy. */
+  --gw-text-xs:  12px;
+  --gw-text-sm:  13px;
+  --gw-text-md:  15px;   /* body */
+  --gw-text-lg:  17px;
+  --gw-text-xl:  21px;
+  --gw-text-2xl: 27px;
+
+  /* ── Colour ─────────────────────────────────────────────────
+     Neutrals carry a slight cool bias toward the accent so greys
+     read as chosen rather than inherited. */
+  --gw-bg:         #f6f7f9;
+  --gw-surface:    #ffffff;
+  --gw-surface-2:  #f1f3f6;
+  --gw-border:     #e4e7ec;
+  --gw-border-str: #d3d8e0;   /* stronger: inputs, focus rings */
+
+  --gw-text:       #16181d;
+  --gw-text-dim:   #6b7280;
+  --gw-text-faint: #9aa1ad;
+
+  --gw-accent:      #2f6fed;
+  --gw-accent-hover:#2559c9;
+  --gw-accent-soft: #eaf0fe;
+  --gw-on-accent:   #ffffff;
+
+  /* Semantic, kept separate from the accent hue. */
+  --gw-live:     #dc3545;
+  --gw-live-dim: #b02a37;
+  --gw-warn-bg:  #fef3c7;
+  --gw-warn-fg:  #b45309;
+  --gw-danger:   #dc2626;
+
+  /* ── Spacing: 4px base ─────────────────────────────────────── */
+  --gw-space-1: 4px;
+  --gw-space-2: 8px;
+  --gw-space-3: 12px;
+  --gw-space-4: 16px;
+  --gw-space-5: 24px;
+  --gw-space-6: 32px;
+
+  /* ── Radius: three steps, replacing ten ────────────────────── */
+  --gw-radius-sm:   8px;    /* inputs, small buttons */
+  --gw-radius-md:  14px;    /* cards, panels */
+  --gw-radius-pill: 999px;  /* badges, pills */
+
+  /* ── Elevation: two steps, replacing eight ─────────────────── */
+  --gw-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --gw-shadow-md: 0 4px 16px rgba(16, 24, 40, 0.08);
+
+  --gw-header-h: 64px;
+  --gw-content-w: 1200px;
+}
+
+/* Most pages already declared this locally; making it global is what lets a
+   shared component (the header) measure the same everywhere. */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ── Base typography ──────────────────────────────────────────
+   `html body` rather than `body`: every page carries its own inline
+   <style> that loads after this file, so a bare `body {}` here would
+   lose the cascade on equal specificity. Form controls do not inherit
+   font by default, so they are named explicitly. */
+html body,
+html button,
+html input,
+html textarea,
+html select {
+  font-family: var(--gw-font);
+}
+
+/* The one page ground. <html> carries it too so the page-fade transition
+   reveals the same colour instead of flashing white. */
+html,
+html body {
+  background: var(--gw-bg);
+}
+
+html body {
+  color: var(--gw-text);
+  font-size: var(--gw-text-md);
+  line-height: 1.5;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 {
+  text-wrap: balance;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+/* Links take the accent in every state -- several pages left them to the
+   browser default, so visited links rendered purple against the palette. */
+html body a,
+html body a:visited { color: var(--gw-accent); }
+html body a:hover { color: var(--gw-accent-hover); }
+
+/* Digits that stack in columns (follower counts, view counts, stats). */
+.stats .num,
+.badge,
+.trending-badge,
+.entry-stats { font-variant-numeric: tabular-nums; }
+
+/* Visible keyboard focus everywhere — several pages set outline:none. */
+:focus-visible {
+  outline: 2px solid var(--gw-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 
   /* ── Tooltip system ── */
   [data-tip] {
@@ -9,10 +141,10 @@
     bottom: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%) translateY(4px);
-    background: #1a1a1a;
-    color: #fff;
+    background: var(--gw-text);
+    color: var(--gw-surface);
     padding: 4px 10px;
-    border-radius: 6px;
+    border-radius: var(--gw-radius-sm);
     font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
@@ -39,7 +171,7 @@
 
   /* ── Skeleton loader ── */
   .skeleton {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 50%, #f0f0f0 75%);
+    background: linear-gradient(90deg, var(--gw-surface-2) 25%, var(--gw-border) 50%, var(--gw-surface-2) 75%);
     background-size: 200% 100%;
     animation: skeleton-sweep 1.4s ease infinite;
     border-radius: 6px;
@@ -60,29 +192,32 @@
   }
 
   .header {
-    background: white;
-    border-bottom: 1px solid #e1e5e9;
-    padding: 12px 0;
+    background: var(--gw-surface);
+    border-bottom: 1px solid var(--gw-border);
+    padding: var(--gw-space-3) 0;
     position: sticky;
     top: 0;
     z-index: 100;
   }
 
   .header-content {
-    max-width: 1200px;
+    max-width: var(--gw-content-w);
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 20px;
+    gap: var(--gw-space-4);
+    padding: 0 var(--gw-space-4);
   }
 
   .logo {
     cursor: pointer;
-    font-size: 24px;
-    font-weight: bold;
-    color: #1a1a1a;
+    font-size: var(--gw-text-xl);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--gw-text);
     transition: opacity 0.15s ease;
+    white-space: nowrap;
   }
   .logo:hover {
     opacity: 0.7;
@@ -97,29 +232,31 @@
 
   .search-input {
     width: 100%;
-    padding: 10px 16px 10px 40px;
-    border: 1.5px solid #292d32;
-    border-radius: 10px;
-    font-size: 14px;
-    background: #f8f9fa;
+    padding: 10px var(--gw-space-4) 10px 40px;
+    border: 1px solid var(--gw-border-str);
+    border-radius: var(--gw-radius-sm);
+    font-size: var(--gw-text-sm);
+    color: var(--gw-text);
+    background: var(--gw-surface-2);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     outline: none;
   }
   .search-input:focus {
-    border-color: #555;
-    box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+    border-color: var(--gw-accent);
+    background: var(--gw-surface);
+    box-shadow: 0 0 0 3px var(--gw-accent-soft);
   }
 
   .search-clear {
     position: absolute;
-    right: 12px;
+    right: var(--gw-space-3);
     top: 50%;
     transform: translateY(-50%);
     background: none;
     border: none;
-    color: #666;
+    color: var(--gw-text-dim);
     cursor: pointer;
-    font-size: 16px;
+    font-size: var(--gw-text-lg);
     transition: opacity 0.15s;
   }
   .search-clear:hover { opacity: 0.6; }
@@ -127,7 +264,8 @@
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--gw-space-2);
+    flex-wrap: wrap;
   }
 
   .header-btn {
@@ -141,26 +279,26 @@
     position: relative;
   }
   .header-btn:hover {
-    background-color: #f3f4f6;
-    transform: scale(1.1);
+    background-color: var(--gw-surface-2);
+    transform: scale(1.06);
   }
   .header-btn:active {
     transform: scale(0.95);
   }
 
   .logout-btn, .login-btn {
-    background-color: #1a1a1a;
-    color: white;
+    background-color: var(--gw-text);
+    color: var(--gw-surface);
     border: none;
-    padding: 8px 16px;
-    border-radius: 10px;
+    padding: 8px var(--gw-space-4);
+    border-radius: var(--gw-radius-sm);
     cursor: pointer;
-    font-size: 14px;
+    font-size: var(--gw-text-sm);
     font-weight: 500;
     transition: background-color 0.2s ease, transform 0.15s ease;
   }
   .logout-btn:hover, .login-btn:hover {
-    background-color: #333;
+    background-color: #33373f;
     transform: translateY(-1px);
   }
   .logout-btn:active, .login-btn:active {
@@ -172,17 +310,17 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 0 14px;
-    height: 36px;
-    background: #dc3545;
+    font-size: var(--gw-text-sm);
+    font-weight: 600;
+    padding: 0 var(--gw-space-3);
+    height: 34px;
+    background: var(--gw-live);
     color: #fff;
-    border-radius: 999px;
+    border-radius: var(--gw-radius-pill);
     white-space: nowrap;
   }
   .live-nav-btn:hover {
-    background-color: #b02a37;
+    background-color: var(--gw-live-dim);
   }
   .live-nav-dot {
     width: 7px;
@@ -194,4 +332,202 @@
   @keyframes live-nav-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.35; }
+  }
+  /* ── Live nav pill: quiet state when nobody is streaming ── */
+  .live-nav-btn.is-idle {
+    background: var(--gw-surface-2);
+    color: var(--gw-text-dim);
+  }
+  .live-nav-btn.is-idle:hover {
+    background-color: var(--gw-border);
+  }
+  .live-nav-btn.is-idle .live-nav-dot {
+    background: var(--gw-text-faint);
+    animation: none;
+  }
+
+  /* ── Feed tab switching ── */
+  .feed-tab {
+    transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+  }
+  #entries-container {
+    transition: opacity 0.16s ease;
+  }
+  #entries-container.is-switching {
+    opacity: 0;
+  }
+  #entries-container .entry-card {
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  /* ── Page transitions (opt-in: <body class="page-fade">) ──
+     Opacity only, never transform: the sticky header and any fixed overlay
+     would otherwise be re-parented to the body's new containing block. The
+     matching <html> background keeps the fade from flashing white. */
+  body.page-fade {
+    animation: page-enter 0.24s ease both;
+  }
+  @keyframes page-enter {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  body.page-fade.page-leaving {
+    animation: none;
+    opacity: 0;
+    transition: opacity 0.16s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #entries-container,
+    #entries-container.is-switching,
+    body.page-fade,
+    body.page-fade.page-leaving {
+      animation: none;
+      transition: none;
+      opacity: 1;
+    }
+    .live-nav-dot {
+      animation: none;
+    }
+  }
+
+  /* ── Theme toggle button (shared; pages that predate it style it inline) ── */
+  .theme-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    color: var(--gw-text-dim);
+  }
+  .theme-toggle:hover {
+    background: var(--gw-surface-2);
+    color: var(--gw-text);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+   * Surface & control consistency
+   *
+   * Each page invented its own radius, shadow and border, so the same
+   * component looked different depending on where you stood. These rules
+   * normalise appearance only -- radius, elevation, ground, colour. No
+   * layout properties (width, padding, display, position) are touched, so
+   * nothing reflows; pages keep their own composition.
+   *
+   * `html body` prefixes are load-bearing: every page's inline <style>
+   * parses after this file, so equal specificity would lose.
+   * ═══════════════════════════════════════════════════════════ */
+
+  html body .card,
+  html body .entry-card,
+  html body .profile-card,
+  html body .profile-detail,
+  html body .settings-card,
+  html body .stream-card,
+  html body .stream-detail-card,
+  html body .node-card,
+  html body .feed-tabs {
+    background: var(--gw-surface);
+    border-radius: var(--gw-radius-md);
+    box-shadow: var(--gw-shadow-sm);
+    color: var(--gw-text);
+  }
+
+  /* Lift only on hover for the things that are actually clickable, so
+     elevation means "interactive" instead of being stamped on everything. */
+  html body .entry-card:hover,
+  html body .stream-card:hover {
+    box-shadow: var(--gw-shadow-md);
+  }
+
+  /* Secondary text, wherever each page happened to name it. */
+  html body .empty-state,
+  html body .field-help,
+  html body .entry-meta,
+  html body .notif-meta,
+  html body .stream-detail-meta,
+  html body .profile-restricted-note,
+  html body .suggestion-username {
+    color: var(--gw-text-dim);
+    font-size: var(--gw-text-sm);
+  }
+
+  /* ── Controls ── */
+  html body .follow-btn,
+  html body .unfollow-btn,
+  html body .save-btn,
+  html body .saveBtn,
+  html body .stream-btn,
+  html body .followBtn {
+    border-radius: var(--gw-radius-sm);
+    font-size: var(--gw-text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease,
+                border-color 0.18s ease;
+  }
+
+  /* Primary action: one accent, used sparingly. */
+  html body .save-btn,
+  html body .saveBtn,
+  html body .followBtn,
+  html body .follow-btn:not(.requested-btn) {
+    background: var(--gw-accent);
+    border: 1px solid var(--gw-accent);
+    color: var(--gw-on-accent);
+  }
+  html body .save-btn:hover,
+  html body .saveBtn:hover,
+  html body .followBtn:hover,
+  html body .follow-btn:not(.requested-btn):hover {
+    background: var(--gw-accent-hover);
+    border-color: var(--gw-accent-hover);
+  }
+
+  /* Secondary / reversible actions stay quiet. */
+  html body .unfollow-btn,
+  html body .requested-btn {
+    background: var(--gw-surface);
+    border: 1px solid var(--gw-border-str);
+    color: var(--gw-text-dim);
+  }
+  html body .unfollow-btn:hover,
+  html body .requested-btn:hover {
+    border-color: var(--gw-danger);
+    color: var(--gw-danger);
+  }
+
+  html body input[type="text"],
+  html body input[type="search"],
+  html body input[type="email"],
+  html body input[type="password"],
+  html body input[type="url"],
+  html body textarea,
+  html body select,
+  html body .settings-input {
+    background: var(--gw-surface);
+    color: var(--gw-text);
+    border: 1px solid var(--gw-border-str);
+    border-radius: var(--gw-radius-sm);
+    font-size: var(--gw-text-md);
+  }
+  html body input:focus-visible,
+  html body textarea:focus-visible,
+  html body select:focus-visible {
+    outline: none;
+    border-color: var(--gw-accent);
+    box-shadow: 0 0 0 3px var(--gw-accent-soft);
+  }
+
+  /* Pills and counters. */
+  html body .badge,
+  html body .stream-badge,
+  html body .trending-badge {
+    border-radius: var(--gw-radius-pill);
+    font-size: var(--gw-text-xs);
+    font-weight: 600;
   }

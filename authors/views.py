@@ -335,6 +335,21 @@ def author_profile_page(request, username):
     author_followers_list = author_all_followers.exclude(follower_id__in=author_friend_ids)
     author_following_list = author_all_following.exclude(following_id__in=author_friend_ids)
 
+    # Profile visibility: withhold detail and social graph from viewers the
+    # author has not opened up to. Entries are already filtered by their own
+    # per-entry visibility, but a restricted profile should not advertise them
+    # either, so the profile page shows nothing but identity + follow button.
+    profile_restricted = not author.profile_visible_to(request.user)
+    if profile_restricted:
+        entries = Entry.objects.none()
+        top_5_entries = []
+        entry_count = 0
+        author_follower_count = 0
+        author_following_count = 0
+        author_friends = []
+        author_followers_list = Follow.objects.none()
+        author_following_list = Follow.objects.none()
+
     if request.path.endswith('/settings/'):
         return render(
             request,
@@ -357,6 +372,8 @@ def author_profile_page(request, username):
             {
                 'is_own_profile': False,
                 'author': author,
+                "profile_restricted": profile_restricted,
+                "profile_visibility": author.profile_visibility,
                 "entries": entries,
                 "entry_count": entry_count,
                 "author_follower_count": author_follower_count,
@@ -535,7 +552,8 @@ class FollowRequestView(APIView):
             if existing.status == Follow.DENIED:
                 existing.status = Follow.PENDING
                 existing.approved = False
-                existing.save(update_fields=['status', 'approved'])
+                existing.decided_at = None
+                existing.save(update_fields=['status', 'approved', 'decided_at'])
                 send_follow_request_to_remote_node(existing)
                 data = {"id": str(existing.id), "follower": str(existing.follower_id), 
                        "following": str(existing.following_id), "approved": existing.approved}
@@ -673,11 +691,16 @@ class SyncMyGithubReposView(APIView):
         try:
             gi = request.user.github_integration
         except GitHubIntegration.DoesNotExist:
-            return Response({"detail": "No GitHub integration configured."}, status=400)
+            # Not an error: the request is well formed, there is simply nothing
+            # to sync. This used to 400, which logged a console error on every
+            # home page load and again every 60s for every user without GitHub
+            # connected -- while the neighbouring "no username" case already
+            # returned 200. `configured` lets the client stop polling.
+            return Response({"created": 0, "configured": False})
 
         # Check if github_username is empty or blank - if yes we wont call
         if not gi.github_username or not gi.github_username.strip():
-            return Response({"created": 0}) 
+            return Response({"created": 0, "configured": False})
 
         try:
             activity_result = sync_github_events(

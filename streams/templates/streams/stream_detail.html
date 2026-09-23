@@ -5,24 +5,22 @@
   <meta charset="utf-8" />
   <title>{{ stream.title }} — Live Stream</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <link rel="icon" href="{% static 'images/favicon.svg' %}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=5">
   <link rel="stylesheet" href="{% static 'streams/streams.css' %}">
-  <script src="{% static 'js/common.js' %}"></script>
+  <script src="{% static 'js/common.js' %}?v=5"></script>
   <script src="{% static 'streams/signaling.js' %}"></script>
   <script src="{% static 'streams/screenshare.js' %}"></script>
   <script src="{% static 'streams/bullets.js' %}"></script>
   <script src="{% static 'streams/player_controls.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
 </head>
 
 <body class="streams-page">
-  <div class="header">
-    <div class="header-content">
-      <div class="logo" onclick="navigateToHome()">ÉTHÉRÉ</div>
-      <div class="header-actions">
-        <button class="logout-btn" onclick="logout()">Log out</button>
-      </div>
-    </div>
-  </div>
+  {% include "partials/header.html" %}
 
   <div class="streams-container">
     <div class="stream-detail-card">
@@ -81,7 +79,7 @@
         </label>
         {% endif %}
         <label class="stream-curtain-toggle">
-          <input type="checkbox" id="bulletToggle" checked>
+          <input type="checkbox" id="bulletToggle" checked autocomplete="off">
           Bullet comments
         </label>
       </div>

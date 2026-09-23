@@ -76,6 +76,39 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
             return f"{host_url}{obj.image.url}" if host_url else obj.image.url
         return ""
 
+    # Detail fields blanked out when the viewer is not allowed to see them.
+    # Identity fields (username/displayName/id/web) always stay, so authorship
+    # on existing posts and follow buttons keep working.
+    RESTRICTED_FIELDS = ("bio", "github", "github_url", "profileImage", "image")
+
+    def _viewer_follows(self, viewer):
+        """
+        Ids the viewer has an accepted follow of, fetched once per serializer
+        instance. When a list of authors is serialised the same child
+        serializer handles every item, so this turns what would be one Follow
+        query per author into one query for the whole page.
+        """
+        if not hasattr(self, "_viewer_follow_cache"):
+            self._viewer_follow_cache = Author.accepted_follow_ids(viewer)
+        return self._viewer_follow_cache
+
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        request = self.context.get("request")
+        viewer = getattr(request, "user", None) if request else None
+        visible = obj.profile_visible_to(viewer, self._viewer_follows(viewer))
+        data["profile_restricted"] = not visible
+        # Only the author (or staff) is told which setting is in force --
+        # publishing it to everyone advertises who is "private" vs "followers".
+        if not (viewer and getattr(viewer, "is_authenticated", False)
+                and (viewer.id == obj.id or getattr(viewer, "is_staff", False))):
+            data.pop("profile_visibility", None)
+        if not visible:
+            for f in self.RESTRICTED_FIELDS:
+                if f in data:
+                    data[f] = "" if f != "image" else None
+        return data
+
     class Meta:
         model = Author
         fields = [
@@ -96,6 +129,7 @@ class AuthorSerializer(UrlBuildingMixin, serializers.ModelSerializer):
             "updated_at",
             "full_url",
             "follow_status",
+            "profile_visibility",
         ]
         read_only_fields = ["id", "serial", "created_at", "updated_at", "username", "host", "type", "web", "follow_status", "displayName", "github", "profileImage"]
 

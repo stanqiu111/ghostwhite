@@ -7,12 +7,35 @@ from .models import Author
 class ProfileSettingsForm(forms.ModelForm):
     class Meta:
         model = Author
-        fields = ["display_name", "bio", "github_url", "image"]
+        fields = ["display_name", "bio", "github_url", "image", "profile_visibility"]
+        labels = {"profile_visibility": "Who can see my profile"}
+        help_texts = {
+            "profile_visibility": (
+                "Your username and display name stay visible so people can still "
+                "find you and see who wrote a post. This controls your bio, "
+                "GitHub link, avatar and follower lists. Who can read each post "
+                "is set per post when you write it."
+            ),
+        }
         widgets = {
             "display_name": forms.TextInput(attrs={"class": "settings-input"}),
             "bio": forms.Textarea(attrs={"class": "settings-input", "rows": 3}),
             "github_url": forms.URLInput(attrs={"class": "settings-input", "placeholder": "https://github.com/username"}),
+            "profile_visibility": forms.Select(attrs={"class": "settings-input"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # A POST that omits this field (an older form, or a partial submit)
+        # must leave the existing privacy setting alone rather than fail
+        # validation or reset it.
+        self.fields["profile_visibility"].required = False
+
+    def clean_profile_visibility(self):
+        value = self.cleaned_data.get("profile_visibility")
+        if not value:
+            return self.instance.profile_visibility
+        return value
 
 
 class EmailChangeForm(forms.Form):

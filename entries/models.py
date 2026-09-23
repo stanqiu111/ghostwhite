@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 from django.db import models
 from django.utils import timezone
 from authors.models import Author
@@ -227,3 +228,57 @@ class CommentLike(models.Model):
                 name="commentlike_author_created_idx",
             )
         ]
+
+
+class EntryView(models.Model):
+    """
+    One row per time an entry's detail page is fetched, used to rank the
+    Trending feed. Rows are deliberately cheap and append-only.
+
+    Only signed-in readers are recorded, and never an author viewing their own
+    post, so neither bot traffic nor refreshing can drive the ranking.
+    """
+
+    entry = models.ForeignKey(Entry, on_delete=models.CASCADE, related_name="views")
+    viewer = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="entry_views")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["entry", "created_at"], name="entryview_entry_created_idx"),
+            models.Index(fields=["created_at"], name="entryview_created_idx"),
+        ]
+
+    def __str__(self):
+        return f"view of {self.entry_id} at {self.created_at:%Y-%m-%d %H:%M}"
+
+    # A repeat view by the same reader inside this window is not counted, so
+    # reloading a page cannot inflate the ranking.
+    DEDUPE_WINDOW = timedelta(minutes=30)
+
+    @classmethod
+    def record(cls, entry, request):
+        """
+        Record a view of `entry`, ignoring self-views and rapid repeats.
+
+        Only signed-in readers are counted. This endpoint is AllowAny and is
+        also hit by remote nodes and crawlers, so counting anonymous fetches
+        would let bot traffic drive Trending; it would also mean minting a
+        Session row and cookie for every anonymous read purely to deduplicate.
+        """
+        if entry is None:
+            return None
+        user = getattr(request, "user", None)
+        if not getattr(user, "is_authenticated", False):
+            return None
+        viewer = user
+
+        # Authors do not trend their own posts.
+        if viewer.id == entry.author_id:
+            return None
+
+        since = timezone.now() - cls.DEDUPE_WINDOW
+        if cls.objects.filter(entry=entry, viewer=viewer, created_at__gte=since).exists():
+            return None
+
+        return cls.objects.create(entry=entry, viewer=viewer)

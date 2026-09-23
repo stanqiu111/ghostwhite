@@ -4,7 +4,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <link rel="icon" href="{% static 'images/favicon.svg' %}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}?v=5">
     <title>ÉTHÉRÉ - Home</title>
     <style>
       * {
@@ -14,10 +18,7 @@
       }
     
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          sans-serif;
-        background-color: #f8f9fa;
-        color: #333;
+        /* ground + text colour come from the tokens in main.css */
       }
       .main-container {
         max-width: 1200px;
@@ -466,8 +467,6 @@
       [data-theme="dark"] .search-input::placeholder { color: #666; }
       [data-theme="dark"] .header-btn svg path,
       [data-theme="dark"] .header-btn svg circle { stroke: #e8e8e8; fill: none; }
-      [data-theme="dark"] .logout-btn { background: #2a2a2a; color: #e8e8e8; border-color: #444; }
-      [data-theme="dark"] .logout-btn:hover { background: #333; }
 
       [data-theme="dark"] .card,
       [data-theme="dark"] .entry-card { background: #1e1e1e; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
@@ -500,6 +499,31 @@
       [data-theme="dark"] #markAllReadBtn:hover { color: #e8e8e8 !important; }
 
       /* ── Feed tabs ── */
+      /* Trending: order cards by rank without reshuffling the DOM. */
+      #entries-container.is-trending {
+        display: flex;
+        flex-direction: column;
+      }
+      .trending-badge {
+        position: absolute;
+        top: -4px;
+        right: 0;
+        font-size: 12px;
+        font-weight: 600;
+        color: #b45309;
+        background: #fef3c7;
+        border-radius: 999px;
+        padding: 2px 9px;
+        display: none;              /* only meaningful on the Trending tab */
+      }
+      #entries-container.is-trending .trending-badge { display: inline-block; }
+
+      @keyframes highlight-pulse {
+        0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        50%      { box-shadow: 0 0 0 3px rgba(91,157,255,.55); }
+      }
+      .highlight-pulse { animation: highlight-pulse 0.8s ease 2; }
+
       .feed-tabs {
         display: flex;
         background: white;
@@ -554,146 +578,12 @@
     </style>
   <script src="{% static 'js/marked.min.js' %}"></script>
   <script src="{% static 'js/purify.min.js' %}"></script>
-  </head>
-  <body>
+    <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
+    <script src="{% static 'js/common.js' %}?v=5"></script>
+</head>
+  <body class="page-fade">
     <!-- Header -->
-    <div class="header">
-      <div class="header-content">
-        <div class="logo" onclick="navigateToHome()">ÉTHÉRÉ</div>
-        <div class="search-bar">
-          <input type="text" class="search-input" id="homeSearch" placeholder="Search posts or people..." autocomplete="off" />
-          <button class="search-clear" id="searchClear" style="display:none;">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M10.0003 18.9583C5.05866 18.9583 1.04199 14.9416 1.04199 9.99996C1.04199 5.05829 5.05866 1.04163 10.0003 1.04163C14.942 1.04163 18.9587 5.05829 18.9587 9.99996C18.9587 14.9416 14.942 18.9583 10.0003 18.9583ZM10.0003 2.29163C5.75033 2.29163 2.29199 5.74996 2.29199 9.99996C2.29199 14.25 5.75033 17.7083 10.0003 17.7083C14.2503 17.7083 17.7087 14.25 17.7087 9.99996C17.7087 5.74996 14.2503 2.29163 10.0003 2.29163Z"
-                fill="#909090"
-              />
-              <path
-                d="M7.64147 12.9834C7.48314 12.9834 7.3248 12.925 7.1998 12.8C6.95814 12.5584 6.95814 12.1584 7.1998 11.9167L11.9165 7.20005C12.1581 6.95838 12.5581 6.95838 12.7998 7.20005C13.0415 7.44172 13.0415 7.84172 12.7998 8.08338L8.08314 12.8C7.96647 12.925 7.7998 12.9834 7.64147 12.9834Z"
-                fill="#909090"
-              />
-              <path
-                d="M12.3581 12.9834C12.1998 12.9834 12.0415 12.925 11.9165 12.8L7.1998 8.08338C6.95814 7.84172 6.95814 7.44172 7.1998 7.20005C7.44147 6.95838 7.84147 6.95838 8.08314 7.20005L12.7998 11.9167C13.0415 12.1584 13.0415 12.5584 12.7998 12.8C12.6748 12.925 12.5165 12.9834 12.3581 12.9834Z"
-                fill="#909090"
-              />
-            </svg>
-          </button>
-        </div>
-        <div class="header-actions">
-          <button class="header-btn" title="Add Entry" data-tip="New Entry" onclick="navigateToCreateEntry()">
-            <svg
-              width="27"
-              height="27"
-              viewBox="0 0 27 27"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M18 14.3438H9C8.53875 14.3438 8.15625 13.9613 8.15625 13.5C8.15625 13.0387 8.53875 12.6562 9 12.6562H18C18.4613 12.6562 18.8438 13.0387 18.8438 13.5C18.8438 13.9613 18.4613 14.3438 18 14.3438Z"
-                fill="black"
-              />
-              <path
-                d="M13.5 18.8438C13.0388 18.8438 12.6562 18.4612 12.6562 18V9C12.6562 8.53875 13.0388 8.15625 13.5 8.15625C13.9612 8.15625 14.3438 8.53875 14.3438 9V18C14.3438 18.4612 13.9612 18.8438 13.5 18.8438Z"
-                fill="black"
-              />
-              <path
-                d="M16.875 25.5938H10.125C4.01625 25.5938 1.40625 22.9837 1.40625 16.875V10.125C1.40625 4.01625 4.01625 1.40625 10.125 1.40625H16.875C22.9837 1.40625 25.5938 4.01625 25.5938 10.125V16.875C25.5938 22.9837 22.9837 25.5938 16.875 25.5938ZM10.125 3.09375C4.93875 3.09375 3.09375 4.93875 3.09375 10.125V16.875C3.09375 22.0613 4.93875 23.9062 10.125 23.9062H16.875C22.0613 23.9062 23.9062 22.0613 23.9062 16.875V10.125C23.9062 4.93875 22.0613 3.09375 16.875 3.09375H10.125Z"
-                fill="black"
-              />
-            </svg>
-          </button>
-          <button class="header-btn" title="Inbox" data-tip="Inbox"
-            onclick="window.location.href='/inbox/';">
-            <svg
-              width="30"
-              height="27"
-              viewBox="0 0 30 27"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M13.5 7.245V10.9912"
-                stroke="#292D32"
-                stroke-width="1.5"
-                stroke-miterlimit="10"
-                stroke-linecap="round"
-              />
-              <path
-                d="M23.1636 17.0663C23.9849 18.4388 23.3324 20.2163 21.8136 20.7225C16.4361 22.5113 10.6199 22.5113 5.24236 20.7225C3.62236 20.1825 3.00361 18.54 3.89236 17.0663L5.32111 14.6813C5.71486 14.0288 6.02986 12.87 6.02986 12.1163V9.75375C6.02986 5.6025 9.38236 2.25 13.5224 2.25C17.6399 2.25 21.0149 5.625 21.0149 9.7425V12.105C21.0149 12.3075 21.0374 12.5325 21.0711 12.7688"
-                stroke="#292D32"
-                stroke-width="1.5"
-                stroke-miterlimit="10"
-                stroke-linecap="round"
-              />
-              <path
-                d="M17.2464 21.1725C17.2464 23.2312 15.5589 24.9187 13.5002 24.9187C12.4764 24.9187 11.5314 24.4912 10.8564 23.8162C10.1814 23.1412 9.75391 22.1962 9.75391 21.1725"
-                stroke="#292D32"
-                stroke-width="1.5"
-                stroke-miterlimit="10"
-              />
-              <path
-                d="M29.4999 3.27266C29.4999 4.62827 28.401 5.72721 27.0454 5.72721C25.6898 5.72721 24.5908 4.62827 24.5908 3.27266C24.5908 1.91705 25.6898 0.818115 27.0454 0.818115C28.401 0.818115 29.4999 1.91705 29.4999 3.27266Z"
-                fill="#C01A1A"
-              />
-            </svg>
-          </button>
-          <button class="header-btn" title="Remote Nodes" data-tip="Remote Nodes"
-            onclick="window.location.href='{% url 'authors_pages:remote_nodes_page' %}';">
-            <svg
-              width="27"
-              height="27"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M12 2L2 7L12 12L22 7L12 2Z"
-                stroke="#292D32"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M2 17L12 22L22 17"
-                stroke="#292D32"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M2 12L12 17L22 12"
-                stroke="#292D32"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
-          <button class="header-btn" title="Settings" onclick="window.location.href='/authors/settings/';">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#292D32" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-          </button>
-          <button class="header-btn live-nav-btn" title="Live Streams" onclick="window.location.href='/streams/'">
-            <span class="live-nav-dot"></span>
-            Live
-          </button>
-          <button class="theme-toggle" id="themeToggle" title="Toggle dark mode" onclick="toggleTheme()">
-            <svg id="themeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-            </svg>
-          </button>
-          <button class="logout-btn" onclick="logout()">Log out</button>
-        </div>
-      </div>
-    </div>
+    {% include "partials/header.html" with header_search=True %}
 
     <!-- Main Content -->
     <div class="main-container">
@@ -766,6 +656,7 @@
       <div class="middle-column">
         <div class="feed-tabs">
           <button class="feed-tab active" id="tab-for-you" onclick="switchTab('for-you')">For You</button>
+          <button class="feed-tab" id="tab-trending" onclick="switchTab('trending')">Trending</button>
           <button class="feed-tab" id="tab-following" onclick="switchTab('following')">Following</button>
         </div>
         <div id="entries-container">
@@ -773,11 +664,18 @@
         <div class="entry-card"
              data-is-own="{% if entry.author == user %}true{% else %}false{% endif %}"
              data-is-following="{% if entry.is_from_following %}true{% else %}false{% endif %}"
+             {% if entry.trending_rank is not None %}data-trending-rank="{{ entry.trending_rank }}"{% endif %}
+             data-recent-views="{{ entry.recent_views }}"
              onclick="navigateToEntry('{{ entry.serial }}')" style="cursor:pointer;">
           <div class="entry-header">
+            {% if entry.trending_rank is not None %}
+            <span class="trending-badge" title="Views in the last {{ trending_window_hours }} hours">
+              &#128293; {{ entry.recent_views }}
+            </span>
+            {% endif %}
             <div class="entry-author">
               <div class="entry-avatar" onclick="event.stopPropagation(); navigateToPublicProfile('{{ entry.author.username }}')" style="cursor:pointer;">
-                {% if entry.author.image %}
+                {% if entry.author.image and entry.show_author_avatar %}
                 <img
                   src="{{ entry.author.image.url }}"
                   alt="{{ entry.author.displayName }}"
@@ -916,7 +814,7 @@
             <div class="suggestion-info">
               <div class="suggestion-avatar" style="cursor:pointer;"
                    onclick="navigateToPublicProfile('{{ suggestion.username }}')">
-                {% if suggestion.profileImage or suggestion.image %}
+                {% if suggestion.show_author_avatar and suggestion.profileImage or suggestion.show_author_avatar and suggestion.image %}
                 <img
                   src="{{ suggestion.profileImage|default:suggestion.image.url|default:'' }}"
                   alt="{{ suggestion.displayName | default:suggestion.display_name | default:suggestion.username }}"
@@ -962,8 +860,7 @@
       </div>
     </div>
 
-    <script defer src="{% static 'js/api.js' %}"></script>
-    <script src="{% static 'js/common.js' %}"></script>
+    <script defer src="{% static 'js/api.js' %}?v=5"></script>
     <script>
       async function api(path, opts={}) {
         // apiFetch adds CSRF + bearer + same-origin cookies and auto-refreshes
@@ -1005,16 +902,22 @@
         const nextStatus = status || '';
         btn.dataset.followStatus = nextStatus;
 
+        if (nextStatus !== 'pending') btn.removeAttribute('title');
+
         if (nextStatus === 'accepted') {
           btn.className = 'unfollow-btn';
           btn.disabled = false;
           btn.textContent = 'Unfollow';
           btn.onclick = (e) => { e.stopPropagation(); unfollowFromButton(btn); };
         } else if (nextStatus === 'pending') {
-          btn.className = 'follow-btn';
-          btn.disabled = true;
+          // A pending request used to be a dead, disabled button, leaving no
+          // way back out of it. DELETE on the follow resource already cancels,
+          // so surface that.
+          btn.className = 'follow-btn requested-btn';
+          btn.disabled = false;
           btn.textContent = 'Requested';
-          btn.onclick = null;
+          btn.title = 'Cancel follow request';
+          btn.onclick = (e) => { e.stopPropagation(); cancelFollowRequest(btn); };
         } else {
           btn.className = 'follow-btn';
           btn.disabled = false;
@@ -1150,10 +1053,17 @@
           await api('inbox/notifications/mark-read/', { method: 'POST' });
           badge.textContent = '0';
           badge.classList.remove('has-items');
+          setNotifDot(0);
           if (markBtn) markBtn.style.display = 'none';
         } catch (e) {
           console.error('Failed to mark notifications read', e);
         }
+      }
+
+      // The header bell dot mirrors the unread count; every place that changes
+      // the count routes through here so the two can never drift apart.
+      function setNotifDot(count) {
+        setNavNotifDot(count);   // shared header bell, see common.js
       }
 
       async function loadFollowingInbox() {
@@ -1169,6 +1079,7 @@
           badge.textContent = String(unreadCount);
           if (unreadCount > 0) badge.classList.add('has-items');
           else badge.classList.remove('has-items');
+          setNotifDot(unreadCount);
           const markBtn = document.getElementById('markAllReadBtn');
           if (markBtn) markBtn.style.display = unreadCount > 0 ? 'inline' : 'none';
 
@@ -1206,15 +1117,35 @@
             right.style.display = 'flex'; right.style.gap = '8px';
             const btn = document.createElement('button');
             btn.className = 'follow-btn';
-            btn.textContent = 'View';
+            // Follow notifications point at a person, not a post, so send the
+            // reader somewhere useful instead of a dead "View".
+            btn.textContent = n.type === 'follow_request' ? 'Review'
+                            : n.type === 'follow_accepted' ? 'Profile'
+                            : 'View';
             btn.onclick = async () => {
               row.remove();
               const prev = parseInt(badge.textContent, 10) || 0;
               const next = Math.max(0, prev - 1);
               badge.textContent = String(next);
               if (next === 0) badge.classList.remove('has-items');
+              setNotifDot(next);
               if (!list.querySelector('.suggestion-item')) {
                 list.innerHTML = '<div class="empty-state">No notifications</div>';
+              }
+              if (n.type === 'follow_request') {
+                // Accept/deny already live in the Follow requests card; take
+                // the reader there instead of duplicating those controls.
+                const fr = document.getElementById('followRequests');
+                if (fr) {
+                  fr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  fr.classList.add('highlight-pulse');
+                  setTimeout(() => fr.classList.remove('highlight-pulse'), 1600);
+                }
+                return;
+              }
+              if (n.type === 'follow_accepted' && n.object_url) {
+                navigateWithFade(n.object_url);
+                return;
               }
               if (n.object_id) {
                 const entryId = n.object_id.includes('/entries/')
@@ -1387,6 +1318,29 @@
         }
       }
       
+      // Withdraw a follow request that has not been decided yet. Same
+      // endpoint as unfollow, but no confirm(): nothing is being undone that
+      // the other person has acted on.
+      async function cancelFollowRequest(btn) {
+        if (!btn) return;
+        const id = btn.dataset.authorId;
+        if (!id) return;
+        const authorId = id.includes('/api/authors/') ? extract_serial_from_fqid(id) : id;
+
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Cancelling…';
+        try {
+          await api(`authors/${authorId}/follow/`, { method: 'DELETE' });
+          stopFollowStatusWatcher(id);
+          updateButtonsForAuthor(id, null);
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = original;
+          alert(e.message || 'Failed to cancel the request');
+        }
+      }
+
       async function unfollowFromButton(btn) {
         if (!btn) {
           console.error('unfollowFromButton: btn is null/undefined');
@@ -1435,26 +1389,13 @@
       
       window.followFromButton = followFromButton;
       window.unfollowFromButton = unfollowFromButton;
+      window.cancelFollowRequest = cancelFollowRequest;
       
       // ── Theme toggle ──
-      const SUN_SVG = `<path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 5a7 7 0 1 0 0 14A7 7 0 0 0 12 5z"`;
-      const MOON_SVG = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"`;
-
-      function applyTheme(dark) {
-        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-        const icon = document.getElementById('themeIcon');
-        if (icon) icon.innerHTML = (dark ? SUN_SVG : MOON_SVG) + ' stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
-      }
-
-      function toggleTheme() {
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const next = !isDark;
-        localStorage.setItem('theme', next ? 'dark' : 'light');
-        applyTheme(next);
-      }
+      // applyTheme / toggleTheme now live in common.js so every page shares
+      // one implementation; see static/css/theme.css for the dark palette.
 
       // Apply saved theme before first paint
-      applyTheme(localStorage.getItem('theme') === 'dark');
 
       document.addEventListener('DOMContentLoaded', () => {
         loadFollowRequests();
@@ -1464,11 +1405,21 @@
 
     initMarkdownRendering();
 
+    let githubSyncTimer = null;
+
     async function syncGithubActivity() {
       try {
         const reposResponse = await api('authors/sync-repos/', {
           method: 'POST'
         });
+
+        // Nothing connected: stop polling instead of re-asking every minute
+        // for the rest of the session.
+        if (reposResponse.configured === false) {
+          if (githubSyncTimer) clearInterval(githubSyncTimer);
+          githubSyncTimer = null;
+          return;
+        }
 
         const created = reposResponse.created || 0;
         console.log(`[GitHub Sync] Synced ${created} repos`);
@@ -1486,7 +1437,8 @@
 
     function startGithubSync() {
       syncGithubActivity(); 
-      setInterval(syncGithubActivity, 60000); // this will call once every 1 minute, according to https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28, we can call maximum 60 requests per hour
+      // once a minute, within GitHub's 60 requests/hour limit
+      githubSyncTimer = setInterval(syncGithubActivity, 60000);
     }
 
     if (document.readyState === 'loading') {
@@ -1496,14 +1448,39 @@
     }
 
     // ---- Feed Tabs ----
+    // Swapping display:none instantly made the feed jump. Fade the list out,
+    // re-filter while it is invisible, then fade it back in so the height
+    // change lands mid-transition instead of snapping.
     function switchTab(tab) {
-      document.getElementById('tab-for-you').classList.toggle('active', tab === 'for-you');
-      document.getElementById('tab-following').classList.toggle('active', tab === 'following');
+      ['for-you', 'trending', 'following'].forEach(name => {
+        const btn = document.getElementById('tab-' + name);
+        if (btn) btn.classList.toggle('active', tab === name);
+      });
 
+      const wrap = document.getElementById('entries-container');
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!wrap || reduced) {
+        applyTabFilter(tab);
+        return;
+      }
+      wrap.classList.add('is-switching');
+      setTimeout(() => {
+        applyTabFilter(tab);
+        // Next frame, so the browser paints the filtered list while still
+        // faded and then animates back up.
+        requestAnimationFrame(() => wrap.classList.remove('is-switching'));
+      }, 160);
+    }
+
+    function applyTabFilter(tab) {
       const cards = document.querySelectorAll('#entries-container .entry-card');
+      const container = document.getElementById('entries-container');
+
       cards.forEach(card => {
         if (tab === 'for-you') {
           card.style.display = '';
+        } else if (tab === 'trending') {
+          card.style.display = card.dataset.trendingRank !== undefined ? '' : 'none';
         } else {
           const isOwn = card.dataset.isOwn === 'true';
           const isFollowing = card.dataset.isFollowing === 'true';
@@ -1511,23 +1488,39 @@
         }
       });
 
-      const container = document.getElementById('entries-container');
-      let emptyEl = document.getElementById('followingEmptyState');
-      if (tab === 'following') {
-        let visible = 0;
-        cards.forEach(c => { if (c.style.display !== 'none') visible++; });
-        if (visible === 0) {
-          if (!emptyEl) {
-            emptyEl = document.createElement('div');
-            emptyEl.id = 'followingEmptyState';
-            emptyEl.className = 'empty-state';
-            emptyEl.textContent = 'Follow some people to see their posts here';
-            container.appendChild(emptyEl);
-          }
-          emptyEl.style.display = '';
-        } else if (emptyEl) {
-          emptyEl.style.display = 'none';
+      // The cards are rendered newest-first. Trending needs most-viewed-first,
+      // so order them with flex `order` rather than moving DOM nodes around
+      // (keeps every card's event handlers and the fade transition intact).
+      container.classList.toggle('is-trending', tab === 'trending');
+      cards.forEach(card => {
+        card.style.order = tab === 'trending' ? (card.dataset.trendingRank || 0) : '';
+      });
+
+      setTabEmptyState(tab, cards, container);
+    }
+
+    // One empty-state element, reused by whichever tab currently needs it.
+    function setTabEmptyState(tab, cards, container) {
+      let emptyEl = document.getElementById('tabEmptyState');
+      let visible = 0;
+      cards.forEach(c => { if (c.style.display !== 'none') visible++; });
+
+      const messages = {
+        following: 'Follow some people to see their posts here',
+        trending: 'Nothing is trending yet — posts appear here once people start reading them',
+      };
+      const message = messages[tab];
+
+      if (message && visible === 0) {
+        if (!emptyEl) {
+          emptyEl = document.createElement('div');
+          emptyEl.id = 'tabEmptyState';
+          emptyEl.className = 'empty-state';
+          container.appendChild(emptyEl);
         }
+        emptyEl.textContent = message;
+        emptyEl.style.display = '';
+        emptyEl.style.order = '';
       } else if (emptyEl) {
         emptyEl.style.display = 'none';
       }

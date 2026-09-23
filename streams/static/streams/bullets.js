@@ -178,6 +178,14 @@ document.addEventListener('DOMContentLoaded', () => {
     curtain.send();
   });
   const toggle = document.getElementById('bulletToggle');
-  if (toggle) toggle.addEventListener('change', () => curtain.setEnabled(toggle.checked));
+  if (toggle) {
+    // Browsers restore checkbox state across a reload, so the box can come back
+    // unchecked while the curtain still thinks it is enabled. The curtain must
+    // default back to on every visit (FR-008) and JS state must never desync
+    // from the control, so re-assert both here rather than trusting the markup.
+    toggle.checked = true;
+    curtain.setEnabled(true);
+    toggle.addEventListener('change', () => curtain.setEnabled(toggle.checked));
+  }
   curtain.start();
 });

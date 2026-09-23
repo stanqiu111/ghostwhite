@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
@@ -65,6 +66,20 @@ class Author(AbstractBaseUser, PermissionsMixin):
     node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="authors")
     approved = models.BooleanField(default=False)
     last_seen_notifications_at = models.DateTimeField(null=True, blank=True)
+
+    # Who may see bio / github / avatar / follower lists on this profile.
+    # "public" keeps the old behaviour, so existing accounts are unaffected.
+    PROFILE_PUBLIC, PROFILE_FOLLOWERS, PROFILE_PRIVATE = "public", "followers", "private"
+    PROFILE_VISIBILITY_CHOICES = [
+        (PROFILE_PUBLIC, "Anyone"),
+        (PROFILE_FOLLOWERS, "Only people I have accepted as followers"),
+        (PROFILE_PRIVATE, "Only me"),
+    ]
+    profile_visibility = models.CharField(
+        max_length=16,
+        choices=PROFILE_VISIBILITY_CHOICES,
+        default=PROFILE_PUBLIC,
+    )
     email = models.EmailField(unique=True, null=True, blank=True)
     is_email_verified = models.BooleanField(default=False)
 
@@ -79,6 +94,59 @@ class Author(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+    def is_followed_by(self, other) -> bool:
+        """True when `other` has an accepted follow of this author."""
+        if not other or not getattr(other, "is_authenticated", False):
+            return False
+        return Follow.objects.filter(
+            follower=other, following=self
+        ).filter(Q(status=Follow.ACCEPTED) | Q(approved=True)).exists()
+
+    def is_friend_with(self, other) -> bool:
+        """Mutual accepted follows in both directions."""
+        if not other or not getattr(other, "is_authenticated", False):
+            return False
+        return self.is_followed_by(other) and other.is_followed_by(self)
+
+    @staticmethod
+    def accepted_follow_ids(viewer):
+        """
+        Ids `viewer` has an accepted follow of, in one query. Pass the result
+        to profile_visible_to() when checking many authors at once (a feed, a
+        serialized list) so the check costs one query instead of one per author.
+        """
+        if not viewer or not getattr(viewer, "is_authenticated", False):
+            return set()
+        return set(
+            Follow.objects.filter(follower=viewer)
+            .filter(Q(status=Follow.ACCEPTED) | Q(approved=True))
+            .values_list("following_id", flat=True)
+        )
+
+    def profile_visible_to(self, viewer, following_ids=None) -> bool:
+        """
+        Whether `viewer` may see this author's profile detail (bio, github,
+        avatar, follower/following lists). Identity -- username and display
+        name -- stays visible either way so people remain findable and
+        attributable on their posts.
+
+        This is the single definition of the rule: the profile page, the
+        serializer and the feed all call it, so they cannot drift apart.
+        `following_ids` is an optional precomputed set from
+        accepted_follow_ids() to avoid a per-author query.
+        """
+        if self.profile_visibility == self.PROFILE_PUBLIC:
+            return True
+        if not viewer or not getattr(viewer, "is_authenticated", False):
+            return False
+        if viewer.id == self.id or getattr(viewer, "is_staff", False):
+            return True
+        if self.profile_visibility == self.PROFILE_FOLLOWERS:
+            if following_ids is not None:
+                return self.id in following_ids
+            return self.is_followed_by(viewer)
+        return False  # PROFILE_PRIVATE
 
     class Meta:
         indexes = [
@@ -115,6 +183,11 @@ class Follow(models.Model):
     STATUS_CHOICES = [(PENDING, "Pending"), (ACCEPTED, "Accepted"), (DENIED, "Denied")]
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=PENDING)
 
+    # When the followee accepted or denied. created_at is when the request was
+    # *made*, which is the wrong clock for "X accepted your request" -- that
+    # notification has to sort and unread-count by the decision time.
+    decided_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         unique_together = ('follower', 'following') #Prevent duplicate follow requests
         indexes = [
@@ -148,7 +221,8 @@ class Follow(models.Model):
         logger.info(f"[Follow.approve] Permission check passed, updating status to ACCEPTED")
         self.status = self.ACCEPTED
         self.approved = True
-        self.save(update_fields=["status", "approved"])
+        self.decided_at = timezone.now()
+        self.save(update_fields=["status", "approved", "decided_at"])
         logger.info(f"[Follow.approve] Follow {self.id} saved with status={self.status}, approved={self.approved}")
         return self
 
@@ -158,7 +232,8 @@ class Follow(models.Model):
             raise PermissionError("Not yours to decide or not pending.")
         self.status = self.DENIED
         self.approved = False
-        self.save(update_fields=["status", "approved"])
+        self.decided_at = timezone.now()
+        self.save(update_fields=["status", "approved", "decided_at"])
         return self
 
     @staticmethod

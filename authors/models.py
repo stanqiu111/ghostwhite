@@ -314,3 +314,32 @@ class EmailVerificationToken(models.Model):
 
     def __str__(self):
         return f"Verification token for {self.author.username}"
+
+
+class AdminActionLog(models.Model):
+    """
+    Append-only record of every change an admin makes through the staff
+    portal. The portal can deactivate accounts and change who can see what, so
+    those actions need to be attributable after the fact.
+    """
+
+    actor = models.ForeignKey(
+        Author, on_delete=models.SET_NULL, null=True, related_name="admin_actions"
+    )
+    # Kept as text rather than an FK so the record survives the account being
+    # deleted -- which is exactly when the log matters most.
+    target_username = models.CharField(max_length=150)
+    field = models.CharField(max_length=64)
+    old_value = models.CharField(max_length=255, blank=True, default="")
+    new_value = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["-created_at"], name="adminlog_created_idx"),
+        ]
+
+    def __str__(self):
+        actor = self.actor.username if self.actor else "(deleted admin)"
+        return f"{actor} set {self.target_username}.{self.field} = {self.new_value}"

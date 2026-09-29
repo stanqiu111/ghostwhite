@@ -1,0 +1,281 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Staff portal — ÉTHÉRÉ</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="{% static 'images/favicon.svg' %}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=5">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
+  <script src="{% static 'js/common.js' %}?v=5"></script>
+  <script src="{% static 'js/api.js' %}?v=5"></script>
+  <style>
+    .portal { max-width: var(--gw-content-w); margin: 0 auto; padding: var(--gw-space-5) var(--gw-space-4); }
+    .portal h1 { font-size: var(--gw-text-2xl); margin: 0 0 4px; }
+    .portal .lede { color: var(--gw-text-dim); margin: 0 0 var(--gw-space-5); }
+
+    /* Overview: plain figures, no card chrome -- they are context, not the page's subject. */
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+                gap: var(--gw-space-4); margin-bottom: var(--gw-space-5);
+                padding-bottom: var(--gw-space-5); border-bottom: 1px solid var(--gw-border); }
+    .stat .num { font-size: var(--gw-text-xl); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .stat .lbl { font-size: var(--gw-text-xs); color: var(--gw-text-dim); }
+    .stat.is-flagged .num { color: var(--gw-warn-fg); }
+
+    .toolbar { display: flex; gap: var(--gw-space-3); align-items: center;
+               flex-wrap: wrap; margin-bottom: var(--gw-space-4); }
+    .toolbar input[type="search"] { flex: 1; min-width: 220px; padding: 9px 12px; }
+
+    .table-wrap { overflow-x: auto; background: var(--gw-surface);
+                  border: 1px solid var(--gw-border); border-radius: var(--gw-radius-md); }
+    table.users { width: 100%; border-collapse: collapse; font-size: var(--gw-text-sm); }
+    table.users th { text-align: left; font-size: var(--gw-text-xs); font-weight: 600;
+                     text-transform: uppercase; letter-spacing: .05em; color: var(--gw-text-dim);
+                     padding: 12px 14px; border-bottom: 1px solid var(--gw-border); white-space: nowrap; }
+    table.users td { padding: 12px 10px; border-bottom: 1px solid var(--gw-border); vertical-align: middle; }
+    table.users tr:last-child td { border-bottom: 0; }
+    table.users tr[data-row]:hover td { background: var(--gw-surface-2); }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .who { display: flex; align-items: center; gap: 10px; min-width: 170px; }
+    .who img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex: none; }
+    .who .name { font-weight: 600; }
+    .who .handle { color: var(--gw-text-dim); font-size: var(--gw-text-xs); }
+
+    /* State reads as shape as well as colour, so it survives a greyscale print. */
+    .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px;
+            border-radius: var(--gw-radius-pill); font-size: var(--gw-text-xs);
+            font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
+    .pill.ok   { background: var(--gw-accent-soft); color: var(--gw-accent); }
+    .pill.warn { background: var(--gw-warn-bg);     color: var(--gw-warn-fg); }
+    .pill.off  { background: var(--gw-surface-2);   color: var(--gw-text-dim);
+                 border-color: var(--gw-border); }
+    .pill.staff{ background: var(--gw-text);        color: var(--gw-surface); }
+
+    .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .mini { white-space: nowrap; }
+    .mini { padding: 4px 10px; font-size: var(--gw-text-xs); font-weight: 500;
+            border-radius: var(--gw-radius-sm); border: 1px solid var(--gw-border-str);
+            background: var(--gw-surface); color: var(--gw-text); cursor: pointer; }
+    .mini:hover { border-color: var(--gw-accent); color: var(--gw-accent); }
+    .mini.danger:hover { border-color: var(--gw-danger); color: var(--gw-danger); }
+    .mini[disabled] { opacity: .45; cursor: not-allowed; }
+    select.mini { padding-right: 6px; max-width: 190px; }
+
+    .flash { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+             background: var(--gw-text); color: var(--gw-surface); padding: 10px 18px;
+             border-radius: var(--gw-radius-pill); font-size: var(--gw-text-sm);
+             box-shadow: var(--gw-shadow-md); opacity: 0; pointer-events: none;
+             transition: opacity .18s ease; z-index: 300; max-width: min(90vw, 520px); }
+    .flash.show { opacity: 1; }
+    .flash.err { background: var(--gw-danger); color: #fff; }
+
+    .log { margin-top: var(--gw-space-6); }
+    .log h2 { font-size: var(--gw-text-lg); margin: 0 0 var(--gw-space-3); }
+    .log ol { list-style: none; margin: 0; padding: 0; }
+    .log li { display: flex; gap: 10px; padding: 8px 0; font-size: var(--gw-text-sm);
+              border-bottom: 1px solid var(--gw-border); }
+    .log li:last-child { border-bottom: 0; }
+    .log time { color: var(--gw-text-dim); font-size: var(--gw-text-xs); white-space: nowrap; }
+    .log code { font-family: var(--gw-font-mono); font-size: var(--gw-text-xs); }
+
+    @media (max-width: 640px) { .portal { padding: var(--gw-space-4) var(--gw-space-3); } }
+  </style>
+</head>
+<body class="page-fade">
+  {% include "partials/header.html" %}
+
+  <main class="portal">
+    <h1>Staff portal</h1>
+    <p class="lede">Accounts, status and profile visibility for this node.</p>
+
+    <section class="stat-row" aria-label="Platform overview">
+      <div class="stat"><div class="num">{{ stats.total_users }}</div><div class="lbl">Accounts</div></div>
+      <div class="stat {% if stats.pending_users %}is-flagged{% endif %}">
+        <div class="num">{{ stats.pending_users }}</div><div class="lbl">Awaiting approval</div></div>
+      <div class="stat {% if stats.inactive_users %}is-flagged{% endif %}">
+        <div class="num">{{ stats.inactive_users }}</div><div class="lbl">Deactivated</div></div>
+      <div class="stat"><div class="num">{{ stats.staff_users }}</div><div class="lbl">Admins</div></div>
+      <div class="stat"><div class="num">{{ stats.restricted_profiles }}</div><div class="lbl">Restricted profiles</div></div>
+      <div class="stat"><div class="num">{{ stats.entries }}</div><div class="lbl">Entries</div></div>
+      <div class="stat"><div class="num">{{ stats.comments }}</div><div class="lbl">Comments</div></div>
+      <div class="stat"><div class="num">{{ stats.live_streams }}</div><div class="lbl">Live now</div></div>
+      <div class="stat"><div class="num">{{ stats.recent_views }}</div>
+        <div class="lbl">Views / {{ stats.views_window_days }}d</div></div>
+    </section>
+
+    {% comment %}
+    Renders the hidden input purely to set the csrftoken cookie. An admin who
+    arrived via session (no JWT in localStorage) authenticates through DRF's
+    SessionAuthentication, which enforces CSRF on POST -- without this the
+    controls would fail for them.
+    {% endcomment %}
+    <div hidden>{% csrf_token %}</div>
+
+    <form class="toolbar" method="get" action="">
+      <input type="search" id="userSearch" name="q" value="{{ search }}"
+             placeholder="Search by username, display name or email" aria-label="Search accounts">
+      <button type="submit" class="mini">Search</button>
+      {% if search %}<a class="mini" href="{% url 'authors_pages:admin_portal' %}">Clear</a>{% endif %}
+    </form>
+
+    <div class="table-wrap">
+      <table class="users">
+        <thead>
+          <tr>
+            <th scope="col">Account</th>
+            <th scope="col">Status</th>
+            <th scope="col">Profile visibility</th>
+            <th scope="col" class="num">Entries</th>
+            <th scope="col" class="num">Followers</th>
+            <th scope="col" class="num">Views&nbsp;/&nbsp;{{ stats.views_window_days }}d</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr data-row data-serial="{{ u.username }}">
+            <td>
+              <div class="who">
+                {% if u.image %}<img src="{{ u.image.url }}" alt="">
+                {% else %}<img src="{% static 'images/default_pfp.png' %}" alt="">{% endif %}
+                <div>
+                  <div class="name">{{ u.display_name|default:u.username }}</div>
+                  <div class="handle">@{{ u.username }}{% if u.email %} · {{ u.email }}{% endif %}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="pill {% if u.is_active %}ok{% else %}off{% endif %}" data-pill="is_active">
+                {% if u.is_active %}Active{% else %}Deactivated{% endif %}</span>
+              {% if not u.approved %}<span class="pill warn" data-pill="approved">Pending</span>{% endif %}
+              {% if not u.is_email_verified and u.email %}<span class="pill off">Email unverified</span>{% endif %}
+              {% if u.is_staff %}<span class="pill staff">Admin</span>{% endif %}
+            </td>
+            <td>
+              <select class="mini" data-field="profile_visibility" aria-label="Profile visibility for {{ u.username }}">
+                {% for value, label in visibility_choices %}
+                <option value="{{ value }}" {% if u.profile_visibility == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="num">{{ u.entry_count }}</td>
+            <td class="num">{{ u.follower_count }}</td>
+            <td class="num">{{ u.views_received }}</td>
+            <td>
+              <div class="row-actions">
+                {% if not u.approved %}
+                <button class="mini" data-field="approved" data-value="true">Approve</button>
+                {% endif %}
+                {% comment %}
+                Actions against your own account are omitted rather than shown
+                and refused: the server blocks self-lockout either way, but
+                offering a control that can only fail is worse than not
+                offering it.
+                {% endcomment %}
+                {% if u.id != request.user.id %}
+                  {% if u.is_active %}
+                  <button class="mini danger" data-field="is_active" data-value="false">Deactivate</button>
+                  {% else %}
+                  <button class="mini" data-field="is_active" data-value="true">Reactivate</button>
+                  {% endif %}
+                  {% if can_manage_staff %}
+                    {% if u.is_staff %}
+                    <button class="mini danger" data-field="is_staff" data-value="false">Revoke admin</button>
+                    {% else %}
+                    <button class="mini" data-field="is_staff" data-value="true">Make admin</button>
+                    {% endif %}
+                  {% endif %}
+                {% else %}
+                <span class="pill off" title="You cannot change your own access">You</span>
+                {% endif %}
+                <a class="mini" href="/authors/{{ u.username }}/">View</a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="empty-state" style="text-align:center;padding:32px;">
+            {% if search %}No account matches “{{ search }}”.{% else %}No accounts yet.{% endif %}
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <section class="log">
+      <h2>Recent admin activity</h2>
+      <ol>
+        {% for a in recent_actions %}
+        <li>
+          <time datetime="{{ a.created_at|date:'c' }}">{{ a.created_at|date:"M j, H:i" }}</time>
+          <span><strong>{{ a.actor.username|default:"(deleted admin)" }}</strong>
+            set <code>{{ a.target_username }}.{{ a.field }}</code>
+            from <code>{{ a.old_value }}</code> to <code>{{ a.new_value }}</code></span>
+        </li>
+        {% empty %}
+        <li class="empty-state">No admin changes recorded yet.</li>
+        {% endfor %}
+      </ol>
+    </section>
+  </main>
+
+  <div class="flash" id="flash" role="status" aria-live="polite"></div>
+
+  <script>
+    const flashEl = document.getElementById('flash');
+    let flashTimer = null;
+    function flash(message, isError) {
+      flashEl.textContent = message;
+      flashEl.classList.toggle('err', !!isError);
+      flashEl.classList.add('show');
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => flashEl.classList.remove('show'), 3200);
+    }
+
+    // Every control posts one field. The server re-checks permission and the
+    // lockout rules, so a refusal here is authoritative, not advisory.
+    async function setField(serial, field, value, control) {
+      const previous = control.disabled;
+      control.disabled = true;
+      try {
+        const res = await apiFetch(`/api/authors/staff/users/${encodeURIComponent(serial)}/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ field, value }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `${res.status} ${res.statusText}`);
+        flash(data.detail === 'No change.' ? 'Already set.' : 'Saved.');
+        return true;
+      } catch (err) {
+        flash(err.message || 'Could not save that change.', true);
+        return false;
+      } finally {
+        control.disabled = previous;
+      }
+    }
+
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-field]');
+      if (!btn) return;
+      const serial = btn.closest('[data-serial]').dataset.serial;
+      const ok = await setField(serial, btn.dataset.field, btn.dataset.value === 'true', btn);
+      // Status pills and available actions both derive from the new state, so
+      // re-render the row from the server rather than patching it by hand.
+      if (ok) setTimeout(() => window.location.reload(), 450);
+    });
+
+    document.addEventListener('change', async (e) => {
+      const sel = e.target.closest('select[data-field]');
+      if (!sel) return;
+      const serial = sel.closest('[data-serial]').dataset.serial;
+      const ok = await setField(serial, sel.dataset.field, sel.value, sel);
+      if (!ok) sel.selectedIndex = [...sel.options].findIndex(o => o.defaultSelected);
+    });
+  </script>
+</body>
+</html>

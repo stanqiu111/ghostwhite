@@ -4,6 +4,7 @@ from . import views
 from .views import AuthorPublicGetUpdate, AuthorListView, AuthorByUsernameView
 from .views import FollowRequestView, FollowRequestsListView, FollowDecisionView
 from .views import SyncMyGithubReposView
+from .admin_views import AdminUserUpdateView
 from entries.views import EntryImageView
 from inbox.views import InboxPostView
 
@@ -21,6 +22,7 @@ urlpatterns = [
     path("<str:author_id>/inbox", InboxPostView.as_view(), name="inbox"),
     path("<str:author_id>/follow/", views.FollowRequestView.as_view(), name="follow-request"),
     path("follow-requests/", FollowRequestsListView.as_view(), name="follow-requests"),
+    path("staff/users/<str:serial>/", AdminUserUpdateView.as_view(), name="admin-user-update"),
     path("follows/<uuid:pk>/decision/", FollowDecisionView.as_view(), name="follow-decision"),
     path("sync-repos/", views.SyncMyGithubReposView.as_view(), name="sync_github_repos"),
     path("<str:author_id>/", AuthorPublicGetUpdate.as_view(), name="author_public"),

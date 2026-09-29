@@ -17,10 +17,9 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic import RedirectView
 
 from inbox.views import inbox_page
-from .views import home_view
+from .views import home_view, landing_view
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -28,7 +27,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 
 urlpatterns = [
-    path("", RedirectView.as_view(url="/home/", permanent=False)),
+    path("", landing_view, name="landing"),
     path("home/", home_view, name="home"),
     path("admin/", admin.site.urls),
     path("api/authors/", include("authors.urls")),

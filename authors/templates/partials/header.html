@@ -71,6 +71,16 @@ renders a search bar by setting header_search before the include.
         </svg>
       </button>
 
+      {% if request.user.is_staff %}
+      <button class="header-btn" type="button" title="Staff portal" data-tip="Staff portal"
+              onclick="navigateWithFade('{% url 'authors_pages:admin_portal' %}')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 2l8 4v6c0 4.4-3.4 8.5-8 10-4.6-1.5-8-5.6-8-10V6l8-4z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </button>
+      {% endif %}
+
       <button class="header-btn live-nav-btn{% if not live_stream_count %} is-idle{% endif %}" type="button"
               title="{% if live_stream_count %}{{ live_stream_count }} live now{% else %}No one is streaming{% endif %}"
               onclick="navigateWithFade('/streams/')">

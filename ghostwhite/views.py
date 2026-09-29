@@ -14,6 +14,16 @@ TRENDING_WINDOW = timedelta(days=3)
 TRENDING_LIMIT = 20
 
 
+def landing_view(request):
+    """
+    Public front door. Signed-in visitors have no use for the pitch, so they
+    go straight to their feed; everyone else gets the marketing page.
+    """
+    if request.user.is_authenticated:
+        return redirect("home")
+    return render(request, "landing.html")
+
+
 def home_view(request):
     """
     Home page - shows home.html

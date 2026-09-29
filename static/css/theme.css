@@ -56,7 +56,11 @@ html[data-theme="dark"] h4,
 html[data-theme="dark"] label,
 html[data-theme="dark"] strong { color: var(--gw-text); }
 
-html[data-theme="dark"] a { color: var(--gw-accent); }
+/* No dark-specific link colour: main.css already sets links from
+   var(--gw-accent), which this file redefines, so the link themes
+   itself. A rule here would additionally outrank component classes
+   like .btn-primary and .stream-btn, painting an anchor-as-button
+   accent-on-accent -- invisible. */
 html[data-theme="dark"] hr { border-color: var(--gw-border); }
 
 /* ── chrome ── */

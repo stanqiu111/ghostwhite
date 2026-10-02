@@ -13,7 +13,7 @@
       }
 
       body {
-        background-color: #f5f5f5;
+        background-color: var(--gw-bg);
         min-height: 100vh;
         display: flex;
         justify-content: center;
@@ -22,7 +22,10 @@
       }
 
       .login-container {
-        background-color: #f5f5f5;
+        /* was #f5f5f5: a fixed light card under text that follows the
+           theme, so in dark mode it rendered light-on-light (1.1:1) */
+        background-color: var(--gw-surface);
+        border: 1px solid var(--gw-border);
         padding: 40px;
         border-radius: 12px;
         width: 100%;
@@ -73,23 +76,23 @@
         display: block;
         font-size: 14px;
         font-weight: 500;
-        color: #000;
+        color: var(--gw-text);
         margin-bottom: 8px;
       }
 
       .form-input {
         width: 100%;
         padding: 12px 16px;
-        border: 1px solid #e0e0e0;
+        border: 1px solid var(--gw-border-str);
         border-radius: 8px;
         font-size: 16px;
-        background-color: #fff;
+        background-color: var(--gw-surface);
         transition: border-color 0.2s ease;
       }
 
       .form-input:focus {
         outline: none;
-        border-color: #007bff;
+        border-color: var(--gw-accent);
       }
 
       .password-container {
@@ -109,11 +112,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #666;
+        color: var(--gw-text-dim);
       }
 
       .password-toggle:hover {
-        background-color: #f0f0f0;
+        background-color: var(--gw-surface-2);
       }
 
       .password-toggle svg {
@@ -142,28 +145,35 @@
         display: inline-block;
       }
 
-      .login-button {
-        background-color: #000;
-        color: #fff;
-      }
-
-      .login-button:hover {
-        background-color: #333;
-      }
-
+      /* Whichever of Login / Signup is the current mode is the primary
+         action. The mode used to be shown by JS writing hardcoded inline
+         colours (#000 / #fff), which beat every stylesheet and ignored dark
+         mode. JS now only toggles .is-active; the look lives here. */
+      .login-button,
       .signup-button {
-        background-color: #fff;
-        color: #000;
-        border: 1px solid #e0e0e0;
+        background-color: var(--gw-surface);
+        color: var(--gw-text);
+        border: 1px solid var(--gw-border-str);
       }
-
+      .login-button:hover,
       .signup-button:hover {
-        background-color: #f8f8f8;
+        background-color: var(--gw-surface-2);
+      }
+      .login-button.is-active,
+      .signup-button.is-active {
+        background-color: var(--gw-text);
+        color: var(--gw-surface);
+        border-color: var(--gw-text);
+      }
+      .login-button.is-active:hover,
+      .signup-button.is-active:hover {
+        background-color: var(--gw-text);
+        opacity: 0.88;
       }
 
       .error-message {
-        background-color: #fee;
-        color: #c33;
+        background-color: color-mix(in srgb, var(--gw-danger) 10%, transparent);
+        color: var(--gw-danger);
         padding: 12px;
         border-radius: 8px;
         margin-bottom: 20px;
@@ -171,9 +181,10 @@
         display: none;
       }
 
+      /* was #3c3 on #efe -- 2.05:1, unreadable before dark mode existed */
       .success-message {
-        background-color: #efe;
-        color: #3c3;
+        background-color: color-mix(in srgb, var(--gw-success) 10%, transparent);
+        color: var(--gw-success);
         padding: 12px;
         border-radius: 8px;
         margin-bottom: 20px;
@@ -210,20 +221,21 @@
 
       {% if already_logged_in %}
       <div id="already-logged-in-banner" style="
-        background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;
-        padding:12px 16px;margin-bottom:20px;font-size:14px;color:#92400e;">
+        background:var(--gw-warn-bg);border:1px solid color-mix(in srgb, var(--gw-warn-fg) 35%, transparent);
+        border-radius:var(--gw-radius-sm);padding:12px 16px;margin-bottom:20px;
+        font-size:14px;color:var(--gw-warn-fg);">
         <div style="margin-bottom:8px;">
           Already logged in as <strong>{{ logged_in_username }}</strong>.
         </div>
         <div style="display:flex;gap:8px;">
           <button type="button" onclick="window.location.href='/home/'" style="
-            background:#000;color:#fff;border:none;border-radius:6px;
-            padding:6px 14px;font-size:12px;cursor:pointer;">
+            background:var(--gw-warn-fg);color:var(--gw-surface);border:none;border-radius:var(--gw-radius-sm);
+            padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;">
             Go to Home
           </button>
           <button type="button" onclick="logout()" style="
-            background:none;border:1px solid #d97706;border-radius:6px;
-            padding:6px 14px;font-size:12px;color:#92400e;cursor:pointer;">
+            background:none;border:1px solid var(--gw-warn-fg);border-radius:var(--gw-radius-sm);
+            padding:6px 14px;font-size:12px;color:var(--gw-warn-fg);cursor:pointer;">
             Log out &amp; switch account
           </button>
         </div>
@@ -281,11 +293,11 @@
               >
                 <path
                   d="M19.25 6.14999C16.94 2.51999 13.56 0.429993 10 0.429993C8.22 0.429993 6.49 0.949993 4.91 1.91999C3.33 2.89999 1.91 4.32999 0.75 6.14999C-0.25 7.71999 -0.25 10.27 0.75 11.84C3.06 15.48 6.44 17.56 10 17.56C11.78 17.56 13.51 17.04 15.09 16.07C16.67 15.09 18.09 13.66 19.25 11.84C20.25 10.28 20.25 7.71999 19.25 6.14999ZM10 13.04C7.76 13.04 5.96 11.23 5.96 8.99999C5.96 6.76999 7.76 4.95999 10 4.95999C12.24 4.95999 14.04 6.76999 14.04 8.99999C14.04 11.23 12.24 13.04 10 13.04Z"
-                  fill="#292D32"
+                  fill="currentColor"
                 />
                 <path
                   d="M10 6.14C8.43002 6.14 7.15002 7.42 7.15002 9C7.15002 10.57 8.43002 11.85 10 11.85C11.57 11.85 12.86 10.57 12.86 9C12.86 7.43 11.57 6.14 10 6.14Z"
-                  fill="#292D32"
+                  fill="currentColor"
                 />
               </svg>
             </button>
@@ -315,11 +327,11 @@
               >
                 <path
                   d="M19.25 6.14999C16.94 2.51999 13.56 0.429993 10 0.429993C8.22 0.429993 6.49 0.949993 4.91 1.91999C3.33 2.89999 1.91 4.32999 0.75 6.14999C-0.25 7.71999 -0.25 10.27 0.75 11.84C3.06 15.48 6.44 17.56 10 17.56C11.78 17.56 13.51 17.04 15.09 16.07C16.67 15.09 18.09 13.66 19.25 11.84C20.25 10.28 20.25 7.71999 19.25 6.14999ZM10 13.04C7.76 13.04 5.96 11.23 5.96 8.99999C5.96 6.76999 7.76 4.95999 10 4.95999C12.24 4.95999 14.04 6.76999 14.04 8.99999C14.04 11.23 12.24 13.04 10 13.04Z"
-                  fill="#292D32"
+                  fill="currentColor"
                 />
                 <path
                   d="M10 6.14C8.43002 6.14 7.15002 7.42 7.15002 9C7.15002 10.57 8.43002 11.85 10 11.85C11.57 11.85 12.86 10.57 12.86 9C12.86 7.43 11.57 6.14 10 6.14Z"
-                  fill="#292D32"
+                  fill="currentColor"
                 />
               </svg>
             </button>
@@ -352,6 +364,12 @@
         }
       }
 
+      // Mark which of Login / Signup is the primary action; CSS owns the colours.
+      function setActiveMode(mode) {
+        document.querySelector(".login-button").classList.toggle("is-active", mode === "login");
+        document.querySelector(".signup-button").classList.toggle("is-active", mode === "signup");
+      }
+
       function toggleMode() {
         isSignupMode = !isSignupMode;
         const password2Group = document.querySelector(
@@ -365,17 +383,7 @@
           password2Group.style.display = "block";
           document.getElementById("password2").required = true;
 
-          // Update button styling - Signup active
-          document.querySelector(".signup-button").style.backgroundColor =
-            "#000";
-          document.querySelector(".signup-button").style.color = "#fff";
-          document.querySelector(".signup-button").style.border = "none";
-
-          document.querySelector(".login-button").style.backgroundColor =
-            "#fff";
-          document.querySelector(".login-button").style.color = "#000";
-          document.querySelector(".login-button").style.border =
-            "1px solid #e0e0e0";
+          setActiveMode("signup");
         } else {
           // Hide email + password2 fields
           document.getElementById("emailGroup").style.display = "none";
@@ -385,17 +393,7 @@
           document.getElementById("password2").required = false;
           document.getElementById("password2").value = "";
 
-          // Update button styling - Login active
-          document.querySelector(".login-button").style.backgroundColor =
-            "#000";
-          document.querySelector(".login-button").style.color = "#fff";
-          document.querySelector(".login-button").style.border = "none";
-
-          document.querySelector(".signup-button").style.backgroundColor =
-            "#fff";
-          document.querySelector(".signup-button").style.color = "#000";
-          document.querySelector(".signup-button").style.border =
-            "1px solid #e0e0e0";
+          setActiveMode("login");
         }
       }
 
@@ -589,15 +587,7 @@
         password2Group.style.display = "none";
         document.getElementById("password2").required = false;
 
-        // Set initial button styling (Login active)
-        document.querySelector(".login-button").style.backgroundColor = "#000";
-        document.querySelector(".login-button").style.color = "#fff";
-        document.querySelector(".login-button").style.border = "none";
-
-        document.querySelector(".signup-button").style.backgroundColor = "#fff";
-        document.querySelector(".signup-button").style.color = "#000";
-        document.querySelector(".signup-button").style.border =
-          "1px solid #e0e0e0";
+        setActiveMode("login");
       });
     </script>
   </body>

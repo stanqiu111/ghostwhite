@@ -24,6 +24,32 @@ def landing_view(request):
     return render(request, "landing.html")
 
 
+def network_view(request):
+    """
+    Public explainer for the distributed architecture. The "this node" panel
+    is live data, not illustration: on an instance with no peers it says so
+    rather than implying a network that does not exist.
+    """
+    from nodes.models import Node
+
+    local = Node.objects.filter(is_local=True).first()
+    peers = Node.objects.filter(is_local=False)
+    context = {
+        "local_host": (local.host_url.rstrip("/") if local else request.build_absolute_uri("/").rstrip("/")),
+        "peer_count": peers.filter(is_active=True, is_disabled=False).count(),
+        "disabled_peer_count": peers.filter(is_disabled=True).count(),
+        "peer_hosts": list(
+            peers.filter(is_active=True, is_disabled=False)
+            .values_list("host_url", flat=True)[:6]
+        ),
+        "local_authors": Author.objects.filter(node__is_local=True, is_active=True).count(),
+        "remote_authors": Author.objects.filter(node__is_local=False).count(),
+        "local_entries": Entry.objects.filter(node__is_local=True, deleted_at__isnull=True).count(),
+        "remote_entries": Entry.objects.filter(node__is_local=False, deleted_at__isnull=True).count(),
+    }
+    return render(request, "network.html", context)
+
+
 def home_view(request):
     """
     Home page - shows home.html
@@ -60,8 +86,24 @@ def home_view(request):
     for entry in entries:
         entry.show_author_avatar = entry.author.profile_visible_to(user, viewer_follow_ids)
 
-    follower_count = Follow.objects.filter(following=user, approved=True).count()
-    following_count = Follow.objects.filter(follower=user, approved=True).count()
+    # The card's Followers / Following counts open a list of those people.
+    # Build the lists with the same filters the counts used and derive the
+    # counts from them, so the number shown can never disagree with the list.
+    followers_list = [
+        f.follower
+        for f in Follow.objects.filter(following=user, approved=True)
+        .select_related("follower").order_by("-created_at")
+    ]
+    following_list = [
+        f.following
+        for f in Follow.objects.filter(follower=user, approved=True)
+        .select_related("following").order_by("-created_at")
+    ]
+    for person in followers_list + following_list:
+        # same rule as feed avatars: restricted profiles show the placeholder
+        person.show_author_avatar = person.profile_visible_to(user, viewer_follow_ids)
+    follower_count = len(followers_list)
+    following_count = len(following_list)
 
     excluded_ids = Follow.objects.filter(follower=user).values_list('following', flat=True)
     suggestions = Author.objects.exclude(id=user.id).exclude(id__in=excluded_ids)[:5]
@@ -109,6 +151,8 @@ def home_view(request):
         'entry_count': entry_count,
         'follower_count': follower_count,
         'following_count': following_count,
+        'followers_list': followers_list,
+        'following_list': following_list,
         'entries': entries,
         'suggestions': suggestions
     }

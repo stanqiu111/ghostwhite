@@ -81,13 +81,72 @@
       .stat-number {
         font-size: 20px;
         font-weight: bold;
-        color: #1a1a1a;
+        color: var(--gw-text);
+        font-variant-numeric: tabular-nums;
       }
 
       .stat-label {
         font-size: 12px;
-        color: #666;
+        color: var(--gw-text-dim);
         margin-top: 4px;
+      }
+
+      /* Followers / Following open a list, so they must read as controls:
+         a resting hover tint and a focus ring, unlike the static Entries count. */
+      .stat-link {
+        font: inherit;
+        background: none;
+        border: 0;
+        padding: 6px 10px;
+        border-radius: var(--gw-radius-sm);
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+      .stat-link:hover { background: var(--gw-surface-2); }
+      .stat-link:hover .stat-label { color: var(--gw-accent); }
+
+      /* ── People dialog ── */
+      .people-dialog {
+        /* <dialog> centres itself with margin:auto; this page's global
+           `* { margin: 0 }` reset wiped that and pinned it top-left. */
+        margin: auto;
+        width: min(420px, calc(100vw - 32px));
+        max-height: min(560px, calc(100vh - 64px));
+        padding: 0;
+        border: 1px solid var(--gw-border);
+        border-radius: var(--gw-radius-md);
+        background: var(--gw-surface);
+        color: var(--gw-text);
+        box-shadow: var(--gw-shadow-md);
+      }
+      .people-dialog[open] { display: flex; flex-direction: column; }
+      .people-dialog::backdrop { background: rgba(16, 18, 23, 0.45); }
+      .people-head {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 16px 18px; border-bottom: 1px solid var(--gw-border);
+      }
+      .people-head h2 { margin: 0; font-size: var(--gw-text-lg); }
+      .people-head .count { color: var(--gw-text-dim); font-weight: 500; }
+      .people-close {
+        width: 32px; height: 32px; border: 0; border-radius: 50%;
+        background: none; color: var(--gw-text-dim); font-size: 22px; line-height: 1;
+        cursor: pointer;
+      }
+      .people-close:hover { background: var(--gw-surface-2); color: var(--gw-text); }
+      .people-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+      .people-list a {
+        display: flex; align-items: center; gap: 12px; padding: 9px 12px;
+        border-radius: var(--gw-radius-sm); color: var(--gw-text); text-decoration: none;
+      }
+      .people-list a:hover { background: var(--gw-surface-2); color: var(--gw-text); }
+      .people-list img {
+        width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex: none;
+      }
+      .people-list .name { font-weight: 600; font-size: var(--gw-text-sm); }
+      .people-list .handle { color: var(--gw-text-dim); font-size: var(--gw-text-xs); }
+      .people-empty {
+        padding: 36px 20px; text-align: center; color: var(--gw-text-dim);
+        font-size: var(--gw-text-sm); margin: 0;
       }
 
       .profile-btn {
@@ -538,7 +597,7 @@
         font-weight: 600;
         font-size: 15px;
         cursor: pointer;
-        color: #888;
+        color: var(--gw-text-dim);
         background: none;
         border: none;
         border-bottom: 3px solid transparent;
@@ -621,14 +680,16 @@
               <div class="stat-number">{{ entry_count }}</div>
               <div class="stat-label">Entries</div>
             </div>
-            <div class="stat">
+            <button type="button" class="stat stat-link" data-opens="followersDialog"
+                    aria-haspopup="dialog" aria-label="Show {{ follower_count }} follower{{ follower_count|pluralize }}">
               <div class="stat-number">{{ follower_count }}</div>
               <div class="stat-label">Followers</div>
-            </div>
-            <div class="stat">
+            </button>
+            <button type="button" class="stat stat-link" data-opens="followingDialog"
+                    aria-haspopup="dialog" aria-label="Show {{ following_count }} account{{ following_count|pluralize }} you follow">
               <div class="stat-number">{{ following_count }}</div>
               <div class="stat-label">Following</div>
-            </div>
+            </button>
           </div>
           <button class="profile-btn" onclick="navigateToProfile('{{ user.username }}')">My Profile</button>
         </div>
@@ -638,12 +699,12 @@
             <span>Inbox</span>
             <div style="display:flex;align-items:center;gap:8px;">
               <button id="markAllReadBtn" onclick="markAllNotificationsRead()"
-                      style="display:none;font-size:11px;font-weight:600;color:#6b7280;background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;"
+                      style="display:none;font-size:11px;font-weight:600;color:var(--gw-text-dim);background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;"
                       onmouseover="this.style.color='#111'" onmouseout="this.style.color='#6b7280'">
                 Mark all read
               </button>
               <span class="badge" id="notifCount"
-                    style="padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#6b7280;">0</span>
+                    style="padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:var(--gw-text-dim);">0</span>
             </div>
           </div>
           <div id="notifList" class="list">
@@ -799,7 +860,7 @@
         <div class="card" id="followRequestsCard">
           <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
             <span>Follow Requests</span>
-            <span id="frCount" class="badge" style="padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#6b7280;">0</span>
+            <span id="frCount" class="badge" style="padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:var(--gw-text-dim);">0</span>
           </div>
           <div id="followRequests" class="list">
             <div class="empty-state">No follow requests</div>
@@ -1106,7 +1167,7 @@
               </div>
               <div>
                 <div class="suggestion-name">${esc(actorName)}</div>
-                <div style="font-size:12px;color:#6b7280;"
+                <div style="font-size:12px;color:var(--gw-text-dim);"
                      title="${new Date(n.created).toLocaleString()}">
                   ${esc(n.verb)}
                 </div>
@@ -1206,7 +1267,7 @@
         const left = document.createElement('div');
         left.innerHTML = `
           <div style="font-weight:600">${esc(item.follower_display || item.follower_username)}</div>
-          <div class="meta" style="color:#6b7280;font-size:12px;"
+          <div class="meta" style="color:var(--gw-text-dim);font-size:12px;"
                title="${new Date(item.created_at).toLocaleString()}">
             @${esc(item.follower_username)}
           </div>
@@ -1580,6 +1641,69 @@
         input.focus();
       });
     })();
+    </script>
+
+    {% comment %}
+    Lists behind the profile card's Followers / Following counts. Rendered
+    server-side from the same queryset the counts come from, so they always
+    agree. Native <dialog> provides Esc-to-close, focus trapping and the
+    backdrop; the script below only opens it and closes on a backdrop click.
+    {% endcomment %}
+    <dialog class="people-dialog" id="followersDialog" aria-labelledby="followersTitle">
+      <div class="people-head">
+        <h2 id="followersTitle">Followers <span class="count">· {{ follower_count }}</span></h2>
+        <button type="button" class="people-close" data-close aria-label="Close">&times;</button>
+      </div>
+      {% if followers_list %}
+      <ul class="people-list">
+        {% for p in followers_list %}
+        <li><a href="/authors/{{ p.username }}/">
+          {% if p.image and p.show_author_avatar %}<img src="{{ p.image.url }}" alt="">
+          {% else %}<img src="{% static 'images/default_pfp.png' %}" alt="">{% endif %}
+          <span><span class="name">{{ p.display_name|default:p.username }}</span><br>
+                <span class="handle">@{{ p.username }}</span></span>
+        </a></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="people-empty">No one follows you yet.</p>
+      {% endif %}
+    </dialog>
+
+    <dialog class="people-dialog" id="followingDialog" aria-labelledby="followingTitle">
+      <div class="people-head">
+        <h2 id="followingTitle">Following <span class="count">· {{ following_count }}</span></h2>
+        <button type="button" class="people-close" data-close aria-label="Close">&times;</button>
+      </div>
+      {% if following_list %}
+      <ul class="people-list">
+        {% for p in following_list %}
+        <li><a href="/authors/{{ p.username }}/">
+          {% if p.image and p.show_author_avatar %}<img src="{{ p.image.url }}" alt="">
+          {% else %}<img src="{% static 'images/default_pfp.png' %}" alt="">{% endif %}
+          <span><span class="name">{{ p.display_name|default:p.username }}</span><br>
+                <span class="handle">@{{ p.username }}</span></span>
+        </a></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="people-empty">You are not following anyone yet.</p>
+      {% endif %}
+    </dialog>
+
+    <script>
+      document.querySelectorAll('[data-opens]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const dlg = document.getElementById(btn.dataset.opens);
+          if (dlg && !dlg.open) dlg.showModal();
+        });
+      });
+      document.querySelectorAll('.people-dialog').forEach((dlg) => {
+        dlg.querySelector('[data-close]').addEventListener('click', () => dlg.close());
+        // A click that lands on the dialog element itself (not its content)
+        // is a click on the backdrop.
+        dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+      });
     </script>
   </body>
 </html>

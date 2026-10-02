@@ -256,14 +256,14 @@ h2.profile-name {
   margin-bottom: 10px; 
   font-size: 20px;       
   font-weight: bold;      
-  color: #000;            
+  color: var(--gw-text);
   line-height: 1.1;
 }
 
 .stats .label {
   display: inline-block; 
   font-size: 14px;        
-  color: #909090;           
+  color: var(--gw-text-dim);
   letter-spacing: 0.3px;
 }
 
@@ -297,7 +297,7 @@ h2.profile-name {
 .friend-grid .empty-state{
   grid-column: 1/-1;
   text-align: center;
-  color: #999;
+  color: var(--gw-text-dim);
   font-size: 14px;
   font-style: italic;
   padding: 30px 20px;
@@ -526,10 +526,10 @@ hr {
 }
 .field-link {
   text-decoration: none;
-  color: #4f46e5;
+  color: var(--gw-accent);
 }
 .field-link:hover { text-decoration: underline; }
-.field-empty { color: #999; }
+.field-empty { color: var(--gw-text-dim); }
 
 /* ── Follow button ── */
 .followBtn {

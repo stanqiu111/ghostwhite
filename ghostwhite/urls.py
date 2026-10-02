@@ -19,7 +19,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 from inbox.views import inbox_page
-from .views import home_view, landing_view
+from .views import home_view, landing_view, network_view
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -28,6 +28,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("", landing_view, name="landing"),
+    path("network/", network_view, name="network"),
     path("home/", home_view, name="home"),
     path("admin/", admin.site.urls),
     path("api/authors/", include("authors.urls")),

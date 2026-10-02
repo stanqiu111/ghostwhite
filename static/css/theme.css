@@ -25,7 +25,7 @@ html[data-theme="dark"] {
 
   --gw-text:       #e7e9ee;
   --gw-text-dim:   #99a1b0;
-  --gw-text-faint: #757d8b;
+  --gw-text-faint: #8a92a0;   /* AA on every dark surface */
 
   --gw-accent:      #6ba2ff;
   --gw-accent-hover:#87b4ff;
@@ -37,6 +37,7 @@ html[data-theme="dark"] {
   --gw-warn-bg:  #3a2c10;
   --gw-warn-fg:  #f0b657;
   --gw-danger:   #f0616e;
+  --gw-success:  #4ade80;
 
   --gw-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --gw-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
@@ -53,8 +54,10 @@ html[data-theme="dark"] h1,
 html[data-theme="dark"] h2,
 html[data-theme="dark"] h3,
 html[data-theme="dark"] h4,
-html[data-theme="dark"] label,
-html[data-theme="dark"] strong { color: var(--gw-text); }
+html[data-theme="dark"] label { color: var(--gw-text); }
+/* <strong> deliberately left out: it should inherit its context. Forcing it
+   to body text painted light text inside light callouts (the login page's
+   "Already logged in" banner rendered at 1.17:1). */
 
 /* No dark-specific link colour: main.css already sets links from
    var(--gw-accent), which this file redefines, so the link themes

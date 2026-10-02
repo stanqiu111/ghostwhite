@@ -69,6 +69,9 @@
                    font-weight: 700; letter-spacing: .1em; color: var(--gw-accent); margin-bottom: 10px; }
     .hop h3 { font-size: var(--gw-text-md); margin: 0 0 6px; }
     .hop p { margin: 0; color: var(--gw-text-dim); font-size: var(--gw-text-sm); line-height: 1.55; }
+    .deeper { margin: 30px 0 0; font-size: var(--gw-text-sm); font-weight: 500; }
+    .deeper a { text-decoration: none; }
+    .deeper a:hover { text-decoration: underline; }
     .hop code { font-family: var(--gw-font-mono); font-size: 12px; background: var(--gw-surface-2);
                 padding: 1px 6px; border-radius: 5px; color: var(--gw-text); white-space: nowrap; }
 
@@ -100,7 +103,7 @@
   </style>
 </head>
 <body class="page-fade">
-  {% include "partials/header.html" %}
+  {% include "partials/header.html" with marketing=True %}
 
   <main>
     <section class="hero wrap">
@@ -163,6 +166,7 @@
           <p>Their node serves it from its own storage, so their feed keeps working if this one goes down.</p>
         </div>
       </div>
+      <p class="deeper"><a href="{% url 'network' %}">See the request a node actually sends, and what each node owns &rarr;</a></p>
     </section>
 
     <section class="band wrap">

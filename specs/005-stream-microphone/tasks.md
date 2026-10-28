@@ -43,6 +43,7 @@
 - [X] T018 Update WORKFLOW.md and specs/005-stream-microphone/quickstart.md with final behavior and human validation limits, including overlapping feature 004 T020 coverage.
 - [X] T021 Conduct independent focused review, fix immediate-mute and pinned-baseline defects, strengthen harness assertions and rerun affected checks.
 - [X] T022 Correct Mac-discovered harness assertions, isolate genuine autoplay observation from test-generated activation, improve test-server diagnostics, and run available checks before the next local acceptance run.
+- [X] T023 Verify the unchanged shipped harness on Mac at `1f7a2c8e3640e6bc872292603a9f648ff51428a4`: server check, baseline (3 checks), and feature (15 checks) passed, including synthetic transport and genuine incoming-stream autoplay; record the attributed result in validation.md.
 
 ## Dependencies and execution order
 T001–T004 precede implementation. US1 establishes the transport; US2–US4 extend the same controller sequentially. US5 depends on the availability contract. T016–T018 follow the integrated implementation. Tests precede their corresponding code changes. No schema, package or deployment changes are planned.
@@ -54,6 +55,6 @@ Research of transport and browser capabilities is independent. US1 template test
 First prove opt-in audio with video preserved, then mute/error/cleanup behavior, then viewer playback and real-media checks. Complete all authorized phases; do not deploy or stop at the plan handoff. Mark tasks complete only after their stated work and verification finish.
 
 ## Verification status
-All implementation and local-check tasks above are complete. Native multi-viewer delivery was attempted on baseline and final code and is blocked by managed Chromium transport policy. The outstanding acceptance work is explicit below and is not implied by the completed check-run task.
+All implementation and automated-check tasks above are complete. Managed cloud Chromium still blocks transport, but the unchanged shipped harness passed on the Mac with five-viewer synthetic delivery, genuine incoming-stream autoplay recovery, and lifecycle cleanup. The exact tested commit and attributed evidence are in validation.md. Physical hardware, real permission/device interactions, the manual supported-browser matrix/T020, and explicit end-user timing acceptance remain open.
 
-- [ ] T019 Complete native media delivery and physical-device/T020 validation from specs/005-stream-microphone/quickstart.md in an approved environment permitting WebRTC; record results in validation.md.
+- [ ] T019 Complete the remaining physical-device, real permission/device interaction, manual browser matrix/T020, and explicit timing validation from specs/005-stream-microphone/quickstart.md; record results in validation.md. The automated native delivery portion is complete under T023.

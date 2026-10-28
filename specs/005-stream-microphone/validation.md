@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-28
 
-**Status:** Implementation complete; local diagnostic copies exercised media delivery, but the corrected committed harness still requires a local rerun. Physical-device, genuine incoming-autoplay and timing acceptance remain pending.
+**Status:** Implementation and the unchanged committed harness passed Mac synthetic transport and genuine incoming-stream autoplay checks. Physical microphone, real permission/device interactions, the manual browser matrix/T020, and explicit timing acceptance remain pending.
 
 **Baseline commit:** `1eb0a5bb933dbd7b632864da2dc2f90c3bb51e4a`
 
@@ -25,7 +25,7 @@ Tests were added before the corresponding code: the 15 microphone cases initiall
 
 The unchanged legacy failures comprise 31 NoReverseMatch errors, 41 duplicate-local-node fixture errors, and 12 assertion failures against stale paths/payloads. The final full suite is **not green**.
 
-## What native browser checks established
+## What the cloud native browser checks established
 
 Chromium 154.0.8037.57 with Playwright 1.61.0 used real getDisplayMedia/getUserMedia, RTCPeerConnection, sender replacement, HTML media playback and Django signaling. Hardware sources were Chromium synthetic devices; no physical microphone or screen picker was used.
 
@@ -48,13 +48,13 @@ These supplement the Node simulations for denial classes, unsupported capture, d
 
 After the Mac harness corrections, the capture-only run also verified the real bullet API/DOM preserves the exact message text beside the sender label with no script node/execution. A native file-audio preflight observed `NotAllowedError` with `navigator.userActivation.hasBeenActive=false`; this validates the non-activating observation method, not incoming WebRTC autoplay.
 
-## Transport blocker and T020
+## Cloud transport blocker and T020
 
-Both the original committed browser code (`--baseline`) and the final feature (`media.py`) failed to establish a media connection. Offer/answer exchange completed and ICE gathering completed, but the browser produced no usable connection candidates and remained in the new/connecting state. A separate native two-peer probe with no STUN server also generated zero ICE candidates.
+In the managed cloud environment, both the original committed browser code (`--baseline`) and the final feature (`media.py`) failed to establish a media connection. Offer/answer exchange completed and ICE gathering completed, but the browser produced no usable connection candidates and remained in the new/connecting state. A separate native two-peer probe with no STUN server also generated zero ICE candidates. This environment-specific blocker does not negate the successful Mac run recorded below.
 
 The exact harness error was `page.waitForFunction: Timeout 30000ms exceeded` in `connected()`. Both sides reported `connectionState=new`, `iceConnectionState=new`, `iceGatheringState=complete`, `signalingState=stable`, with local/remote offer/answer present. The installed managed policy at `/etc/chromium/policies/managed/misc.json` sets `WebRtcIPHandling=disable_non_proxied_udp`, `AudioCaptureAllowed=false`, `VideoCaptureAllowed=false`, and `FullscreenAllowed=false`. Successful capture checks used synthetic test devices. Policies were not modified or overridden.
 
-Final review confirmed no documented, already permitted transport route in this environment: the app config contains only a STUN server and no TURN relay; environment status reports no extra capabilities, runtime variables, secrets or outbound identities, with restricted package-manager network access. No further blocked transport attempt was made during review. Local-computer validation is the remaining route, not a workaround inside this runtime.
+Final review confirmed no documented, already permitted transport route in this environment: the app config contains only a STUN server and no TURN relay; environment status reports no extra capabilities, runtime variables, secrets or outbound identities, with restricted package-manager network access. No further blocked transport attempt was made during review. Validation continued on the user's Mac without changing cloud policy.
 
 Consequently, the following were **not established by the recorded cloud run**:
 - Received audio energy, audible speech and uninterrupted video across five viewers.
@@ -63,7 +63,7 @@ Consequently, the following were **not established by the recorded cloud run**:
 - Transport-dependent multi-browser bullet/overlay, fullscreen and lifecycle checks in feature 004 T020.
 - Physical device disconnect, actual microphone permission prompts, audible echo and the manual supported-browser matrix.
 
-T020 remains unchecked. Its overlapping native screen-capture/start/stop and owner-preview paths were exercised; this is not completion of its multi-browser walkthrough.
+T020 remains unchecked. Cloud capture checks and the Mac harness exercise overlapping paths, including automated bullet/display/fullscreen checks on the Mac; they do not complete the manual supported-browser walkthrough.
 
 ## Focused implementation review
 
@@ -86,17 +86,38 @@ A late Mac login timed out after 30 seconds in a run that also reported SQLite l
 
 Verification of the corrected harness in the cloud: JavaScript/Python syntax and all 21 application JavaScript regressions passed; capture-only passed all 13 checks with zero server errors/slow requests (113 requests total). The server-only check passed all 82 requests with maximum server duration 0.711 seconds. Its empty signaling queues exercise transaction contention, not delivery; neither run proves default application SQLite settings are contention-free. Independent review found no blocking defect in the revised harness. Full transport was not retried in the restricted cloud environment.
 
-These corrections require a clean local rerun of `--baseline` and full mode. T019 and feature 004 T020 remain open; physical permission/device behavior and the timing thresholds are not inferred from bounded functional polling.
+The clean Mac rerun below completed these corrected commands without changing the shipped harness. T019 and feature 004 T020 remain open for physical permission/device behavior, the manual browser matrix, and timing thresholds, which are not inferred from bounded functional polling.
+
+## Confirmed Mac run of the shipped harness
+
+**Exact tested commit:** `1f7a2c8e3640e6bc872292603a9f648ff51428a4`.
+
+**Attribution:** Mac execution task `01a183d0-3b2f-7067-9ffd-05cf132ce0e2` reported these results at **2026-10-28 19:11 UTC**, relayed to this cloud task by the coordinating task. The local repository was clean, the harness was unchanged, and the development app remained running.
+
+**Reported evidence file:** `/Users/stanqiu/Documents/Codex/2026-10-28/task/validation-evidence/shipped-1f7a2c8-summary.json`. This is a Mac-only path supplied by that task; this cloud task has not independently opened the file.
+
+| Command | Exit | Reported result | Server requests | Errors / slow requests | Reported maximum request duration |
+|---|---|---|---|---|---|
+| `python streams/browser_tests/media.py --server-check` | 0 | Concurrency check passed | 82 | 0 / 0 | 429 ms |
+| `python streams/browser_tests/media.py --baseline` | 0 | All 3 checks passed | 75 | 0 / 0 | Not supplied |
+| `python streams/browser_tests/media.py` | 0 | All 15 checks passed | 438 | 0 / 0 | 524 ms |
+
+The reported run established native WebRTC delivery with synthetic sources: five viewers received audio energy and advancing video; broadcaster mute/unmute, a muted late join, local mute/volume retention, explicit local unmute, and stop/restart/end cleanup passed. It also observed a genuine incoming-stream `NotAllowedError` without user activation; **Enable sound** restored incoming audio and advancing video. This incoming-stream policy result is distinct from the injected-denial regression and the file-audio preflight.
+
+No login timeout or SQLite error occurred in this run. This is evidence that this isolated harness run succeeded, not proof of the earlier timeout's root cause or of production database concurrency behavior. Request durations and energy/frame metrics do not establish the specification's end-user timing deadlines, physical microphone behavior, human-audible speech quality, or permission-dialog/device interactions.
 
 ## Exact remaining action
 
-In an approved environment permitting local WebRTC transport (or providing an approved compatible relay), from the repository root run:
+With the user participating on the Mac, complete the physical-device and manual browser walkthrough in [quickstart.md](quickstart.md), including actual permission denial/dismissal/revocation, microphone disconnect, audible output/echo, the supported-browser matrix, and feature 004 T020. Measure and record the explicit timing criteria separately. The coordinating task is awaiting the user's participation; no further code change or deployment is implied.
+
+The automated transport portion is complete for the tested commit. To reproduce it when needed, from the repository root in an approved environment permitting WebRTC:
 ```bash
 source .venv/bin/activate
+python streams/browser_tests/media.py --server-check
 python streams/browser_tests/media.py --baseline
 python streams/browser_tests/media.py
 ```
-Then complete the physical-device and multi-browser walkthrough in [quickstart.md](quickstart.md), including feature 004 T020. Do not evade managed browser policy or treat a passing `--capture-only` run as proof of transport.
+Do not evade managed browser policy or treat a passing `--capture-only` run as proof of transport.
 
 Locally repeatable checks in the current environment:
 ```bash

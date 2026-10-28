@@ -6,7 +6,7 @@
 
 **Created**: 2026-10-27
 
-**Status**: Implemented — media transport and physical-device validation pending; see [validation.md](validation.md)
+**Status**: Implemented — Mac synthetic transport and genuine incoming-autoplay checks passed; physical-device, manual browser/T020, and explicit timing acceptance pending; see [validation.md](validation.md)
 
 **Input**: User description: "Add optional microphone commentary to live screen sharing, with broadcaster mute controls and graceful handling of denied microphone permission."
 

@@ -1,7 +1,7 @@
 /* Screen-share WebRTC logic for stream_detail.html.
  *
  * Broadcaster: owner side — getDisplayMedia capture + one RTCPeerConnection
- * per viewer (P2P mesh, video only, audio off by default).
+ * per viewer (P2P mesh, microphone off until the owner opts in).
  * Player: viewer side — join heartbeat, answer/ICE, and the UI state machine
  * waiting | connecting | live | ended | error.
  *
@@ -23,18 +23,36 @@ class Broadcaster {
     this.pendingCandidates = new Map();  // peerId -> [candidate payload]
     this.pollTimer = null;
     this.active = false;
+    this.generation = 0;
+    this.starting = false;
+    this.polling = false;
+    this.microphone = new MicrophoneController(ui.microphone);
   }
 
   async start() {
-    if (this.active) return; // re-entrancy guard: one broadcast per page
+    if (this.active || this.starting) return;
+    const generation = ++this.generation;
+    this.starting = true;
+    this.ui.shareBtn.disabled = true;
     try {
-      this.media = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const media = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      if (generation !== this.generation) {
+        media.getTracks().forEach(track => track.stop());
+        return;
+      }
+      this.media = media;
     } catch (err) {
       // Permission denied / cancelled: clear hint, no broadcast (FR-002)
-      this.showError('Screen sharing was cancelled or blocked. Click "Share screen" to try again.');
+      if (generation === this.generation) {
+        this.showError('Screen sharing was cancelled or blocked. Click "Share screen" to try again.');
+      }
       return;
+    } finally {
+      this.starting = false;
+      this.ui.shareBtn.disabled = false;
     }
     this.active = true;
+    this.microphone.begin();
     this.hideError();
     // Browser-native "Stop sharing" bar funnels into the same stop()
     this.media.getVideoTracks()[0].addEventListener('ended', () => this.stop());
@@ -51,14 +69,20 @@ class Broadcaster {
   }
 
   async poll() {
+    if (!this.active || this.polling) return;
+    const generation = this.generation;
+    this.polling = true;
     let items;
     try {
       items = await pollSignals(this.serial, 'streamer');
     } catch (err) {
-      if (err instanceof StreamEndedError) this.stop(false);
+      if (generation === this.generation && err instanceof StreamEndedError) this.stop(false);
       return; // transient errors: just try again next tick
+    } finally {
+      this.polling = false;
     }
     for (const s of items) {
+      if (!this.active || generation !== this.generation) return;
       try {
         if (s.kind === 'join') await this.handleJoin(s.peer_id);
         else if (s.kind === 'answer') await this.handleAnswer(s.peer_id, s.payload);
@@ -71,10 +95,12 @@ class Broadcaster {
   }
 
   async handleJoin(peerId) {
-    if (this.pcs.has(peerId)) return; // duplicate/heartbeat join: ignore
+    if (!this.active || this.pcs.has(peerId)) return;
     const pc = new RTCPeerConnection(ICE_CONFIG);
     this.pcs.set(peerId, pc);
-    this.media.getTracks().forEach((t) => pc.addTrack(t, this.media));
+    this.media.getVideoTracks().forEach((t) => pc.addTrack(t, this.media));
+    await this.microphone.addPeer(pc, this.media);
+    if (this.pcs.get(peerId) !== pc) return;
     pc.onicecandidate = (e) => {
       if (e.candidate) {
         postSignal(this.serial, {
@@ -84,11 +110,13 @@ class Broadcaster {
     };
     pc.onconnectionstatechange = () => {
       if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
-        this.closePeer(peerId, false);
+        if (this.pcs.get(peerId) === pc) this.closePeer(peerId, false);
       }
     };
     const offer = await pc.createOffer();
+    if (this.pcs.get(peerId) !== pc) return;
     await pc.setLocalDescription(offer);
+    if (this.pcs.get(peerId) !== pc) return;
     await postSignal(this.serial, {
       kind: 'offer', direction: 'to_viewer', peerId,
       payload: { type: pc.localDescription.type, sdp: pc.localDescription.sdp },
@@ -124,6 +152,7 @@ class Broadcaster {
     const pc = this.pcs.get(peerId);
     if (!pc) return;
     this.pcs.delete(peerId);
+    this.microphone.removePeer(pc);
     try { pc.close(); } catch (e) { /* already closed */ }
     if (sendBye) {
       postSignal(this.serial, { kind: 'bye', direction: 'to_viewer', peerId },
@@ -132,8 +161,9 @@ class Broadcaster {
   }
 
   stop(sendByes = true) {
-    if (!this.active) return;
+    ++this.generation;
     this.active = false;
+    this.microphone.stop();
     clearInterval(this.pollTimer);
     for (const peerId of [...this.pcs.keys()]) this.closePeer(peerId, sendByes);
     if (this.media) {
@@ -226,9 +256,23 @@ class Player {
     const pc = new RTCPeerConnection(ICE_CONFIG);
     this.pc = pc;
     pc.ontrack = (e) => {
+      if (this.pc !== pc || this.stopped) return;
       this.ui.video.srcObject = e.streams[0];
+      this.ui.video.dispatchEvent(new Event('streamchange'));
+    };
+    pc.ondatachannel = (e) => {
+      if (e.channel.label !== 'commentary') return;
+      e.channel.onmessage = (message) => {
+        if (this.pc !== pc || this.stopped) return;
+        let data;
+        try { data = JSON.parse(message.data); } catch { return; }
+        if (data?.type === 'microphone' && typeof data.available === 'boolean') {
+          this.setAudioAvailable(data.available);
+        }
+      };
     };
     pc.onconnectionstatechange = () => {
+      if (this.pc !== pc) return;
       if (pc.connectionState === 'connected') this.setState('live');
       else if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
         if (!this.stopped && this.state !== 'ended') this.resetToWaiting();
@@ -267,10 +311,18 @@ class Player {
 
   closePC() {
     if (this.pc) {
-      try { this.pc.close(); } catch (e) { /* already closed */ }
+      const pc = this.pc;
       this.pc = null;
+      try { pc.close(); } catch (e) { /* already closed */ }
     }
     this.ui.video.srcObject = null;
+    this.setAudioAvailable(false);
+    this.ui.video.dispatchEvent(new Event('streamchange'));
+  }
+
+  setAudioAvailable(available) {
+    this.ui.video.dataset.audioAvailable = available ? '1' : '0';
+    this.ui.video.dispatchEvent(new Event('commentarychange'));
   }
 
   resetToWaiting() {
@@ -339,11 +391,21 @@ document.addEventListener('DOMContentLoaded', () => {
       onAirBadge: document.getElementById('onAirBadge'),
       errorNote: document.getElementById('shareError'),
       placeholder: document.querySelector('.stream-player-placeholder'),
+      microphone: {
+        button: document.getElementById('microphoneBtn'),
+        status: document.getElementById('microphoneStatus'),
+        error: document.getElementById('microphoneError'),
+      },
     });
     window.streamBroadcaster = broadcaster; // end-stream handler stops it first
     document.getElementById('shareScreenBtn').addEventListener('click', () => broadcaster.start());
     document.getElementById('stopSharingBtn').addEventListener('click', () => broadcaster.stop());
+    document.getElementById('microphoneBtn').addEventListener('click', () => {
+      if (['on', 'muted'].includes(broadcaster.microphone.state)) broadcaster.microphone.toggleMute();
+      else broadcaster.microphone.enable();
+    });
     window.addEventListener('beforeunload', () => broadcaster.stop(true)); // best-effort byes
+    window.addEventListener('pagehide', () => broadcaster.stop(true));
   } else if (!isOwner && isLive) {
     const player = new Player(serial, {
       video: document.getElementById('remoteVideo'),

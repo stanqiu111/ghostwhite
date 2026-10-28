@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="{% static 'streams/streams.css' %}">
   <script src="{% static 'js/common.js' %}?v=5"></script>
   <script src="{% static 'streams/signaling.js' %}"></script>
+  <script src="{% static 'streams/microphone.js' %}"></script>
   <script src="{% static 'streams/screenshare.js' %}"></script>
   <script src="{% static 'streams/bullets.js' %}"></script>
   <script src="{% static 'streams/player_controls.js' %}"></script>
@@ -45,7 +46,7 @@
            data-stream-serial="{{ stream.serial }}"
            data-is-owner="{{ is_owner|yesno:'1,0' }}"
            data-stream-status="{{ stream.status }}">
-        <video id="remoteVideo" autoplay playsinline hidden></video>
+        <video id="remoteVideo" autoplay muted playsinline hidden></video>
         <video id="localPreview" autoplay muted playsinline hidden></video>
         <div class="stream-player-placeholder"
              data-player-state="{% if not stream.is_live %}ended{% elif is_owner %}idle{% else %}waiting{% endif %}">
@@ -69,6 +70,8 @@
           <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1"
                  aria-label="Volume">
         </span>
+        <button type="button" class="stream-btn" id="enableSoundBtn" hidden>Enable sound</button>
+        <span id="soundStatus" class="stream-audio-status" role="status" hidden></span>
         <label class="stream-mode-label">Display mode
           <select id="displayModeSelect" class="stream-mode-select">
             <option value="auto" selected>Auto</option>
@@ -98,6 +101,12 @@
         <button class="stream-btn stream-btn-danger" id="stopSharingBtn" hidden>Stop sharing</button>
         <span class="stream-onair-badge" id="onAirBadge" hidden>On air</span>
         <span class="stream-form-error" id="shareError" hidden></span>
+      </div>
+      <div class="stream-microphone-controls">
+        <button type="button" class="stream-btn" id="microphoneBtn" disabled
+                aria-describedby="microphoneStatus microphoneError">Enable microphone</button>
+        <span id="microphoneStatus" role="status" aria-live="polite">Microphone off</span>
+        <span id="microphoneError" class="stream-form-error" role="status" hidden></span>
       </div>
       {% endif %}
 

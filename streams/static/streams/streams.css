@@ -318,6 +318,24 @@
   align-items: center;
   gap: 6px;
 }
+
+.stream-microphone-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+.stream-microphone-controls .stream-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.stream-audio-status {
+  font-size: 13px;
+}
 .stream-volume-group input[type="range"] {
   width: 110px;
   accent-color: #4f46e5;

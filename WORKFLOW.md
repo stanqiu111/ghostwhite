@@ -341,7 +341,7 @@ GitHub public events are fetched and converted to `Entry` objects:
 
 ## Live Streams
 
-Lifecycle MVP built with spec-kit (`specs/002-live-stream/`); screen-sharing added in `specs/003-screen-share/` — real video via **WebRTC** (browser-to-browser, video only, audio off), with the server acting purely as a **REST signaling relay** (short polling, no Django Channels, no media server, zero new dependencies). No federation of streams yet, but IDs are FQID-based so it can be added without migration.
+Lifecycle MVP built with spec-kit (`specs/002-live-stream/`); screen-sharing added in `specs/003-screen-share/` and optional microphone commentary in `specs/005-stream-microphone/`. Video and commentary use **WebRTC** between browsers, with the server acting as a **REST signaling relay** (short polling, no Django Channels or media server). Screen sharing starts with the microphone off. No federation of streams yet, but IDs are FQID-based so it can be added without migration.
 
 ### Stream Model (`streams` app)
 - FQID pk: `http://<host>/api/authors/<author-uuid>/streams/<stream-uuid>`
@@ -384,13 +384,21 @@ GET  /api/streams/<uuid>/bullets/?latest=1      ← bootstrap: 30 most recent (a
 
 ### Player Controls & Overlay (browser)
 - `bullets.js` — `BulletCurtain`: 1.5 s cursor polling, 6 overlay lanes (3 on narrow screens, LRU-assigned, overflow shed from display only), CSS-transform fly-across animation, send form with ≥1 s client throttle, curtain on/off toggle (off = display only; cursor keeps advancing so re-enable shows only new messages). Overlay is `pointer-events: none` — can never block controls. Fully isolated from `screenshare.js`.
-- `player_controls.js` — volume slider + mute for viewers, **hidden unless the received stream has an audio track** (current streams are video-only, so hidden by default — no fake controls); display modes Auto/Fit/Fill (object-fit) and Theater (wider player column), all CSS-only, fullscreen-compatible.
+- `player_controls.js` — volume slider + local mute appear when the owner reports microphone availability. A reserved audio track alone does not show them. Viewer preferences survive microphone changes and reconnects. If audible playback is blocked, video continues muted and an **Enable sound** action is offered. Display modes Auto/Fit/Fill (object-fit) and Theater remain CSS-only and fullscreen-compatible.
 
 ### Screen-Share Browser Flow (`streams/static/streams/`)
 - `signaling.js` — transport only: `postSignal()` / `pollSignals()` with CSRF + optional JWT header; 410 → typed `StreamEndedError`. Swap this file to move to WebSockets later.
 - `screenshare.js` — `Broadcaster` (owner): `getDisplayMedia({video, audio:false})` → local preview + On-air badge; one `RTCPeerConnection` per viewer (P2P mesh, Google STUN); polls `role=streamer` every 1.5 s; on `join` → offer, trickle ICE; Stop button, browser-native stop bar, End-stream button, and `beforeunload` all funnel into `stop()` (close PCs + `bye` per peer).
 - `screenshare.js` — `Player` (viewer): random `peer_id`, `join` heartbeat every 10 s while waiting; state machine **waiting → connecting → live** (+ `ended`, `error` with Retry); on `bye`/PC drop while the stream is still live → back to waiting; on 410 → confirm via stream GET → ended state without reload.
 - Owner controls (`Share screen`) render server-side only for the owner of a live stream.
+
+### Optional Microphone Commentary (`specs/005-stream-microphone/`)
+- `microphone.js` owns a separate microphone capture stream. After screen sharing starts, the owner explicitly selects **Enable microphone**; capture is never requested for viewers or automatically on a new broadcast.
+- Each initial peer connection reserves a send-only audio transceiver. Enabling/retrying commentary uses `replaceTrack()` on that sender, preserving the video sender and avoiding renegotiation. One microphone track is shared across viewer senders; disabling it mutes both current and later viewers without another permission request.
+- A reliable `commentary` data channel carries only `{type: "microphone", available: boolean}`. The owner sends the current snapshot on open and after sender changes. The existing authenticated signaling API and database schema are unchanged.
+- Denial, missing/unusable devices and lost access show microphone-specific feedback while screen video continues. Recovery requires **Retry microphone**. Mute retains capture; stop/end/page departure releases it.
+- Generation guards discard and release late permission grants after stop/restart. Sender replacements are serialized per peer so cleanup cannot be overwritten by an older attachment. The owner's local preview remains muted.
+- Tab/system audio, recording, device menus and audio-only broadcasts are outside this feature.
 
 ### Pages
 ```
@@ -404,7 +412,11 @@ GET  /api/streams/<uuid>/bullets/?latest=1      ← bootstrap: 30 most recent (a
 - Ended streams disappear from the active list but their detail pages stay reachable
 
 ### Tests
-`streams/tests.py` — 74 tests (model lifecycle, create/list/retrieve/end API, page auth redirects, owner-only permission at API + template level, signaling permissions/scoping/consume-on-read, full handshake relay simulation, hijack attempts, end-purge, TTL sweep, bullet creation/validation/auth/410/404, XSS verbatim round-trip, cursor + bootstrap polling, non-consumption, template rendering per role), all against the real test DB. WebRTC media path and overlay visuals are verified manually via the quickstarts in `specs/003-screen-share/` and `specs/004-stream-video-controls/`.
+`streams/tests.py` — 78 passing real-DB tests, including three microphone page/access tests. Existing coverage includes model lifecycle, API and page permissions, signaling/scoping/consume-on-read, hijack attempts, end-purge/TTL, and bullet validation/rendering.
+
+`node --test streams/js_tests/*.test.cjs` runs 21 simulated media lifecycle/playback regressions. `python streams/browser_tests/media.py` runs the native Chromium multi-viewer media harness against temporary SQLite; `--baseline` serves pre-feature commit `1eb0a5bb933dbd7b632864da2dc2f90c3bb51e4a`'s stream template/JS without changing the checkout, and `--capture-only` exercises native synthetic capture plus explicitly labeled injected failures without requiring media transport. The harness uses SQLite IMMEDIATE transactions to avoid concurrent read-to-write lock upgrades; application database settings are unchanged.
+
+See `specs/005-stream-microphone/validation.md` for exact outcomes. The managed cloud Chromium policy currently prevents ICE candidates, blocking actual media delivery even in the pre-feature baseline. Synthetic capture and injected failures do not establish physical microphone, permission-dialog, speaker-output, or multi-viewer transport behavior. The feature 004 T020 manual walkthrough remains outstanding where it depends on those capabilities.
 
 ---
 

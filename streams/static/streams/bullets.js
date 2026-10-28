@@ -31,21 +31,37 @@ class BulletCurtain {
     this.stopped = false;
     this.pollTimer = null;
     this.lastSentAt = 0;
+    this.lastMessageId = 0;
     // 6 lanes on desktop, 3 on narrow viewports (locked decision)
     this.laneCount = window.matchMedia('(max-width: 640px)').matches ? 3 : 6;
     this.laneBusyUntil = new Array(this.laneCount).fill(0);
+    if (ui.chat && ui.latest) {
+      ui.latest.addEventListener('click', () => {
+        ui.chat.scrollTop = ui.chat.scrollHeight;
+        ui.latest.hidden = true;
+      });
+      ui.chat.addEventListener('scroll', () => {
+        if (ui.chat.scrollHeight - ui.chat.clientHeight - ui.chat.scrollTop < 36) ui.latest.hidden = true;
+      });
+    }
   }
 
   async start() {
+    this.ui.chat?.setAttribute('aria-busy', 'true');
     try {
       const data = await this.fetch({ latest: 1 });
+      if (this.stopped) return;
       this.cursor = data.cursor;
-      data.items.forEach((item) => this.display(item)); // ≤30 backfill, lanes shed overflow
+      data.items.forEach((item) => this.receive(item)); // ≤30 real recent messages
+      this.chatStatus('');
     } catch (err) {
+      if (this.stopped) return;
       if (err instanceof BulletStreamEnded) { this.onEnded(); return; }
-      // transient bootstrap failure: poll from 0 and catch up
+      this.chatStatus('Chat is reconnecting…');
+    } finally {
+      this.ui.chat?.setAttribute('aria-busy', 'false');
     }
-    this.pollTimer = setInterval(() => this.poll(), BULLET_POLL_MS);
+    if (!this.stopped) this.pollTimer = setInterval(() => this.poll(), BULLET_POLL_MS);
   }
 
   async fetch(params) {
@@ -64,13 +80,60 @@ class BulletCurtain {
     let data;
     try {
       data = await this.fetch({ after: this.cursor });
+      if (this.stopped) return;
     } catch (err) {
+      if (this.stopped) return;
       if (err instanceof BulletStreamEnded) this.onEnded();
+      else this.chatStatus('Chat is reconnecting…');
       return; // transient errors: try again next tick
     }
-    this.cursor = data.cursor;
-    if (this.enabled) data.items.forEach((item) => this.display(item));
-    // curtain off: items are discarded but the cursor advanced — no replay on re-enable
+    this.cursor = Math.max(this.cursor, data.cursor);
+    data.items.forEach((item) => this.receive(item));
+    this.chatStatus('');
+    // Curtain off affects the overlay only. Chat keeps receiving; overlay
+    // messages are never replayed when the curtain is switched back on.
+  }
+
+  receive(item) {
+    // Overlapping polls may return the same batch. Keep history and overlay
+    // ordered without retaining an unbounded set of message IDs.
+    if (item.id <= this.lastMessageId) return;
+    this.lastMessageId = item.id;
+    this.appendChat(item);
+    if (this.enabled) this.display(item);
+  }
+
+  appendChat(item) {
+    const { chat, empty, latest } = this.ui;
+    if (!chat) return;
+    const atBottom = chat.scrollHeight - chat.clientHeight - chat.scrollTop < 36;
+    const message = document.createElement('article');
+    message.className = 'stream-chat-message';
+    const heading = document.createElement('div');
+    heading.className = 'stream-chat-message-head';
+    const sender = document.createElement('strong');
+    sender.textContent = item.sender.displayName;
+    heading.appendChild(sender);
+    const created = new Date(item.created_at);
+    if (!Number.isNaN(created.getTime())) {
+      const time = document.createElement('time');
+      time.dateTime = created.toISOString();
+      time.textContent = created.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      heading.appendChild(time);
+    }
+    const content = document.createElement('p');
+    content.textContent = item.content;
+    message.appendChild(heading);
+    message.appendChild(content);
+    chat.appendChild(message);
+    while (chat.children.length > 100) chat.firstElementChild.remove();
+    if (empty) empty.hidden = true;
+    if (atBottom) chat.scrollTop = chat.scrollHeight;
+    else if (latest) latest.hidden = false;
+  }
+
+  chatStatus(text) {
+    if (this.ui.status) this.ui.status.textContent = text;
   }
 
   display(item) {
@@ -146,6 +209,12 @@ class BulletCurtain {
     this.ui.input.disabled = true;
     this.ui.sendBtn.disabled = true;
     this.ui.input.placeholder = 'Stream has ended';
+    this.chatStatus('Chat closed — this stream has ended.');
+    if (this.ui.title) this.ui.title.textContent = 'Chat closed';
+    if (this.ui.empty && !this.ui.empty.hidden) {
+      this.ui.empty.querySelector('strong').textContent = "That's a wrap";
+      this.ui.empty.querySelector('p').textContent = 'This stream has ended. Chat is no longer available.';
+    }
     this.hideError();
   }
 
@@ -172,6 +241,11 @@ document.addEventListener('DOMContentLoaded', () => {
     input: document.getElementById('bulletInput'),
     sendBtn: document.getElementById('bulletSendBtn'),
     error: document.getElementById('bulletError'),
+    chat: document.getElementById('chatMessages'),
+    empty: document.getElementById('chatEmpty'),
+    latest: document.getElementById('chatLatestBtn'),
+    status: document.getElementById('chatStatus'),
+    title: document.getElementById('chatTitle'),
   });
   form.addEventListener('submit', (e) => {
     e.preventDefault();

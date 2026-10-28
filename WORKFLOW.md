@@ -384,6 +384,7 @@ GET  /api/streams/<uuid>/bullets/?latest=1      ← bootstrap: 30 most recent (a
 
 ### Player Controls & Overlay (browser)
 - `bullets.js` — `BulletCurtain`: 1.5 s cursor polling, 6 overlay lanes (3 on narrow screens, LRU-assigned, overflow shed from display only), CSS-transform fly-across animation, send form with ≥1 s client throttle, curtain on/off toggle (off = display only; cursor keeps advancing so re-enable shows only new messages). Overlay is `pointer-events: none` — can never block controls. Fully isolated from `screenshare.js`.
+- The stream detail room also displays those real messages in a chat rail: latest 30 on load, at most 100 retained DOM messages, literal text rendering, preserved reading position, and a latest-message action. The overlay toggle does not disable chat. `stream_room.css` scopes the responsive room layout; `stream_room.js` mirrors existing media state without changing capture or signaling. No audience metric is inferred from the global live-room count.
 - `player_controls.js` — volume slider + local mute appear when the owner reports microphone availability. A reserved audio track alone does not show them. Viewer preferences survive microphone changes and reconnects. If audible playback is blocked, video continues muted and an **Enable sound** action is offered. Display modes Auto/Fit/Fill (object-fit) and Theater remain CSS-only and fullscreen-compatible.
 
 ### Screen-Share Browser Flow (`streams/static/streams/`)
@@ -417,6 +418,8 @@ GET  /api/streams/<uuid>/bullets/?latest=1      ← bootstrap: 30 most recent (a
 `node --test streams/js_tests/*.test.cjs` runs 21 simulated media lifecycle/playback regressions. `python streams/browser_tests/media.py` runs the native Chromium multi-viewer media harness against temporary SQLite; `--baseline` serves pre-feature commit `1eb0a5bb933dbd7b632864da2dc2f90c3bb51e4a`'s stream template/JS without changing the checkout, and `--capture-only` exercises native synthetic capture plus explicitly labeled injected failures without requiring media transport. The harness uses SQLite IMMEDIATE transactions to avoid concurrent read-to-write lock upgrades; application database settings are unchanged.
 
 See `specs/005-stream-microphone/validation.md` for exact outcomes. The managed cloud Chromium policy currently prevents ICE candidates, blocking actual media delivery even in the pre-feature baseline. Synthetic capture and injected failures do not establish physical microphone, permission-dialog, speaker-output, or multi-viewer transport behavior. The feature 004 T020 manual walkthrough remains outstanding where it depends on those capabilities.
+
+`python streams/browser_tests/media.py --ui-check` verifies the live-room UI and writes neutral screenshots. Viewer live/error presentation is explicitly simulated; chat and server actions use the real isolated app. See `docs/LIVE_ROOM_UI.md` for first-version review results and remaining local QA.
 
 ---
 

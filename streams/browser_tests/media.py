@@ -28,6 +28,7 @@ def main():
     from django.conf import settings
 
     baseline = "--baseline" in sys.argv
+    ui_check = "--ui-check" in sys.argv
     with tempfile.TemporaryDirectory(prefix="ghostwhite-media-") as directory:
         directory = Path(directory)
         settings.DATABASES = {"default": {
@@ -137,6 +138,14 @@ def main():
             approved=True, is_active=True,
         ) for name in ["media-owner"] + [f"media-viewer-{i}" for i in range(7)]]
         stream = Stream.objects.create(owner=users[0], node=local, title="Microphone media fixture")
+        if ui_check:
+            users[0].display_name = "Studio host"
+            users[0].save()
+            users[1].display_name = "Preview viewer"
+            users[1].save()
+            stream.title = "Studio session: ideas in progress"
+            stream.description = "An open studio for sharing work in progress and talking through the details. Join the conversation while we explore a few ideas together."
+            stream.save()
         audio_file = directory / "tone.wav"
         with wave.open(str(audio_file), "wb") as output:
             output.setparams((1, 2, 48000, 0, "NONE", "not compressed"))
@@ -149,11 +158,12 @@ def main():
         thread.start()
         try:
             result = subprocess.run(
-                ["node", str(Path(__file__).with_suffix(".cjs"))], cwd=ROOT,
+                ["node", str(Path(__file__).with_name("ui.cjs") if ui_check else Path(__file__).with_suffix(".cjs"))], cwd=ROOT,
                 input=json.dumps({"base": base, "path": stream.get_absolute_url(),
                                   "password": password, "audio": str(audio_file), "baseline": baseline,
                                   "captureOnly": "--capture-only" in sys.argv,
-                                  "serverCheck": "--server-check" in sys.argv}),
+                                  "serverCheck": "--server-check" in sys.argv,
+                                  "output": os.environ.get("STREAM_UI_OUTPUT", "/tmp/ghostwhite-ui-preview")}),
                 text=True, timeout=360,
             )
             return result.returncode

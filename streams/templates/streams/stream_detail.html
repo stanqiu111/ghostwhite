@@ -17,31 +17,28 @@
   <script src="{% static 'streams/screenshare.js' %}"></script>
   <script src="{% static 'streams/bullets.js' %}"></script>
   <script src="{% static 'streams/player_controls.js' %}"></script>
+  <script src="{% static 'streams/stream_room.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
+  <link rel="stylesheet" href="{% static 'streams/stream_room.css' %}">
 </head>
 
-<body class="streams-page">
+<body class="streams-page stream-room-page">
   {% include "partials/header.html" %}
 
-  <div class="streams-container">
-    <div class="stream-detail-card">
-      <div class="stream-detail-head">
-        <div>
-          <h1 class="stream-detail-title">{{ stream.title }}</h1>
-          <div class="stream-detail-meta">
-            {{ stream.owner.display_name|default:stream.owner.username }}
-            · started {{ stream.started_at|date:"M j, Y g:i A" }}
-            {% if stream.ended_at %}· ended {{ stream.ended_at|date:"M j, Y g:i A" }}{% endif %}
-          </div>
-        </div>
-        {% if stream.is_live %}
-        <span class="stream-badge stream-badge-live">Live</span>
-        {% else %}
-        <span class="stream-badge stream-badge-ended">Ended</span>
-        {% endif %}
-      </div>
+  <main class="streams-container stream-room" aria-labelledby="streamTitle">
+    <div class="stream-room-nav">
+      <a class="stream-back-link" href="{% url 'streams_pages:stream-list-page' %}">
+        <span aria-hidden="true">←</span> All streams
+      </a>
+      <span class="stream-room-label">{% if is_owner %}Your broadcast{% else %}Live room{% endif %}</span>
+      <span id="roomStatus" class="stream-room-status" role="status"
+            data-state="{% if not stream.is_live %}ended{% elif is_owner %}idle{% else %}waiting{% endif %}">
+        {% if not stream.is_live %}Ended{% elif is_owner %}Off air{% else %}Waiting for host{% endif %}
+      </span>
+    </div>
 
-      <!-- Player area: WebRTC screen share mounts here (see screenshare.js) -->
+    <div class="stream-room-layout">
+    <section class="stream-main" aria-label="Broadcast">
       <div class="stream-player" id="streamPlayer"
            data-stream-serial="{{ stream.serial }}"
            data-is-owner="{{ is_owner|yesno:'1,0' }}"
@@ -50,11 +47,20 @@
         <video id="localPreview" autoplay muted playsinline hidden></video>
         <div class="stream-player-placeholder"
              data-player-state="{% if not stream.is_live %}ended{% elif is_owner %}idle{% else %}waiting{% endif %}">
-          <span class="player-icon">📡</span>
-          <span id="playerStateText">
-            {% if not stream.is_live %}This stream has ended{% elif is_owner %}You're live — click “Share screen” to broadcast{% else %}Waiting for streamer…{% endif %}
+          <span class="stream-stage-icon" aria-hidden="true">
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M10 8l5 3-5 3z"/>
+            </svg>
           </span>
-          <button class="stream-btn" id="retryBtn" hidden>Retry</button>
+          <span id="playerStateText" role="status">
+            {% if not stream.is_live %}This stream has ended{% elif is_owner %}Your stage is ready{% else %}Waiting for streamer…{% endif %}
+          </span>
+          <p id="stageHint" class="stream-stage-hint">
+            {% if not stream.is_live %}Thanks for being here. Explore another stream when you're ready.
+            {% elif is_owner %}Share a screen or window to start. Your microphone stays off until you enable it.
+            {% else %}The video will appear here when the host starts sharing.{% endif %}
+          </p>
+          <button type="button" class="stream-btn" id="retryBtn" hidden>Retry connection</button>
         </div>
         <div id="bulletOverlay" aria-hidden="true"></div>
         <button class="stream-fullscreen-btn" id="fullscreenBtn" hidden
@@ -62,7 +68,7 @@
       </div>
 
       {% if stream.is_live %}
-      <div class="stream-controls-bar">
+      <div class="stream-controls-bar" aria-label="Player controls">
         {% if not is_owner %}
         <span class="stream-volume-group" id="volumeControls" hidden>
           <button type="button" class="stream-icon-btn" id="muteBtn"
@@ -83,47 +89,87 @@
         {% endif %}
         <label class="stream-curtain-toggle">
           <input type="checkbox" id="bulletToggle" checked autocomplete="off">
-          Bullet comments
+          Comments on video
         </label>
       </div>
-
-      <form id="bulletForm" class="stream-bullet-form" autocomplete="off">
-        <input type="text" id="bulletInput" maxlength="120"
-               placeholder="Send a bullet comment…" aria-label="Bullet comment">
-        <button type="submit" class="stream-btn" id="bulletSendBtn">Send</button>
-        <span class="stream-form-error" id="bulletError" hidden></span>
-      </form>
       {% endif %}
 
       {% if is_owner and stream.is_live %}
-      <div class="stream-share-controls">
-        <button class="stream-btn" id="shareScreenBtn">Share screen</button>
-        <button class="stream-btn stream-btn-danger" id="stopSharingBtn" hidden>Stop sharing</button>
-        <span class="stream-onair-badge" id="onAirBadge" hidden>On air</span>
-        <span class="stream-form-error" id="shareError" hidden></span>
-      </div>
-      <div class="stream-microphone-controls">
-        <button type="button" class="stream-btn" id="microphoneBtn" disabled
-                aria-describedby="microphoneStatus microphoneError">Enable microphone</button>
-        <span id="microphoneStatus" role="status" aria-live="polite">Microphone off</span>
+      <section class="stream-host-console" aria-label="Broadcast controls">
+        <div class="stream-console-heading">
+          <span>Broadcast controls</span>
+          <span class="stream-onair-badge" id="onAirBadge" hidden>On air</span>
+        </div>
+        <div class="stream-host-actions">
+          <div class="stream-share-controls">
+            <button type="button" class="stream-btn stream-btn-primary" id="shareScreenBtn">Share screen</button>
+            <button type="button" class="stream-btn" id="stopSharingBtn" hidden>Stop sharing</button>
+          </div>
+          <div class="stream-microphone-controls">
+            <button type="button" class="stream-btn" id="microphoneBtn" disabled
+                    aria-describedby="microphoneStatus microphoneError">Enable microphone</button>
+            <span id="microphoneStatus" role="status" aria-live="polite">Microphone off</span>
+          </div>
+          <button type="button" class="stream-btn stream-btn-danger" id="endStreamBtn">End stream</button>
+        </div>
+        <span class="stream-form-error" id="shareError" role="status" hidden></span>
         <span id="microphoneError" class="stream-form-error" role="status" hidden></span>
-      </div>
+        <span class="stream-form-error" id="endStreamError" role="status" hidden></span>
+      </section>
       {% endif %}
 
-      {% if stream.description %}
+      <header class="stream-identity">
+        <span class="stream-creator-avatar" aria-hidden="true">{{ stream.owner.display_name|default:stream.owner.username|first|upper }}</span>
+        <div>
+          <h1 id="streamTitle">{{ stream.title }}</h1>
+          <p class="stream-creator-name">{{ stream.owner.display_name|default:stream.owner.username }} <span class="stream-host-tag">Host</span></p>
+          <p class="stream-session-time">
+            {% if stream.ended_at %}Ended {{ stream.ended_at|date:"M j, Y · g:i A" }}
+            {% else %}Session started {{ stream.started_at|date:"M j · g:i A" }}{% endif %}
+          </p>
+        </div>
+      </header>
+    </section>
+
+    <aside class="stream-chat" aria-labelledby="chatTitle">
+      <header class="stream-chat-heading">
+        <h2 id="chatTitle">{% if stream.is_live %}Live chat{% else %}Chat closed{% endif %}</h2>
+        <span class="stream-chat-caption">The conversation</span>
+      </header>
+      <div class="stream-chat-body">
+        <div id="chatMessages" class="stream-chat-messages" role="log" aria-label="Stream chat" aria-live="polite" aria-relevant="additions" tabindex="0"></div>
+        <div id="chatEmpty" class="stream-chat-empty">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H9l-5 3v-6A7.5 7.5 0 0 1 11.5 4h1A7.5 7.5 0 0 1 20 11.5Z"/><path d="M8 10h8M8 14h5"/></svg>
+          <strong>{% if stream.is_live %}Start the conversation{% else %}That's a wrap{% endif %}</strong>
+          <p>{% if stream.is_live %}Say hello or share a thought with the room.{% else %}This stream has ended. Chat is no longer available.{% endif %}</p>
+        </div>
+        <button type="button" id="chatLatestBtn" class="stream-btn stream-chat-latest" hidden>Latest messages ↓</button>
+      </div>
+      {% if stream.is_live %}
+      <div class="stream-chat-compose">
+        <span id="chatStatus" class="stream-chat-status" role="status">Connecting to chat…</span>
+        <form id="bulletForm" class="stream-bullet-form" autocomplete="off">
+          <label class="stream-visually-hidden" for="bulletInput">Chat message</label>
+          <input type="text" id="bulletInput" maxlength="120" placeholder="Send a message…" aria-describedby="chatLimit bulletError">
+          <div class="stream-chat-send-row">
+            <span id="chatLimit">120 characters max</span>
+            <button type="submit" class="stream-btn stream-btn-primary" id="bulletSendBtn">Send</button>
+          </div>
+          <span class="stream-form-error" id="bulletError" role="status" hidden></span>
+        </form>
+      </div>
+      {% else %}
+      <a class="stream-chat-return" href="{% url 'streams_pages:stream-list-page' %}">Explore live streams →</a>
+      {% endif %}
+    </aside>
+    {% if stream.description %}
+    <section class="stream-about" aria-labelledby="streamAboutTitle">
+      <h2 id="streamAboutTitle">About this stream</h2>
       <p class="stream-detail-description">{{ stream.description }}</p>
-      {% endif %}
-
-      {% if is_owner and stream.is_live %}
-      <div class="stream-form-actions">
-        <button class="stream-btn stream-btn-danger" id="endStreamBtn">End stream</button>
-        <span class="stream-form-error" id="endStreamError" hidden></span>
-      </div>
-      {% endif %}
+    </section>
+    {% endif %}
     </div>
-
-    <p><a class="stream-btn" href="{% url 'streams_pages:stream-list-page' %}">Back to live streams</a></p>
-  </div>
+  </main>
 
   {% if is_owner and stream.is_live %}
   <script>

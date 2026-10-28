@@ -42,6 +42,7 @@
 - [X] T017 Run final Node, Django, migration/static and browser checks; record precise results and baseline comparison in specs/005-stream-microphone/validation.md.
 - [X] T018 Update WORKFLOW.md and specs/005-stream-microphone/quickstart.md with final behavior and human validation limits, including overlapping feature 004 T020 coverage.
 - [X] T021 Conduct independent focused review, fix immediate-mute and pinned-baseline defects, strengthen harness assertions and rerun affected checks.
+- [X] T022 Correct Mac-discovered harness assertions, isolate genuine autoplay observation from test-generated activation, improve test-server diagnostics, and run available checks before the next local acceptance run.
 
 ## Dependencies and execution order
 T001–T004 precede implementation. US1 establishes the transport; US2–US4 extend the same controller sequentially. US5 depends on the availability contract. T016–T018 follow the integrated implementation. Tests precede their corresponding code changes. No schema, package or deployment changes are planned.

@@ -8,12 +8,12 @@ import math
 import os
 from pathlib import Path
 import secrets
-from socketserver import ThreadingMixIn
 import struct
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import wave
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -53,7 +53,7 @@ def main():
                 ], cwd=ROOT)
         django.setup()
         from django.core.management import call_command
-        from django.core.servers.basehttp import WSGIRequestHandler, WSGIServer
+        from django.core.servers.basehttp import ThreadedWSGIServer, WSGIRequestHandler
         from django.contrib.staticfiles.handlers import StaticFilesHandler
         from django.core.wsgi import get_wsgi_application
         from django.db import connections
@@ -62,28 +62,70 @@ def main():
         from streams.models import Stream
 
         call_command("migrate", interactive=False, verbosity=0)
+        # Test database only: readers need not block the signaling/login writer.
+        # Writers still serialize; IMMEDIATE avoids read-to-write upgrades.
+        with connections["default"].cursor() as cursor:
+            cursor.execute("PRAGMA journal_mode=WAL")
+            assert cursor.fetchone()[0] == "wal"
 
         class QuietHandler(WSGIRequestHandler):
             def log_message(self, *args):
                 pass
 
-        class Server(ThreadingMixIn, WSGIServer):
-            daemon_threads = True
+        class Server(ThreadedWSGIServer):
+            # Several browser contexts can open asset/poll sockets at once.
+            request_queue_size = 64
 
         server = Server(("127.0.0.1", 0), QuietHandler)
         base = f"http://127.0.0.1:{server.server_port}"
         app = StaticFilesHandler(get_wsgi_application())
 
-        def application(environ, start_response):
+        def route(environ, start_response):
             path = environ["PATH_INFO"]
             if path == "/capture-source/":
                 start_response("200 OK", [("Content-Type", "text/html")])
                 return [b'<title>Commentary capture source</title><h1>Screen capture</h1>'
                         b'<p id="clock"></p><script>setInterval(()=>clock.textContent=Date.now(),100)</script>']
+            if path == "/test-tone.wav":
+                content = audio_file.read_bytes()
+                start_response("200 OK", [("Content-Type", "audio/wav"), ("Content-Length", str(len(content)))])
+                return [content]
             if path in overrides:
                 start_response("200 OK", [("Content-Type", "text/javascript")])
                 return [overrides[path]]
             return app(environ, start_response)
+
+        diagnostics = {"requests": 0, "server_errors": 0, "slow_requests": 0, "max_seconds": 0}
+        diagnostic_lock = threading.Lock()
+
+        def application(environ, start_response):
+            started = time.monotonic()
+            status_code = 500
+            response = None
+
+            def record_status(status, headers, exc_info=None):
+                nonlocal status_code
+                status_code = int(status.split()[0])
+                return start_response(status, headers, exc_info)
+
+            try:
+                response = route(environ, record_status)
+                yield from response
+            finally:
+                if response is not None and hasattr(response, "close"):
+                    response.close()
+                elapsed = round(time.monotonic() - started, 3)
+                with diagnostic_lock:
+                    diagnostics["requests"] += 1
+                    diagnostics["server_errors"] += status_code >= 500
+                    diagnostics["slow_requests"] += elapsed >= 3
+                    diagnostics["max_seconds"] = max(diagnostics["max_seconds"], elapsed)
+                if status_code >= 500 or elapsed >= 3:
+                    # Do not log credentials, bodies, cookies, or auth headers.
+                    print("Server request diagnostic:", json.dumps({
+                        "method": environ["REQUEST_METHOD"], "path": environ["PATH_INFO"],
+                        "status": status_code, "seconds": elapsed,
+                    }), file=sys.stderr, flush=True)
 
         server.set_app(application)
         local = Node.objects.get(is_local=True)
@@ -100,6 +142,9 @@ def main():
             output.setparams((1, 2, 48000, 0, "NONE", "not compressed"))
             output.writeframes(b"".join(struct.pack("<h", int(12000 * math.sin(2 * math.pi * 440 * i / 48000)))
                                         for i in range(48000 * 4)))
+        # Fixture connections belong to the main thread; the standard Django
+        # threaded server additionally closes each request worker's connections.
+        connections.close_all()
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
@@ -107,7 +152,8 @@ def main():
                 ["node", str(Path(__file__).with_suffix(".cjs"))], cwd=ROOT,
                 input=json.dumps({"base": base, "path": stream.get_absolute_url(),
                                   "password": password, "audio": str(audio_file), "baseline": baseline,
-                                  "captureOnly": "--capture-only" in sys.argv}),
+                                  "captureOnly": "--capture-only" in sys.argv,
+                                  "serverCheck": "--server-check" in sys.argv}),
                 text=True, timeout=360,
             )
             return result.returncode
@@ -116,6 +162,7 @@ def main():
             server.server_close()
             thread.join(timeout=5)
             connections.close_all()
+            print("Server diagnostics:", json.dumps(diagnostics), flush=True)
 
 
 if __name__ == "__main__":

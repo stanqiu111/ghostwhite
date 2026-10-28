@@ -1,5 +1,5 @@
 // Native WebRTC integration using Chromium synthetic devices and real Django signaling.
-const { chromium } = require('playwright');
+const { chromium, request } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const config = JSON.parse(fs.readFileSync(0, 'utf8'));
@@ -10,11 +10,12 @@ const args = [
   `--use-file-for-fake-audio-capture=${config.audio}`,
 ];
 const results = [];
+const failures = [];
 function pass(name, details) {
   results.push({ name, details });
   console.log(`PASS ${name}${details ? ': ' + JSON.stringify(details) : ''}`);
 }
-async function account(browser, name) {
+async function account(browser, name, observePlayback = false) {
   const context = await browser.newContext();
   // Only local application requests are needed for the integration test.
   await context.route('https://**', route => route.abort());
@@ -26,10 +27,29 @@ async function account(browser, name) {
       constructor(...args) { super(...args); window.mediaPeers.push(this); }
     };
   });
+  if (observePlayback) await context.addInitScript(() => {
+    window.nativePlayResults = [];
+    const nativePlay = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function (...args) {
+      const attempt = { id: this.id, muted: this.muted, volume: this.volume,
+        activated: navigator.userActivation.hasBeenActive,
+        active: navigator.userActivation.isActive, outcome: 'pending' };
+      window.nativePlayResults.push(attempt);
+      const promise = nativePlay.apply(this, args);
+      // Observe the original promise; do not inject or replace its outcome.
+      promise.then(() => { attempt.outcome = 'resolved'; }, error => {
+        attempt.outcome = 'rejected'; attempt.error = error.name;
+      });
+      return promise;
+    };
+  });
+  const started = Date.now();
   const response = await context.request.post(config.base + '/api/authors/login/', {
     data: { username: name, password: config.password },
+  }).catch(error => {
+    throw new Error(`Test login ${name} failed after ${Date.now() - started}ms (${error.name}); inspect server request diagnostics, not credentials`);
   });
-  assert.equal(response.status(), 200, 'test account login');
+  assert.equal(response.status(), 200, `test account login ${name}, ${Date.now() - started}ms`);
   const page = await context.newPage();
   page.on('pageerror', error => console.error('Browser error:', error.message));
   page.on('console', message => {
@@ -60,25 +80,52 @@ async function stats(page) {
     return totals;
   });
 }
-async function measure(page, audible) {
-  const before = await stats(page);
-  await page.waitForTimeout(650);
-  const after = await stats(page);
-  assert(after.frames > before.frames, 'video frames continue advancing');
-  const energy = after.energy - before.energy;
-  if (audible) assert(energy > 0.00001, `received audio energy must grow, got ${energy}`);
-  else assert(energy < 0.000001, `muted audio must stay silent, got ${energy}`);
-  return { energy, frames: after.frames - before.frames };
+async function measure(page, mode) {
+  // Poll for observed delivery, or a continuous quiet window after buffered
+  // audio drains. This is a functional check, not the spec's one-second SLA.
+  const started = Date.now();
+  let windowStart = started;
+  let before = await stats(page);
+  let after = before;
+  while (Date.now() - started < 5000) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    after = await stats(page);
+    const energy = after.energy - before.energy;
+    const frames = after.frames - before.frames;
+    if (mode === 'local-muted') {
+      assert.equal(await page.locator('#remoteVideo').evaluate(v => v.muted && v.volume === 0.35), true);
+      // Inbound RTP energy can grow even with a muted local sink, depending on
+      // the browser. The native element's mute state establishes local silence.
+      if (frames > 0 && Date.now() - windowStart >= 650) {
+        return { energy, frames, localMuted: true, elapsedMs: Date.now() - started };
+      }
+    } else if (mode === true && frames > 0 && energy > 0.00001) {
+      return { energy, frames, elapsedMs: Date.now() - started };
+    } else if (mode === false) {
+      if (energy >= 0.000001) {
+        before = after; windowStart = Date.now();
+      } else if (frames > 0 && Date.now() - windowStart >= 650) {
+        return { energy, frames, elapsedMs: Date.now() - started };
+      }
+    }
+  }
+  assert.fail(`media ${mode} did not settle within 5000ms: ${JSON.stringify({ before, after })}`);
 }
-async function basicChecks(owner, viewers, commentary = false) {
+async function bulletChecks(owner, viewers) {
   const sender = viewers[0];
   const text = `<script>window.bulletExecuted=true</script> ${Date.now()}`;
   await sender.locator('#bulletInput').fill(text);
   await sender.locator('#bulletSendBtn').click();
   for (const page of [owner, ...viewers]) {
-    await page.waitForFunction(text => [...document.querySelectorAll('.bullet-msg')].some(el => el.textContent === text), text);
+    await page.waitForFunction(text => [...document.querySelectorAll('.bullet-msg')].some(el =>
+      el.lastChild?.nodeType === Node.TEXT_NODE && el.lastChild.textContent === text), text);
     assert.equal(await page.evaluate(() => !!window.bulletExecuted), false);
+    assert.equal(await page.locator('.bullet-msg script').count(), 0);
   }
+}
+async function basicChecks(owner, viewers, commentary = false) {
+  await bulletChecks(owner, viewers);
+  const sender = viewers[0];
   await sender.locator('#bulletToggle').uncheck();
   await sender.waitForFunction(() => document.querySelectorAll('.bullet-msg').length === 0);
   for (const mode of ['fit', 'fill', 'theater', 'auto']) {
@@ -135,6 +182,8 @@ async function captureChecks(owner, browser) {
   assert.equal(await owner.evaluate(() => [...window.streamBroadcaster.pcs.values()].every(pc =>
     pc.getSenders().find(sender => sender.track?.kind === 'audio').track.enabled === false)), true);
   pass('existing and late native senders both use the disabled microphone track while muted');
+  await bulletChecks(owner, [viewer, lateViewer]);
+  pass('real bullet relay preserves exact text beside sender label; markup is inert');
   await viewer.context().close(); await lateViewer.context().close();
   await owner.locator('#microphoneBtn').click();
   assert.equal(await owner.evaluate(() => window.streamBroadcaster.microphone.stream.getAudioTracks()[0].enabled
@@ -256,7 +305,114 @@ async function localPlaybackChecks(browser) {
   await viewer.context().close();
 }
 
+async function withoutGesture(session, fn) {
+  const result = await session.send('Runtime.evaluate', {
+    expression: `(${fn.toString()})()`, userGesture: false,
+    awaitPromise: true, returnByValue: true,
+  });
+  assert.equal(result.exceptionDetails, undefined, 'non-activating browser observation failed');
+  return result.result.value;
+}
+
+async function nativeAutoplayPreflight(browser) {
+  // This checks ordinary native file playback policy, not incoming WebRTC.
+  const page = await browser.newPage();
+  await page.goto(config.base + '/capture-source/');
+  const session = await page.context().newCDPSession(page);
+  try {
+    const result = await withoutGesture(session, async () => {
+      const audio = new Audio('/test-tone.wav');
+      document.body.appendChild(audio);
+      try { await audio.play(); return { outcome: 'resolved', activated: navigator.userActivation.hasBeenActive }; }
+      catch (error) { return { outcome: error.name, activated: navigator.userActivation.hasBeenActive }; }
+    });
+    assert.deepEqual(result, { outcome: 'NotAllowedError', activated: false },
+      'restricted browser must reject native file audio without activation');
+    pass('native file-autoplay preflight rejects sound without activation (not WebRTC coverage)');
+  } finally {
+    await session.detach(); await page.context().close();
+  }
+}
+
+async function incomingAutoplayChecks(browser) {
+  const page = await account(browser, 'media-viewer-6', true);
+  const session = await page.context().newCDPSession(page);
+  let state;
+  try {
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline) {
+      // Playwright evaluate()/waitForFunction() supply userGesture:true.
+      // Do not use them (or locator waits) before native denial is observed.
+      state = await withoutGesture(session, () => {
+        const video = document.getElementById('remoteVideo');
+        return { activated: navigator.userActivation.hasBeenActive,
+          attempts: window.nativePlayResults, available: video.dataset.audioAvailable,
+          muted: video.muted, paused: video.paused, ready: video.readyState,
+          visible: !video.hidden, enableVisible: !document.getElementById('enableSoundBtn').hidden,
+          peers: window.mediaPeers.map(pc => ({ connection: pc.connectionState, ice: pc.iceConnectionState })) };
+      });
+      assert.equal(state.activated, false, `autoplay setup gained activation: ${JSON.stringify(state)}`);
+      const denied = state.attempts.some(attempt => attempt.id === 'remoteVideo'
+        && !attempt.muted && !attempt.activated && attempt.error === 'NotAllowedError');
+      if (denied && state.enableVisible && state.muted && !state.paused && state.ready >= 2 && state.visible) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    assert(state?.attempts.some(attempt => attempt.id === 'remoteVideo' && !attempt.muted
+      && !attempt.activated && attempt.error === 'NotAllowedError')
+      && state.enableVisible && state.muted && !state.paused && state.ready >= 2 && state.visible,
+    `Genuine incoming-stream autoplay denial/recovery prerequisite was not established: ${JSON.stringify(state)}`);
+    // Only this explicit click grants the viewer activation.
+    await page.locator('#enableSoundBtn').click();
+    await page.waitForFunction(() => !document.getElementById('remoteVideo').muted && !document.getElementById('remoteVideo').paused);
+    pass('observed native incoming-stream NotAllowedError preserves video; Enable sound recovers', await measure(page, true));
+  } finally {
+    await session.detach(); await page.context().close();
+  }
+}
+
+async function serverChecks() {
+  const contexts = [];
+  const latencies = [];
+  async function login(name) {
+    const client = await request.newContext({ baseURL: config.base });
+    contexts.push(client);
+    const started = Date.now();
+    const response = await client.post('/api/authors/login/', { data: { username: name, password: config.password } });
+    assert.equal(response.status(), 200, `concurrent login ${name}`);
+    latencies.push(Date.now() - started);
+    return client;
+  }
+  try {
+    const owner = await login('media-owner');
+    const viewers = await Promise.all([0, 1, 2, 3, 4].map(i => login(`media-viewer-${i}`)));
+    const serial = config.path.split('/').filter(Boolean).at(-1);
+    const clients = [owner, ...viewers];
+    await Promise.all([
+      ...clients.map(async (client, index) => {
+        for (let round = 0; round < 12; round++) {
+          const query = index === 0 ? 'role=streamer' : `role=viewer&peer_id=load-viewer-${index}`;
+          const started = Date.now();
+          const response = await client.get(`/api/streams/${serial}/signals/?${query}`);
+          assert.equal(response.status(), 200, `concurrent signaling poll ${index}/${round}`);
+          latencies.push(Date.now() - started);
+        }
+      }),
+      (async () => { for (let round = 0; round < 4; round++) await login('media-viewer-6'); })(),
+    ]);
+    pass('isolated SQLite concurrent signaling and late-login requests succeed', {
+      requests: latencies.length, maxMs: Math.max(...latencies),
+    });
+  } finally {
+    await Promise.all(contexts.map(context => context.dispose()));
+  }
+}
+
 (async () => {
+  if (config.serverCheck) {
+    try { await serverChecks(); }
+    finally { console.log(JSON.stringify({ serverCheck: true, passed: results.length, results })); }
+    return;
+  }
   const browser = await chromium.launch({ executablePath, headless: true, args: [...args, '--autoplay-policy=no-user-gesture-required'] });
   let restrictedBrowser;
   try {
@@ -265,6 +421,7 @@ async function localPlaybackChecks(browser) {
     if (config.captureOnly) {
       restrictedBrowser = await chromium.launch({ executablePath, headless: true,
         args: ['--autoplay-policy=document-user-activation-required', '--disable-features=PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies'] });
+      await nativeAutoplayPreflight(restrictedBrowser);
       await localPlaybackChecks(restrictedBrowser);
       await captureChecks(owner, browser);
       return;
@@ -318,13 +475,18 @@ async function localPlaybackChecks(browser) {
     assert.equal(await viewers[0].locator('#remoteVideo').evaluate(v => v.muted), true);
     assert.equal(await viewers[1].locator('#remoteVideo').evaluate(v => v.muted), false);
     await owner.locator('#microphoneBtn').click();
-    await owner.waitForTimeout(500);
     pass('broadcaster mute silences all five viewers while video continues', await Promise.all(viewers.map(p => measure(p, false))));
     await viewers.pop().context().close();
     const late = await account(browser, 'media-viewer-5'); await connected(late); viewers.push(late);
     pass('late joiner while muted receives silence', await measure(late, false));
     await owner.locator('#microphoneBtn').click();
-    pass('unmute restores existing and late-viewer audio', await Promise.all(viewers.map(p => measure(p, true))));
+    pass('unmute restores listening viewers; locally muted viewer stays silent', await Promise.all(
+      viewers.map((page, index) => measure(page, index === 0 ? 'local-muted' : true))));
+    assert.equal(await viewers[0].locator('#remoteVideo').evaluate(v => v.muted && v.volume === 0.35), true);
+    await viewers[0].locator('#muteBtn').click();
+    pass('explicit local unmute also receives audio at retained volume', await measure(viewers[0], true));
+    assert.equal(await viewers[0].locator('#remoteVideo').evaluate(v => !v.muted && v.volume === 0.35), true);
+    await viewers[0].locator('#muteBtn').click();
     assert.equal(await viewers[0].locator('#remoteVideo').evaluate(v => v.muted && v.volume === 0.35), true);
     pass('viewer mute/volume preferences remain local and survive broadcaster changes');
 
@@ -333,12 +495,14 @@ async function localPlaybackChecks(browser) {
     await viewers.pop().context().close();
     restrictedBrowser = await chromium.launch({ executablePath, headless: true,
       args: ['--autoplay-policy=document-user-activation-required', '--disable-features=PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies'] });
-    const restricted = await account(restrictedBrowser, 'media-viewer-6'); await connected(restricted);
-    await restricted.locator('#enableSoundBtn').waitFor({ state: 'visible' });
-    assert.equal(await restricted.locator('#remoteVideo').evaluate(v => v.muted && !v.paused), true);
-    await restricted.locator('#enableSoundBtn').click();
-    await restricted.waitForFunction(() => !document.getElementById('remoteVideo').muted && !document.getElementById('remoteVideo').paused);
-    pass('native browser autoplay restriction preserves video and Enable sound recovers playback');
+    try {
+      await nativeAutoplayPreflight(restrictedBrowser);
+      await incomingAutoplayChecks(restrictedBrowser);
+    } catch (error) {
+      // Keep the acceptance failure, but still exercise stop/restart/end below.
+      failures.push({ name: 'genuine incoming-stream autoplay', error: error.message });
+      console.error('FAIL genuine incoming-stream autoplay:', error.message);
+    }
     await restrictedBrowser.close(); restrictedBrowser = null;
 
     await owner.evaluate(() => { window.capturedMicrophone = window.streamBroadcaster.microphone.stream.getAudioTracks()[0]; });
@@ -357,9 +521,10 @@ async function localPlaybackChecks(browser) {
     await owner.waitForFunction(() => document.getElementById('streamPlayer').dataset.streamStatus === 'ended');
     await Promise.all(viewers.map(p => p.waitForFunction(() => document.querySelector('.stream-player-placeholder').dataset.playerState === 'ended')));
     pass('real end-stream action tears down broadcast and all viewers reach ended');
+    assert.equal(failures.length, 0, 'acceptance checks failed; see failures in the JSON report');
   } finally {
     if (restrictedBrowser) await restrictedBrowser.close();
     await browser.close();
-    console.log(JSON.stringify({ baseline: config.baseline, captureOnly: config.captureOnly, passed: results.length, results }));
+    console.log(JSON.stringify({ baseline: config.baseline, captureOnly: config.captureOnly, passed: results.length, results, failures }));
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });

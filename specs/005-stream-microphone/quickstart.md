@@ -38,9 +38,12 @@ Additional modes:
 ```bash
 python streams/browser_tests/media.py --baseline
 python streams/browser_tests/media.py --capture-only
+python streams/browser_tests/media.py --server-check
 ```
 
-`--baseline` serves the stream template/JS from fixed pre-feature commit `1eb0a5bb933dbd7b632864da2dc2f90c3bb51e4a` in the temporary server without resetting the checkout. That commit must be present locally (use a full clone/history). `--capture-only` checks native capture/senders and browser UI with labeled fault injection; it does not claim media delivery. The temporary SQLite database uses Django's supported IMMEDIATE transaction mode to prevent concurrent signaling-poll lock upgrades.
+`--baseline` serves the stream template/JS from fixed pre-feature commit `1eb0a5bb933dbd7b632864da2dc2f90c3bb51e4a` in the temporary server without resetting the checkout. That commit must be present locally (use a full clone/history). `--capture-only` checks native capture/senders, exact bullet text rendering and browser UI with labeled fault injection; it does not claim media delivery. Its native file-autoplay preflight verifies non-activating observation, not incoming WebRTC policy.
+
+`--server-check` runs real authenticated concurrent signaling polls and late logins without launching a browser. The temporary SQLite database uses IMMEDIATE transactions and WAL; Django's threaded server closes worker connections. Application database configuration is unchanged. Slow requests (at least 3 seconds) and HTTP 500 responses log method/path/status/duration; final server counters are printed without credentials. If a local login times out, retain these lines and any SQLite exception stack before attributing a cause. WAL still serializes writers and is not proof that all contention is resolved.
 
 This cloud Chromium installation enforces `WebRtcIPHandling=disable_non_proxied_udp` and produces no ICE candidates, even in a standalone local two-peer probe. `AudioCaptureAllowed`, `VideoCaptureAllowed` and `FullscreenAllowed` are also false. No permitted transport route is configured here. Do not override managed policy or substitute an executable/network route to evade it. Passing capture-only checks cannot complete transport validation.
 
@@ -53,6 +56,10 @@ python streams/browser_tests/media.py --baseline
 python streams/browser_tests/media.py
 ```
 On Linux the default is `/usr/bin/chromium`. Expected: both commands exit zero; the baseline establishes existing video/bullet/fullscreen behavior and the feature run reports received audio energy, advancing video frames, five-viewer mute/unmute and late joins, autoplay recovery, stop/restart/end, and controls with commentary active. These use synthetic capture and still do not establish physical devices or permission dialogs.
+
+The locally muted viewer is checked for a muted native playback element, retained volume and advancing video; its incoming energy is recorded without assuming every browser stops decoding muted audio. The other viewers must receive energy, and explicit local unmute must also receive energy before restoring the viewer's preference. Bounded media polling establishes functional transitions, not the specification's timing deadlines.
+
+For genuine incoming-stream autoplay, the harness observes native `play()` promises and polls through CDP with `userGesture:false` until a native `NotAllowedError` occurs. Playwright evaluations can grant activation and are avoided during that phase. If the browser permits incoming sound anyway, the run reports the observed state and remains unsuccessful. It still runs stop/restart/end and includes the autoplay failure in the final JSON; injected denial is never substituted for that acceptance check.
 
 After automated transport succeeds, complete these manual checks in the supported desktop browsers and record browser/version and outcomes in validation.md:
 - [ ] Start: no microphone prompt; explicit enable delivers speech to five viewers within 5 seconds; a late viewer hears speech within 10 seconds. Owner preview stays silent.

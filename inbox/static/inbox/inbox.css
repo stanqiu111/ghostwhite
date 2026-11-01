@@ -1,0 +1,176 @@
+/* Page composition; shared colors come from css/main.css and css/theme.css. */
+body.inbox-page {
+  --bg:var(--gw-bg);
+  --card:var(--gw-surface);
+  --ink:var(--gw-text);
+  --muted:var(--gw-text-dim);
+  --line:var(--gw-border);
+  --ink-weak:var(--gw-text-dim);
+  --brand:var(--gw-accent);
+  --brand-ink:var(--gw-on-accent);
+  --pad:16px;
+  --topbar-h:64px;
+  --maxw:1280px;
+}
+
+:where(body.inbox-page *) {
+  box-sizing:border-box;
+}
+
+body.inbox-page {
+  height:100%;
+}
+
+/* Top bar comes from partials/header.html + main.css. */
+/* page layout */
+body.inbox-page .container {
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding:var(--pad);
+  min-height:calc(100vh - var(--topbar-h));
+}
+
+body.inbox-page .card {
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:0 1px 2px rgba(0,0,0,.03);
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+
+body.inbox-page .card-head {
+  padding:12px var(--pad);
+  border-bottom:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+body.inbox-page .card-head h1 {
+  font-size:18px;
+  margin:0;
+  font-weight:700;
+}
+
+body.inbox-page .pill {
+  margin-left:auto;
+  border-radius:999px;
+  padding:6px 12px;
+  border:1px solid var(--line);
+  background:var(--gw-surface-2);
+  color:var(--gw-text-dim);
+  font-size:13px;
+  font-weight:500;
+}
+
+body.inbox-page .card-body {
+  padding:var(--pad);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:0;
+}
+
+body.inbox-page .empty-state {
+  text-align:center;
+  padding:40px 0;
+  color:var(--muted);
+  font-size:14px;
+}
+
+/* notification rows – home Inbox 카드 스타일이랑 비슷하게 */
+body.inbox-page .notif-item {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 0;
+  border-bottom:1px solid var(--line);
+}
+
+body.inbox-page .notif-item:last-child {
+  border-bottom:none;
+}
+
+body.inbox-page .notif-main {
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  flex:1;
+  min-width:0;
+}
+
+body.inbox-page .notif-avatar {
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  background:var(--gw-surface-2);
+  overflow:hidden;
+  flex-shrink:0;
+}
+
+body.inbox-page .notif-avatar img {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border-radius:50%;
+}
+
+body.inbox-page .notif-text {
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:0;
+}
+
+body.inbox-page .notif-actor {
+  font-weight:600;
+  font-size:14px;
+  color:var(--ink-weak);
+}
+
+body.inbox-page .notif-verb {
+  font-size:14px;
+  color:var(--ink);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:420px;
+}
+
+body.inbox-page .notif-meta {
+  font-size:12px;
+  color:var(--muted);
+}
+
+body.inbox-page .notif-actions {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-shrink:0;
+}
+
+body.inbox-page .btn-view {
+  border-radius:999px;
+  padding:6px 12px;
+  border:0;
+  background:var(--brand);
+  color:var(--gw-on-accent);
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+}
+
+body.inbox-page .btn-view:hover {
+  opacity:.9;
+}
+
+body.inbox-page .notif-preview {
+  font-size: 13px;
+  color: var(--gw-text-dim);
+  margin: 4px 0 8px;
+  overflow-wrap: anywhere;
+}

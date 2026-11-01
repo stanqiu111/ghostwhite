@@ -1,0 +1,235 @@
+/* Page composition; shared colors come from css/main.css and css/theme.css. */
+:where(body.auth-page *) {
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body.auth-page {
+  background-color:var(--gw-bg);
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:20px;
+}
+
+body.auth-page .login-container {
+  /* was #f5f5f5:a fixed light card under text that follows the
+           theme, so in dark mode it rendered light-on-light (1.1:1) */
+  background-color: var(--gw-surface);
+  border:1px solid var(--gw-border);
+  padding:40px;
+  border-radius:12px;
+  width:100%;
+  max-width:400px;
+}
+
+/* Named for this page: `.header` / `.logo` belong to the app chrome in
+         main.css, and reusing them here pulled in a sticky white bar. */
+body.auth-page .login-brand {
+  --mark:20px;
+  --mark-gap:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:var(--mark-gap);
+  margin-bottom:40px;
+  /* Optical centring. Centring the group puts the mark on the left and
+           pushes the wordmark -- which is what reads as the title -- half the
+           mark's footprint to the right. Pull the group back by that much so
+           "Éthéré" itself sits on the card's centre line. Derived from the
+           two values above, so it stays correct if either changes. */
+  transform:translateX(calc((var(--mark) + var(--mark-gap)) / -2));
+}
+
+body.auth-page .login-brand-dot {
+  width:var(--mark);
+  height:var(--mark);
+  background-color:var(--gw-text);
+  border-radius:50%;
+  flex:none;
+}
+
+body.auth-page .brand-name {
+  font-size:var(--gw-text-2xl);
+  font-weight:600;
+  color:var(--gw-text);
+  letter-spacing:0.01em;
+  line-height:1;
+}
+
+body.auth-page .form-group {
+  margin-bottom:24px;
+}
+
+body.auth-page .form-label {
+  display:block;
+  font-size:14px;
+  font-weight:500;
+  color:var(--gw-text);
+  margin-bottom:8px;
+}
+
+body.auth-page .form-input {
+  width:100%;
+  padding:12px 16px;
+  border:1px solid var(--gw-border-str);
+  border-radius:8px;
+  font-size:16px;
+  background-color:var(--gw-surface);
+  transition:border-color 0.2s ease;
+}
+
+body.auth-page .form-input:focus {
+  outline:none;
+  border-color:var(--gw-accent);
+}
+
+body.auth-page .password-container {
+  position:relative;
+}
+
+body.auth-page .password-toggle {
+  position:absolute;
+  right:12px;
+  top:50%;
+  transform:translateY(-50%);
+  background:none;
+  border:none;
+  cursor:pointer;
+  padding:4px;
+  border-radius:4px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--gw-text-dim);
+}
+
+body.auth-page .password-toggle:hover {
+  background-color:var(--gw-surface-2);
+}
+
+body.auth-page .password-toggle svg {
+  width:16px;
+  height:16px;
+}
+
+body.auth-page .button-group {
+  display:flex;
+  gap:12px;
+  margin-top:32px;
+}
+
+body.auth-page .login-button, body.auth-page .signup-button {
+  flex:1;
+  padding:12px 24px;
+  border:none;
+  border-radius:8px;
+  font-size:16px;
+  font-weight:500;
+  cursor:pointer;
+  transition:all 0.2s ease;
+  text-align:center;
+  text-decoration:none;
+  display:inline-block;
+}
+
+/* Whichever of Login / Signup is the current mode is the primary
+         action. The mode used to be shown by JS writing hardcoded inline
+         colours (#000 / #fff), which beat every stylesheet and ignored dark
+         mode. JS now only toggles .is-active; the look lives here. */
+body.auth-page .login-button, body.auth-page .signup-button {
+  background-color:var(--gw-surface);
+  color:var(--gw-text);
+  border:1px solid var(--gw-border-str);
+}
+
+body.auth-page .login-button:hover, body.auth-page .signup-button:hover {
+  background-color:var(--gw-surface-2);
+}
+
+body.auth-page .login-button.is-active, body.auth-page .signup-button.is-active {
+  background-color:var(--gw-text);
+  color:var(--gw-surface);
+  border-color:var(--gw-text);
+}
+
+body.auth-page .login-button.is-active:hover, body.auth-page .signup-button.is-active:hover {
+  background-color:var(--gw-text);
+  opacity:0.88;
+}
+
+body.auth-page .error-message {
+  background-color:color-mix(in srgb, var(--gw-danger) 10%, transparent);
+  color:var(--gw-danger);
+  padding:12px;
+  border-radius:8px;
+  margin-bottom:20px;
+  font-size:14px;
+  display:none;
+}
+
+/* was #3c3 on #efe -- 2.05:1, unreadable before dark mode existed */
+body.auth-page .success-message {
+  background-color:color-mix(in srgb, var(--gw-success) 10%, transparent);
+  color:var(--gw-success);
+  padding:12px;
+  border-radius:8px;
+  margin-bottom:20px;
+  font-size:14px;
+  display:none;
+}
+
+@media (max-width: 480px) {
+  body.auth-page .login-container {
+    padding:30px 20px;
+    margin:10px;
+  }
+
+  body.auth-page .button-group {
+    flex-direction:column;
+    gap:8px;
+  }
+
+}
+
+body.auth-page #already-logged-in-banner {
+  background: var(--gw-warn-bg);
+  border: 1px solid color-mix(in srgb, var(--gw-warn-fg) 35%, transparent);
+  border-radius: var(--gw-radius-sm);
+  padding: 16px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: var(--gw-warn-fg);
+}
+
+body.auth-page .account-notice {
+  margin-bottom: 8px;
+}
+
+body.auth-page .account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+body.auth-page .account-actions button {
+  padding: 8px 12px;
+  border-radius: var(--gw-radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+body.auth-page .account-home {
+  background: var(--gw-warn-fg);
+  color: var(--gw-surface);
+  border: 1px solid var(--gw-warn-fg);
+  font-weight: 600;
+}
+
+body.auth-page .account-switch {
+  background: transparent;
+  border: 1px solid var(--gw-warn-fg);
+  color: var(--gw-warn-fg);
+}

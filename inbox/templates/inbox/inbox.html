@@ -9,135 +9,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=5">
-  <style>
-    :root{
-      --bg:#f8f8fa; --card:#fff; --ink:#0f172a; --muted:#6b7280; --line:#e5e7eb;
-      --ink-weak:#1f2937; --brand:#111827; --brand-ink:#fff;
-      --pad:16px; --topbar-h:64px; --maxw:1280px;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-
-    /* Top bar comes from partials/header.html + main.css. */
-
-    /* page layout */
-    .container{
-      max-width:var(--maxw);
-      margin:0 auto;
-      padding:var(--pad);
-      min-height:calc(100vh - var(--topbar-h));
-    }
-
-    .card{
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:16px;
-      box-shadow:0 1px 2px rgba(0,0,0,.03);
-      padding:0;
-      display:flex;
-      flex-direction:column;
-      min-height:0;
-    }
-    .card-head{
-      padding:12px var(--pad);
-      border-bottom:1px solid var(--line);
-      display:flex;align-items:center;gap:8px;
-    }
-    .card-head h1{
-      font-size:18px;margin:0;font-weight:700;
-    }
-    .pill{
-      margin-left:auto;
-      border-radius:999px;
-      padding:6px 12px;
-      border:1px solid var(--line);
-      background:var(--gw-surface-2);
-      color:var(--gw-text-dim);
-      font-size:13px;
-      font-weight:500;
-    }
-    .card-body{
-      padding:var(--pad);
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-      min-height:0;
-    }
-
-    .empty-state{
-      text-align:center;
-      padding:40px 0;
-      color:var(--muted);
-      font-size:14px;
-    }
-
-    /* notification rows – home Inbox 카드 스타일이랑 비슷하게 */
-    .notif-item{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:12px;
-      padding:10px 0;
-      border-bottom:1px solid var(--line);
-    }
-    .notif-item:last-child{border-bottom:none;}
-
-    .notif-main{
-      display:flex;
-      gap:12px;
-      align-items:flex-start;
-      flex:1;
-      min-width:0;
-    }
-    .notif-avatar{
-      width:40px;height:40px;border-radius:50%;
-      background:#f3f4f6;
-      overflow:hidden;
-      flex-shrink:0;
-    }
-    .notif-avatar img{
-      width:100%;height:100%;object-fit:cover;border-radius:50%;
-    }
-    .notif-text{
-      display:flex;flex-direction:column;gap:2px;
-      min-width:0;
-    }
-    .notif-actor{
-      font-weight:600;font-size:14px;color:var(--ink-weak);
-    }
-    .notif-verb{
-      font-size:14px;color:var(--ink);
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width:420px;
-    }
-    .notif-meta{
-      font-size:12px;color:var(--muted);
-    }
-
-    .notif-actions{
-      display:flex;align-items:center;gap:8px;
-      flex-shrink:0;
-    }
-    .btn-view{
-      border-radius:999px;
-      padding:6px 12px;
-      border:0;
-      background:var(--brand);
-      color:#fff;
-      font-size:13px;
-      font-weight:500;
-      cursor:pointer;
-    }
-    .btn-view:hover{opacity:.9}
-  </style>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'inbox/inbox.css' %}?v=1">
   <script src="{% static 'js/marked.min.js' %}"></script>
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
-  <script src="{% static 'js/common.js' %}?v=5"></script>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
+  <script src="{% static 'js/common.js' %}?v=6"></script>
 </head>
-<body>
+<body class="inbox-page">
   <!-- Top bar (home/create랑 동일) -->
   {% include "partials/header.html" %}
 
@@ -236,7 +114,7 @@
             // comment 알림일 경우 → verb 바로 아래 미리보기 표시
         if (n.type === 'comment' && n.comment_preview) {
             inner += `
-                <div style="font-size:13px;color:#4b5563;margin:2px 0 4px;">
+                <div class="notif-preview">
                 “${esc(n.comment_preview)}”
                 </div>
             `;

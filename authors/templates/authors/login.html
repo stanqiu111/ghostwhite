@@ -5,214 +5,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Éthéré - Login</title>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        background-color: var(--gw-bg);
-        min-height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 20px;
-      }
-
-      .login-container {
-        /* was #f5f5f5: a fixed light card under text that follows the
-           theme, so in dark mode it rendered light-on-light (1.1:1) */
-        background-color: var(--gw-surface);
-        border: 1px solid var(--gw-border);
-        padding: 40px;
-        border-radius: 12px;
-        width: 100%;
-        max-width: 400px;
-      }
-
-      /* Named for this page: `.header` / `.logo` belong to the app chrome in
-         main.css, and reusing them here pulled in a sticky white bar. */
-      .login-brand {
-        --mark: 20px;
-        --mark-gap: 12px;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--mark-gap);
-        margin-bottom: 40px;
-
-        /* Optical centring. Centring the group puts the mark on the left and
-           pushes the wordmark -- which is what reads as the title -- half the
-           mark's footprint to the right. Pull the group back by that much so
-           "Éthéré" itself sits on the card's centre line. Derived from the
-           two values above, so it stays correct if either changes. */
-        transform: translateX(calc((var(--mark) + var(--mark-gap)) / -2));
-      }
-
-      .login-brand-dot {
-        width: var(--mark);
-        height: var(--mark);
-        background-color: var(--gw-text);
-        border-radius: 50%;
-        flex: none;
-      }
-
-      .brand-name {
-        font-size: var(--gw-text-2xl);
-        font-weight: 600;
-        color: var(--gw-text);
-        letter-spacing: 0.01em;
-        line-height: 1;
-      }
-
-      .form-group {
-        margin-bottom: 24px;
-      }
-
-      .form-label {
-        display: block;
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--gw-text);
-        margin-bottom: 8px;
-      }
-
-      .form-input {
-        width: 100%;
-        padding: 12px 16px;
-        border: 1px solid var(--gw-border-str);
-        border-radius: 8px;
-        font-size: 16px;
-        background-color: var(--gw-surface);
-        transition: border-color 0.2s ease;
-      }
-
-      .form-input:focus {
-        outline: none;
-        border-color: var(--gw-accent);
-      }
-
-      .password-container {
-        position: relative;
-      }
-
-      .password-toggle {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--gw-text-dim);
-      }
-
-      .password-toggle:hover {
-        background-color: var(--gw-surface-2);
-      }
-
-      .password-toggle svg {
-        width: 16px;
-        height: 16px;
-      }
-
-      .button-group {
-        display: flex;
-        gap: 12px;
-        margin-top: 32px;
-      }
-
-      .login-button,
-      .signup-button {
-        flex: 1;
-        padding: 12px 24px;
-        border: none;
-        border-radius: 8px;
-        font-size: 16px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-      }
-
-      /* Whichever of Login / Signup is the current mode is the primary
-         action. The mode used to be shown by JS writing hardcoded inline
-         colours (#000 / #fff), which beat every stylesheet and ignored dark
-         mode. JS now only toggles .is-active; the look lives here. */
-      .login-button,
-      .signup-button {
-        background-color: var(--gw-surface);
-        color: var(--gw-text);
-        border: 1px solid var(--gw-border-str);
-      }
-      .login-button:hover,
-      .signup-button:hover {
-        background-color: var(--gw-surface-2);
-      }
-      .login-button.is-active,
-      .signup-button.is-active {
-        background-color: var(--gw-text);
-        color: var(--gw-surface);
-        border-color: var(--gw-text);
-      }
-      .login-button.is-active:hover,
-      .signup-button.is-active:hover {
-        background-color: var(--gw-text);
-        opacity: 0.88;
-      }
-
-      .error-message {
-        background-color: color-mix(in srgb, var(--gw-danger) 10%, transparent);
-        color: var(--gw-danger);
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        font-size: 14px;
-        display: none;
-      }
-
-      /* was #3c3 on #efe -- 2.05:1, unreadable before dark mode existed */
-      .success-message {
-        background-color: color-mix(in srgb, var(--gw-success) 10%, transparent);
-        color: var(--gw-success);
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        font-size: 14px;
-        display: none;
-      }
-
-      @media (max-width: 480px) {
-        .login-container {
-          padding: 30px 20px;
-          margin: 10px;
-        }
-
-        .button-group {
-          flex-direction: column;
-          gap: 8px;
-        }
-      }
-    </style>
   <link rel="icon" href="{% static 'images/favicon.svg' %}" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=5">
-    <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
-  <script src="{% static 'js/common.js' %}?v=5"></script>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'authors/login.css' %}?v=1">
+    <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
+  <script src="{% static 'js/common.js' %}?v=6"></script>
 </head>
-  <body>
+  <body class="auth-page">
     <div class="login-container">
       <div class="login-brand">
         <span class="login-brand-dot" aria-hidden="true"></span>
@@ -220,22 +22,15 @@
       </div>
 
       {% if already_logged_in %}
-      <div id="already-logged-in-banner" style="
-        background:var(--gw-warn-bg);border:1px solid color-mix(in srgb, var(--gw-warn-fg) 35%, transparent);
-        border-radius:var(--gw-radius-sm);padding:12px 16px;margin-bottom:20px;
-        font-size:14px;color:var(--gw-warn-fg);">
-        <div style="margin-bottom:8px;">
+      <div id="already-logged-in-banner">
+        <div class="account-notice">
           Already logged in as <strong>{{ logged_in_username }}</strong>.
         </div>
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="window.location.href='/home/'" style="
-            background:var(--gw-warn-fg);color:var(--gw-surface);border:none;border-radius:var(--gw-radius-sm);
-            padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;">
+        <div class="account-actions">
+          <button type="button" onclick="window.location.href='/home/'" class="account-home">
             Go to Home
           </button>
-          <button type="button" onclick="logout()" style="
-            background:none;border:1px solid var(--gw-warn-fg);border-radius:var(--gw-radius-sm);
-            padding:6px 14px;font-size:12px;color:var(--gw-warn-fg);cursor:pointer;">
+          <button type="button" onclick="logout()" class="account-switch">
             Log out &amp; switch account
           </button>
         </div>
@@ -257,7 +52,7 @@
           />
         </div>
 
-        <div class="form-group" id="emailGroup" style="display:none;">
+        <div class="form-group" id="emailGroup" hidden>
           <label for="email" class="form-label">Email</label>
           <input
             type="email"
@@ -378,7 +173,7 @@
 
         if (isSignupMode) {
           // Show email + password2 fields
-          document.getElementById("emailGroup").style.display = "block";
+          document.getElementById("emailGroup").hidden = false;
           document.getElementById("email").required = true;
           password2Group.style.display = "block";
           document.getElementById("password2").required = true;
@@ -386,7 +181,7 @@
           setActiveMode("signup");
         } else {
           // Hide email + password2 fields
-          document.getElementById("emailGroup").style.display = "none";
+          document.getElementById("emailGroup").hidden = true;
           document.getElementById("email").required = false;
           document.getElementById("email").value = "";
           password2Group.style.display = "none";

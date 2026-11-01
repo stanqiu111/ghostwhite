@@ -1,16 +1,20 @@
-# Node Connection Guide
+# Connecting nodes
+
+[Documentation index](README.md) · [Inbox protocol](INBOX_API_FLOW.md) · [Live-stream federation](FEDERATED_STREAMING.md)
 
 ## Setup
 
 ### 1. Configure Your Local Node
 - Django Admin → Nodes → Find your local node (`is_local = True`)
-- Set `username` and `password` (credentials for other nodes to authenticate with you)
+- Set the canonical `host_url`, `username` and `password`. Your server sends these local credentials on outbound federation requests. Each peer must register them against your remote-node record.
 
 ### 2. Add Remote Node
 - Django Admin → Nodes → Add Node
 - Set:
   - `host_url`: Remote node's base URL (include path prefix if needed, e.g., `/socialdistribution/`)
   - `is_local`: False
+  - `is_active`: True
+  - `is_disabled`: False
   - `username`: Remote node's username
   - `password`: Remote node's password
 
@@ -19,10 +23,12 @@
 
 ---
 
-## Shell Access
+## Shell access
+
+Run the local command below in the configured virtual environment. For an existing, authorized Heroku deployment only, prefix it with `heroku run --app <your-app>`. This guide does not imply that a deployment is configured or authorize production changes.
 
 ```bash
-heroku run python manage.py shell
+python manage.py shell
 ```
 
 ---
@@ -47,12 +53,13 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # Set remote node URL
-node_url = "https://example-node.herokuapp.com/"
+node_url = "https://peer.example/"
 node = Node.objects.get(host_url=node_url, is_local=False)
+local_node = Node.objects.get(is_local=True)
 
 response = requests.get(
     f"{node_url.rstrip('/')}/api/authors",
-    auth=HTTPBasicAuth(node.username, node.password),
+    auth=HTTPBasicAuth(local_node.username, local_node.password),
     headers={"Content-Type": "application/json"},
     timeout=10
 )
@@ -89,13 +96,15 @@ your_author = Author.objects.get(id=your_author_id)
 # Parse remote author FQID and get remote node
 full_fqid, node_url = parse_author_fqid(remote_author_fqid)
 remote_node = Node.objects.get(host_url=node_url, is_local=False)
+local_node = Node.objects.get(is_local=True)
+local_node = Node.objects.get(is_local=True)
 
 # Fetch remote author data
 author_url = full_fqid.rstrip('/') + '/'
 try:
     response = requests.get(
         author_url,
-        auth=HTTPBasicAuth(remote_node.username, remote_node.password),
+        auth=HTTPBasicAuth(local_node.username, local_node.password),
         headers={"Content-Type": "application/json"},
         timeout=10
     )
@@ -120,3 +129,10 @@ follow, created = Follow.objects.get_or_create(
 send_follow_request_to_remote_node(follow)
 print(f"✓ Follow request sent! (status: {follow.status})")
 ```
+
+## Live-stream support
+
+Ordinary inbox federation does not provide a player. Both Ghostwhite nodes must
+include the streaming extension, and third-party applications must implement
+its contract. Follow [federated streaming](FEDERATED_STREAMING.md) for reciprocal
+setup, server-only credential handling, TURN, and actual media acceptance.

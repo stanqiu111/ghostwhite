@@ -1,6 +1,8 @@
 # Inbox API Flow
 
-The inbox endpoint (`POST /api/authors/{author_id}/inbox/`) is how nodes communicate with each other. ( under [authors/urls.py](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/authors/urls.py#L22))
+[Documentation index](README.md) · [Node setup](NODE_SETUP.md) · [Streaming extension](FEDERATED_STREAMING.md)
+
+The inbox endpoint (`POST /api/authors/{author_id}/inbox/`) is how nodes communicate with each other. ( under [authors/urls.py](../authors/urls.py))
 
 Two directions:
 - Incoming: other nodes send us notifications when their users do something
@@ -22,7 +24,7 @@ Other nodes (not our frontend) send POST requests to our inbox when:
 
 ## Sending Notifications
 
-Helper functions in [utils/node_communication.py](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/utils/node_communication.py):
+Helper functions in [utils/node_communication.py](../utils/node_communication.py):
 - `send_entry_to_remote_nodes(entry)` - sends entry to remote followers
 - `send_like_to_remote_node(like, entry)` - sends like to entry/comment author
 - `send_comment_to_remote_node(comment, entry)` - sends comment to entry author
@@ -88,48 +90,48 @@ When denying, we delete the relationship locally so when they send a new request
 ## Like Flow
 
 **Entry Like:**
-- **Local → Remote:** Create `EntryLike` via [EntryLikeToggleView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L320). If like exists (toggle), delete locally and send with `removed=True`; otherwise send to entry author's inbox via `send_like_to_remote_node()`.
-- **Remote → Local:** Receive in `_handle_like()` in [inbox/views.py](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/inbox/views.py#L332), find entry by `object` URL. If `removed=True`, delete `EntryLike`; otherwise create `EntryLike(entry, remote_author)`.
+- **Local → Remote:** Create `EntryLike` via [EntryLikeToggleView](../entries/views.py). If like exists (toggle), delete locally and send with `removed=True`; otherwise send to entry author's inbox via `send_like_to_remote_node()`.
+- **Remote → Local:** Receive in `_handle_like()` in [inbox/views.py](../inbox/views.py), find entry by `object` URL. If `removed=True`, delete `EntryLike`; otherwise create `EntryLike(entry, remote_author)`.
 
 **Comment Like:**
-- **Local → Remote:** Create `CommentLike` via [CommentLikeToggleView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L347). If like exists, delete locally and send with `removed=True`; otherwise send to comment author's inbox via `send_comment_like_to_remote_node()`.
+- **Local → Remote:** Create `CommentLike` via [CommentLikeToggleView](../entries/views.py). If like exists, delete locally and send with `removed=True`; otherwise send to comment author's inbox via `send_comment_like_to_remote_node()`.
 - **Remote → Local:** Receive in `_handle_like()`, try entry first, then find comment by `object` URL. If `removed=True`, delete `CommentLike`; otherwise create `CommentLike(comment, remote_author)`.
 
 ## Comment Flow
 
 **Create:**
-- **Local → Remote:** Create `Comment(entry, author, content)` via [CommentCreateView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L294), send to entry author's inbox via `send_comment_to_remote_node()`.
-- **Remote → Local:** Receive in `_handle_comment()` in [inbox/views.py](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/inbox/views.py#L383), find entry by `entry` URL, create `Comment(entry, remote_author, content, source_url)`.
+- **Local → Remote:** Create `Comment(entry, author, content)` via [CommentCreateView](../entries/views.py), send to entry author's inbox via `send_comment_to_remote_node()`.
+- **Remote → Local:** Receive in `_handle_comment()` in [inbox/views.py](../inbox/views.py), find entry by `entry` URL, create `Comment(entry, remote_author, content, source_url)`.
 
 **Update:** we are jusr updating the commment content not the entire objecy
-- **Local → Remote:** Update `Comment.content` via [CommentUpdateDeleteView.patch()](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L377), send with `state="updated"`.
+- **Local → Remote:** Update `Comment.content` via [CommentUpdateDeleteView.patch()](../entries/views.py), send with `state="updated"`.
 - **Remote → Local:** Receive with `state="updated"`, find comment by `id` URL (FQID), update `Comment.content`.
 
 **Delete:**
-- **Local → Remote:** Delete `Comment` locally via [CommentUpdateDeleteView.delete()](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L395), send with `state="deleted"`.
+- **Local → Remote:** Delete `Comment` locally via [CommentUpdateDeleteView.delete()](../entries/views.py), send with `state="deleted"`.
 - **Remote → Local:** Receive with `state="deleted"`, find comment by `id` URL, delete `Comment` (hard delete).
 
 ## Entry Flow
 
 **Create:**
-- **Local → Remote:** Create `Entry(author, content, visibility)` via [EntryCreateView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L210), send to remote followers via `send_entry_to_remote_nodes()` (based on visibility).
-- **Remote → Local:** Receive in `_handle_entry()` in [inbox/views.py](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/inbox/views.py#L203), create `Entry(author=remote_author, source="remote", source_url=entry_fqid)`.
+- **Local → Remote:** Create `Entry(author, content, visibility)` via [EntryCreateView](../entries/views.py), send to remote followers via `send_entry_to_remote_nodes()` (based on visibility).
+- **Remote → Local:** Receive in `_handle_entry()` in [inbox/views.py](../inbox/views.py), create `Entry(author=remote_author, source="remote", source_url=entry_fqid)`.
 
 **Update:**
-- **Local → Remote:** Update `Entry` fields via [EntryUpdateView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L220), send to remote followers.
+- **Local → Remote:** Update `Entry` fields via [EntryUpdateView](../entries/views.py), send to remote followers.
 - **Remote → Local:** Receive, find entry by `source_url` (FQID), update `Entry.content`, `Entry.content_type`, `Entry.visibility`.
 
 **Delete:**
-- **Local → Remote:** Soft delete via [EntryDeleteView](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/staging/entries/views.py#L240) (set `visibility="DELETED"`, `deleted_at=now()`), send to remote followers.
+- **Local → Remote:** Soft delete via [EntryDeleteView](../entries/views.py) (set `visibility="DELETED"`, `deleted_at=now()`), send to remote followers.
 - **Remote → Local:** Receive with `visibility="DELETED"`, find entry by `source_url`, set `Entry.deleted_at=now()` (soft delete, filtered by `deleted_at__isnull=True`).
 
 ## Follow Request Flow
 
 Local user requests to follow remote user:
 1. User A (local) clicks follow on User B (remote)
-2. Create `Follow(follower=A, following=B, status=PENDING)` - by [calling send_follow_request_to_remote_node()](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/0f879d499feb21c8a6fe62a42b84671baf409017/authors/views.py#L361)
-3. Send notification to User B's inbox - user B will receive this through inbox url and will handle it in [handle follow](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/0f879d499feb21c8a6fe62a42b84671baf409017/inbox/views.py#L279), since this is a pending request so is_decision wll be False and we save the instance to database ( [here](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/0f879d499feb21c8a6fe62a42b84671baf409017/inbox/views.py#L311-L315) )
-4. User B's node creates the same relationship 
+2. Create `Follow(follower=A, following=B, status=PENDING)` - by [calling send_follow_request_to_remote_node()](../authors/views.py)
+3. Send notification to User B's inbox - user B will receive this through inbox url and will handle it in [handle follow](../inbox/views.py), since this is a pending request so is_decision wll be False and we save the instance to database ( [here](../inbox/views.py) )
+4. User B's node creates the same relationship
 5. User B sees the request
 
 Remote user requests to follow local user:
@@ -155,7 +157,7 @@ Rejecting:
 
 Edge cases:
 - If we are unfollowing then following again:
-  For example userA (our node) unfollows user B (remote), we first delete the relationship locally then we call inbox to notify user B, user B will check if status is unfollow ( [here](https://github.com/uofa-cmput404/f25-project-ghostwhite/blob/e45ab6bdeffcbf95189419d700de4d0173f920bf/inbox/views.py#L290), then they will delete the follow on their end) 
+  For example userA (our node) unfollows user B (remote), we first delete the relationship locally then we call inbox to notify user B, user B will check if status is unfollow ( [here](../inbox/views.py), then they will delete the follow on their end)
 - when we send a new request after being rejected: userA (local) requests to follow userB (remote), we create a follow with status pending in our local database, then call inbox to let userB(remote) know. UserB will receive the notification and create a local follow instance with status = pending in their database so they can see. After displaying the request, userB rejects the reuqest -> this will set status of local instance to DENIED and delete the instance locally and call inbox to notify userA. UserA after receiving the notification, we update the status to be DENIED ( We dont delete here because we need to know if we have been rejected ). if userA requests again, they will update their local record ( if exisst) to be PENDING and notify userB, userB will create a new instance in their db with status PENDING.
 
 Each node keeps its own copy of the relationship. When accepting, both sides update to `ACCEPTED`. When rejecting, followee deletes locally, follower keeps as `DENIED`. When retrying, always send notification to remote node.

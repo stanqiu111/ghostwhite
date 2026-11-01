@@ -1,3 +1,9 @@
+# API reference
+
+[Documentation index](README.md) · [Inbox protocol](INBOX_API_FLOW.md) · [Streaming protocol](FEDERATED_STREAMING.md)
+
+The tables below cover social endpoints. For exact route names and optional trailing slashes, see [authors](../authors/urls.py), [entries](../entries/urls.py), [inbox](../inbox/urls.py), and [streams](../streams/urls.py). The running application exposes `/api/schema/` and `/api/docs/`. Browser pages support Django sessions; API clients use JWT; registered nodes use HTTP Basic on federation endpoints only.
+
 ### Identity & Profile
 
 | Endpoint                                   | Purpose                                                              | User Story ID                  | Notes |
@@ -28,7 +34,7 @@
 
 | Endpoint                                   | Purpose                                                              | User Story ID                         | Notes |
 |--------------------------------------------|----------------------------------------------------------------------|---------------------------------------|-------|
-| `POST /api/authors/{author_id}/follow/`    | Send a follow request to another author                             | Following US 6.1.1, 6.2.1             | Supports both local and (future) remote follow workflows. |
+| `POST /api/authors/{author_id}/follow/`    | Send a follow request to another author                             | Following US 6.1.1, 6.2.1             | Supports both local and remote follow workflows. |
 | `DELETE /api/authors/{author_id}/follow/`  | Unfollow an author                                                   | Following US 6.5.1, 6.7.1             | Removes follower/friend relation; prevents access to friends-only entries. |
 | `GET /api/authors/follow-requests/`        | View pending incoming follow requests                                | Following US 6.4.1                    | Used by the “Follow Requests” section in the UI. |
 | `POST /api/authors/follows/{id}/decision/` | Accept or reject a follow request                                    | Following US 6.3.1, 6.6.1, 6.8.1      | Updates followers, following, and mutual friendship state. |
@@ -50,7 +56,7 @@
 
 | Endpoint                              | Purpose                                                                   | User Story ID                                      | Notes |
 |--------------------------------------|---------------------------------------------------------------------------|----------------------------------------------------|-------|
-| `POST /api/authors/{author_id}/inbox/` | Receive posts/likes/comments from other nodes                            | Posting US 2.2.1, 2.4.1, 2.10.1; Sharing US 5.2.1; Following US 6.2.1; Comments/Likes US 7.x | Core endpoint for federation; currently supports local testing and future multi-node expansion. |
+| `POST /api/authors/{author_id}/inbox/` | Receive posts/likes/comments from other nodes                            | Posting US 2.2.1, 2.4.1, 2.10.1; Sharing US 5.2.1; Following US 6.2.1; Comments/Likes US 7.x | Core endpoint for federation; supports registered remote nodes. |
 
 ### Notifications
 

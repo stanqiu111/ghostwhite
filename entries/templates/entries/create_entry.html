@@ -9,73 +9,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=5">
-  <style>
-    :root{
-      --bg:#f8f8fa; --card:#fff; --ink:#0f172a; --muted:#6b7280; --line:#e5e7eb;
-      --ink-weak:#1f2937; --brand:#111827; --brand-ink:#fff;
-      --pad:16px; --topbar-h:64px; --maxw:1280px;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial}
-
-    /* top bar */
-    .topbar{position:sticky;top:0;z-index:10;height:var(--topbar-h);background:#fff;border-bottom:1px solid var(--line)}
-    .topbar .inner{max-width:var(--maxw);height:100%;margin:0 auto;padding:10px var(--pad);display:flex;gap:12px;align-items:center}
-    .avatar{width:36px;height:36px;border-radius:50%;background:#111}
-    .spacer{flex:1}
-
-    /* page */
-    .container{max-width:var(--maxw);margin:0 auto;padding:var(--pad);min-height:calc(100vh - var(--topbar-h))}
-    .row{height:calc(100vh - var(--topbar-h) - 2*var(--pad));display:grid;grid-template-columns:1fr;gap:var(--pad);align-items:stretch}
-    @media (min-width:980px){ .row{grid-template-columns:2fr 1fr} }
-
-    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.03);height:100%;display:flex;flex-direction:column;min-height:0}
-    .card .head{display:flex;gap:8px;align-items:center;padding:calc(var(--pad)*0.6);border-bottom:1px solid var(--line)}
-    .body{padding:var(--pad);flex:1;display:flex;flex-direction:column;min-height:0}
-
-    .pill{border-radius:12px;padding:8px 14px;border:1px solid var(--line);background:#f4f4f6;color:var(--ink-weak);font-weight:600;font-size:14px;display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:4px;}
-    .pill svg{
-    flex-shrink:0;
-  }
-    .pill.active{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
-    .grow{flex:1}
-    .select{appearance:none;border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:#fff}
-
-    textarea{width:100%;flex:1;min-height:0;resize:vertical;border:1px solid var(--line);border-radius:12px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-    .preview{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fff;flex:1;min-height:0;overflow:auto}
-
-    /* preview prose */
-    .prose h1{font-size:1.8rem;margin:0.8em 0 .4em}
-    .prose h2{font-size:1.5rem;margin:0.8em 0 .4em}
-    .prose h3{font-size:1.25rem;margin:0.8em 0 .4em}
-    .prose p,.prose ul,.prose ol{margin:.6em 0}
-    .prose code{background:#f3f4f6;padding:.15em .35em;border-radius:6px}
-    .prose pre{background:#0b1020;color:#eaeaff;padding:12px;border-radius:12px;overflow:auto}
-
-    /* single photo picker */
-    .photo-wrap{display:flex;flex-direction:column;gap:12px}
-    .thumb{position:relative;width:180px;height:180px;border:1px dashed var(--line);border-radius:16px;background:#fafafa;display:flex;align-items:center;justify-content:center;color:var(--muted)}
-    .thumb img{width:100%;height:100%;object-fit:cover;border-radius:16px}
-    .thumb .x{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.7);color:#fff;border:0;border-radius:20px;padding:2px 6px;cursor:pointer}
-    .add{display:flex;align-items:center;justify-content:center;width:180px;height:180px;border:2px dashed var(--line);border-radius:var(--gw-radius-md);background:var(--gw-surface-2);color:var(--gw-text-dim);cursor:pointer}
-
-    .btn{width:100%;padding:14px 18px;border-radius:12px;border:0;background:var(--brand);color:#fff;font-weight:700;cursor:pointer}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-    .note{margin-top:10px;color:var(--muted);font-size:.95rem}
-  </style>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'entries/create_entry.css' %}?v=1">
   <script src="{% static 'js/marked.min.js' %}"></script>
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
-  <script src="{% static 'js/common.js' %}?v=5"></script>
+  <script src="{% static 'js/purify.min.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
+  <script src="{% static 'js/common.js' %}?v=6"></script>
 </head>
-<body>
+<body class="compose-page">
   {% include "partials/header.html" %}
   
   <div class="container">
+    <header class="page-heading">
+      <h1>{% if entry_id %}Edit entry{% else %}Create an entry{% endif %}</h1>
+      <p>Write your story, preview it, and choose who can see it.</p>
+    </header>
     <div class="row">
       <!-- Editor -->
       <section class="card">
@@ -83,15 +31,17 @@
           <button id="tabEdit" class="pill active">Edit</button>
           <button id="tabPreview" class="pill">Preview</button>
           <div class="grow"></div>
-          <select id="contentType" class="select">
+          <select id="contentType" class="select" aria-label="Content format">
             <option value="text/markdown">CommonMark</option>
             <option value="text/plain">Plain text</option>
           </select>
         </div>
         <div class="body">
-          <input id="titleInput" type="text" placeholder="Title" style="margin-bottom:8px;padding:10px;border-radius:10px;border:1px solid var(--line);width:100%;">
+          <label class="sr-only" for="titleInput">Entry title</label>
+          <input id="titleInput" type="text" placeholder="Title">
+          <label class="sr-only" for="contentArea">Entry content</label>
           <textarea id="contentArea" placeholder="Write here…"></textarea>
-          <div id="preview" class="preview prose" style="display:none;"></div>
+          <div id="preview" class="preview prose"></div>
         </div>
       </section>
 
@@ -99,7 +49,7 @@
       <aside class="card">
         <div class="body">
           <h3 class="h3">Privacy</h3>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+          <div class="privacy-options">
             <!-- Public -->
             <button class="pill active" data-visibility="public">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -131,7 +81,7 @@
             <input id="fileInput" type="file" accept="image/*" hidden />
           </div>
 
-          <div style="margin-top:18px">
+          <div class="publish-actions">
             <button id="postBtn" class="btn">Post</button>
             <div id="note" class="note"></div>
           </div>
@@ -208,8 +158,7 @@ contentTypeSel.addEventListener('change', e => {
 function renderPreview(){
   const text = contentArea.value || '';
   if (state.contentType === 'text/markdown') {
-    marked.setOptions({ breaks:true, gfm:true });
-    preview.innerHTML = marked.parse(text);
+    preview.innerHTML = renderSafeMarkdown(text);
   } else {
     preview.textContent = text;
   }

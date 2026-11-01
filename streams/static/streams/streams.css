@@ -36,8 +36,8 @@
 
 .stream-btn {
   display: inline-block;
-  background: #1a1a1a;
-  color: #fff;
+  background: var(--gw-accent);
+  color: var(--gw-on-accent);
   border: none;
   padding: 10px 18px;
   border-radius: 10px;
@@ -48,7 +48,7 @@
   transition: background-color 0.2s ease, transform 0.15s ease;
 }
 .stream-btn:hover {
-  background: #333;
+  background: var(--gw-accent-hover);
   transform: translateY(-1px);
 }
 .stream-btn:active {
@@ -56,7 +56,8 @@
 }
 
 .stream-btn-danger {
-  background: #dc3545;
+  background: var(--gw-danger-fill);
+  color: #fff;
 }
 .stream-btn-danger:hover {
   background: #b02a37;
@@ -77,7 +78,7 @@
 }
 
 .stream-badge-live {
-  background: #dc3545;
+  background: var(--gw-danger-fill);
   color: #fff;
 }
 .stream-badge-live::before {
@@ -85,7 +86,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--gw-surface);
   animation: stream-pulse 1.4s ease infinite;
 }
 @keyframes stream-pulse {
@@ -94,8 +95,8 @@
 }
 
 .stream-badge-ended {
-  background: #e5e7eb;
-  color: #4b5563;
+  background: var(--gw-border);
+  color: var(--gw-text-dim);
 }
 
 /* ── Stream list ── */
@@ -108,8 +109,8 @@
 
 .stream-card {
   display: block;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--gw-surface);
+  border: 1px solid var(--gw-border);
   border-radius: 16px;
   padding: 16px;
   text-decoration: none;
@@ -138,7 +139,7 @@
 }
 
 .stream-card-meta {
-  color: #6b7280;
+  color: var(--gw-text-dim);
   font-size: 13px;
 }
 
@@ -154,8 +155,8 @@
 /* ── Stream detail ── */
 
 .stream-detail-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--gw-surface);
+  border: 1px solid var(--gw-border);
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
@@ -177,7 +178,7 @@
 }
 
 .stream-detail-meta {
-  color: #6b7280;
+  color: var(--gw-text-dim);
   font-size: 13px;
 }
 
@@ -185,7 +186,7 @@
   margin: 12px 0 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: #1f2937;
+  color: var(--gw-text-dim);
 }
 
 /* ── Player area (WebRTC screen share) ── */
@@ -225,7 +226,7 @@
   font-size: 40px;
 }
 .stream-player-placeholder[data-player-state="connecting"] {
-  color: #e5e7eb;
+  color: var(--gw-border);
 }
 .stream-player-placeholder[data-player-state="connecting"] .player-icon {
   animation: stream-pulse 1.4s ease infinite;
@@ -310,7 +311,7 @@
   flex-wrap: wrap;
   margin: 4px 0 10px;
   font-size: 14px;
-  color: #374151;
+  color: var(--gw-text-dim);
 }
 
 .stream-volume-group {
@@ -357,11 +358,11 @@
 }
 .stream-mode-select {
   padding: 5px 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--gw-border-str);
   border-radius: 8px;
-  background: #fff;
+  background: var(--gw-surface);
   font-size: 13px;
-  color: #0f172a;
+  color: var(--gw-text-dim);
 }
 
 .stream-curtain-toggle {
@@ -388,12 +389,12 @@
   flex: 1;
   min-width: 200px;
   padding: 9px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--gw-border-str);
   border-radius: 10px;
   font-size: 14px;
 }
 .stream-bullet-form input[type="text"]:disabled {
-  background: #f3f4f6;
+  background: var(--gw-surface-2);
   color: #9ca3af;
 }
 
@@ -427,7 +428,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  background: #dc3545;
+  background: var(--gw-danger-fill);
   color: #fff;
 }
 .stream-onair-badge::before {
@@ -435,15 +436,15 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--gw-surface);
   animation: stream-pulse 1.4s ease infinite;
 }
 
 /* ── Create form ── */
 
 .stream-form-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--gw-surface);
+  border: 1px solid var(--gw-border);
   border-radius: 16px;
   padding: 20px;
   max-width: 560px;
@@ -466,11 +467,11 @@
 .stream-form-field textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--gw-border);
   border-radius: 12px;
   padding: 10px 14px;
   font: inherit;
-  background: #fff;
+  background: var(--gw-surface);
 }
 
 .stream-form-field textarea {
@@ -479,7 +480,7 @@
 }
 
 .stream-form-error {
-  color: #dc3545;
+  color: var(--gw-danger);
   font-size: 13px;
   margin-top: 6px;
 }
@@ -491,7 +492,7 @@
 }
 
 .stream-form-cancel {
-  color: #6b7280;
+  color: var(--gw-text-dim);
   font-size: 14px;
   text-decoration: none;
 }
@@ -502,3 +503,8 @@
 .remote-stream-section h2 { font-size: 18px; }
 .remote-stream-status { font-size: 13px; color: var(--gw-text-dim); margin-bottom: 16px; }
 .remote-stream-retry { margin-top: 12px; }
+
+
+.stream-form-card { color: var(--gw-text); padding: 32px; }
+.stream-form-card input, .stream-form-card textarea { max-width: 100%; }
+@media (max-width: 600px) { .stream-form-card { padding: 24px; } }

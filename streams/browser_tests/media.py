@@ -29,6 +29,7 @@ def main():
 
     baseline = "--baseline" in sys.argv
     ui_check = "--ui-check" in sys.argv
+    frontend_check = "--frontend-check" in sys.argv
     with tempfile.TemporaryDirectory(prefix="ghostwhite-media-") as directory:
         directory = Path(directory)
         settings.DATABASES = {"default": {
@@ -146,6 +147,24 @@ def main():
             stream.title = "Studio session: ideas in progress"
             stream.description = "An open studio for sharing work in progress and talking through the details. Join the conversation while we explore a few ideas together."
             stream.save()
+        frontend = {}
+        if frontend_check:
+            from entries.models import Entry, Comment
+            users[0].is_staff = True
+            users[0].display_name = "Studio author"
+            users[0].save()
+            users[1].display_name = "Studio reader"
+            users[1].save()
+            entry = Entry.objects.create(author=users[0], node=local, title="Notes from the studio",
+                content="A small update about today's work.\n\nReadable pages should feel calm in either theme.",
+                visibility="public", content_type="text/plain")
+            Comment.objects.create(entry=entry, author=users[1], content="Thanks for sharing — this is a synthetic preview.")
+            Comment.objects.create(entry=entry, author=users[0], content="An editable preview comment.")
+            remote = Node.objects.create(host_url="https://peer.example.test/", is_active=True)
+            Node.objects.create(host_url="https://disabled-peer.example.test/", is_active=True, is_disabled=True)
+            Author.objects.create_user(id=remote.host_url + "api/authors/preview-peer", username="preview-peer",
+                node=remote, display_name="Preview neighbour", approved=True, is_active=True)
+            frontend = {"entry": entry.id.rsplit("/", 1)[-1], "remoteNode": str(remote.pk)}
         audio_file = directory / "tone.wav"
         with wave.open(str(audio_file), "wb") as output:
             output.setparams((1, 2, 48000, 0, "NONE", "not compressed"))
@@ -158,12 +177,13 @@ def main():
         thread.start()
         try:
             result = subprocess.run(
-                ["node", str(Path(__file__).with_name("ui.cjs") if ui_check else Path(__file__).with_suffix(".cjs"))], cwd=ROOT,
+                ["node", str(Path(__file__).with_name("frontend.cjs") if frontend_check else Path(__file__).with_name("ui.cjs") if ui_check else Path(__file__).with_suffix(".cjs"))], cwd=ROOT,
                 input=json.dumps({"base": base, "path": stream.get_absolute_url(),
                                   "password": password, "audio": str(audio_file), "baseline": baseline,
                                   "captureOnly": "--capture-only" in sys.argv,
                                   "serverCheck": "--server-check" in sys.argv,
-                                  "output": os.environ.get("STREAM_UI_OUTPUT", "/tmp/ghostwhite-ui-preview")}),
+                                  "output": os.environ.get("STREAM_UI_OUTPUT", "/tmp/ghostwhite-ui-preview"),
+                                  "frontend": frontend, "audit": "--audit" in sys.argv}),
                 text=True, timeout=360,
             )
             return result.returncode

@@ -24,10 +24,11 @@ Architecture) at the University of Alberta, and extended since — see
   accepted follows constitute friendship, which gates friends-only content.
 - **Live streams** — WebRTC browser-to-browser screen sharing where the server acts purely
   as a REST signaling relay (no media server, no WebSockets), plus a bullet-curtain
-  (danmaku) comment overlay.
+  (danmaku) comment overlay, persistent chat, opt-in microphone commentary and
+  [cross-node viewing](docs/FEDERATED_STREAMING.md).
 - **GitHub activity import** — a linked GitHub account's public events become entries.
 
-For a full walkthrough of every subsystem, read [WORKFLOW.md](WORKFLOW.md).
+Start with the [documentation index](docs/README.md) for setup, frontend conventions, federation, testing, and shipping. For architecture, read [WORKFLOW.md](WORKFLOW.md).
 
 ## Architecture
 
@@ -48,7 +49,7 @@ Django apps:
 ```
 
 **Stack:** Python 3.12, Django 5.1.1, Django REST Framework, SimpleJWT, SQLite (dev) /
-PostgreSQL (production), WhiteNoise, Gunicorn.
+PostgreSQL (supported through `DATABASE_URL`), WhiteNoise, Gunicorn.
 
 ## Running locally
 
@@ -57,7 +58,10 @@ python3.12 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-cp .env.example .env        # then edit .env — at minimum set DJANGO_SECRET_KEY
+cp .env.example .env        # edit before loading; settings read environment variables
+set -a
+. ./.env
+set +a
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
@@ -71,23 +75,23 @@ accounts also require email verification.
 
 ### Configuration
 
-All environment variables are documented in [`.env.example`](.env.example). The important
-ones:
+Start with [`.env.example`](.env.example) for local configuration. The important variables:
 
 | Variable | Purpose |
 |---|---|
 | `DJANGO_SECRET_KEY` | Django secret key. **Required.** No default in production. |
-| `DJANGO_DEBUG` | `1` for local development, unset/`0` in production. |
+| `DJANGO_DEBUG` | `1` for local development; explicitly set `0` in production. |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated hostnames. Required when `DEBUG` is off. |
 | `DATABASE_URL` | Postgres connection string. Falls back to SQLite when unset. |
-| `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | Gmail SMTP for verification emails. Emails print to the console when unset. |
+| `EMAIL_BACKEND` | Console email locally; select Django's SMTP backend when configuring outgoing email. |
+| `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | Credentials for the configured SMTP service. |
 
 ### Setting up federation
 
-To connect two nodes, each node creates a `Node` record in `/admin/` for the other, with
-the remote node's `host_url` plus the username and password that this node will use to
-authenticate outbound requests to it. Credentials are per-pair and agreed between the two
-node operators — never commit them.
+Follow [node setup](docs/NODE_SETUP.md) for reciprocal node records and credentials.
+Outbound federation uses the sending node’s local credentials; the receiving node
+registers those credentials on its remote-node record. For live streams, also follow
+[the streaming extension](docs/FEDERATED_STREAMING.md).
 
 ## Tests
 
@@ -96,17 +100,18 @@ python manage.py test            # full suite
 python manage.py test streams    # a single app
 ```
 
-**Known state:** the `streams` app's 74 tests pass. Roughly 84 tests across `authors`,
-`entries`, `inbox`, and `nodes` currently fail, the majority with `NoReverseMatch`. These
-are stale tests written against an earlier integer/UUID primary-key scheme that were never
-migrated when the project moved to FQID primary keys — the application code handles FQIDs
-correctly via `utils.fqid.extract_serial_from_fqid`. Migrating them is open work.
+**Recorded baseline at `228bee1`:** 99 stream tests pass. The full suite has 137 passes,
+12 failures and 72 errors across the older apps. Many involve URL reversing and the
+transition to FQID primary keys. These are unresolved baseline failures; a passing
+stream suite does not mean the full application suite passes. See
+[validation evidence](specs/006-federated-streams/validation.md) and the
+[frontend checks](docs/FRONTEND.md#verification).
 
 ## API documentation
 
 Interactive OpenAPI docs (drf-spectacular / Swagger UI) are served at `/api/docs/` when the
-server is running. See also [api_doc.md](api_doc.md) and
-[INBOX_API_FLOW.md](INBOX_API_FLOW.md) for the federation protocol in detail.
+server is running. See also [API reference](docs/API.md) and
+[Inbox protocol](docs/INBOX_API_FLOW.md) for the federation protocol in detail.
 
 ## Attribution
 

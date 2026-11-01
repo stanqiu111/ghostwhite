@@ -1,0 +1,100 @@
+/* Page composition; shared colors come from css/main.css and css/theme.css. */
+:where(body.verify-page *) {
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body.verify-page {
+  background:var(--gw-surface-2);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  gap:20px;
+}
+
+body.verify-page .verify-logo {
+  font-size:26px;
+  font-weight:800;
+  letter-spacing:-0.5px;
+  color:var(--gw-text);
+}
+
+body.verify-page .card {
+  background:var(--gw-surface);
+  border-radius:16px;
+  padding:48px 40px;
+  max-width:440px;
+  width:100%;
+  text-align:center;
+  box-shadow:0 4px 24px rgba(0,0,0,0.08);
+}
+
+body.verify-page .icon {
+  width:64px;
+  height:64px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0 auto 24px;
+  font-size:28px;
+}
+
+body.verify-page .icon.success {
+  background:var(--gw-success-bg);
+}
+
+body.verify-page .icon.error {
+  background:var(--gw-danger-bg);
+}
+
+body.verify-page h1 {
+  font-size:22px;
+  font-weight:700;
+  color:var(--gw-text);
+  margin-bottom:12px;
+}
+
+body.verify-page p {
+  font-size:15px;
+  color:var(--gw-text-dim);
+  line-height:1.6;
+  margin-bottom:28px;
+}
+
+body.verify-page .btn {
+  display:inline-block;
+  background:var(--gw-accent);
+  color:var(--gw-on-accent);
+  text-decoration:none;
+  padding:13px 36px;
+  border-radius:10px;
+  font-weight:700;
+  font-size:15px;
+  transition:background 0.15s;
+}
+
+body.verify-page .btn:hover {
+  background:var(--gw-accent-hover);
+}
+
+body.verify-page .btn-outline {
+  background:var(--gw-surface);
+  color:var(--gw-text);
+  border:1.5px solid var(--gw-border-str);
+}
+
+body.verify-page .btn-outline:hover {
+  background:var(--gw-surface-2);
+}
+
+body.verify-page .countdown {
+  display:inline-block;
+  margin-top:16px;
+  font-size:13px;
+  color:var(--gw-text-dim);
+}

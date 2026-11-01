@@ -5,178 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Remote Nodes & Users - ÉTHÉRÉ</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .page-head {
-            margin: 0 0 20px;
-        }
-
-        .page-head h1 {
-            font-size: var(--gw-text-2xl);
-            margin: 0;
-        }
-        
-        .nav-link {
-            color: var(--gw-accent);
-            text-decoration: none;
-            margin-right: 15px;
-        }
-        
-        .nav-link:hover {
-            text-decoration: underline;
-        }
-        
-        .section {
-            background: var(--gw-surface);
-            color: var(--gw-text);
-            padding: 20px;
-            border-radius: var(--gw-radius-md);
-            margin-bottom: 20px;
-            box-shadow: var(--gw-shadow-sm);
-        }
-        
-        .section h2 {
-            font-size: var(--gw-text-xl);
-            color: var(--gw-text);
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--gw-border);
-        }
-        
-        .node-list, .user-list {
-            display: grid;
-            gap: 15px;
-        }
-        
-        .node-item {
-            padding: 15px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background: #fafafa;
-        }
-        
-        .node-url {
-            font-weight: 600;
-            color: #1a1a1a;
-            margin-bottom: 5px;
-        }
-        
-        .node-status {
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .user-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background: #fafafa;
-        }
-        
-        .user-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: #e0e0e0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            color: #666;
-            flex-shrink: 0;
-        }
-        
-        .user-info {
-            flex: 1;
-        }
-        
-        .user-name {
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-        
-        .user-username {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        
-        .user-node {
-            font-size: 12px;
-            color: #999;
-        }
-        
-        .follow-btn {
-            padding: 8px 20px;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-        
-        .follow-btn.follow {
-            background: #0066cc;
-            color: white;
-        }
-        
-        .follow-btn.follow:hover {
-            background: #0052a3;
-        }
-        
-        .follow-btn.unfollow {
-            background: #e0e0e0;
-            color: #333;
-        }
-        
-        .follow-btn.unfollow:hover {
-            background: #d0d0d0;
-        }
-        
-        .follow-btn.pending {
-            background: #ffa500;
-            color: white;
-            cursor: not-allowed;
-        }
-        
-        .follow-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        
-        .empty-message {
-            text-align: center;
-            padding: 40px;
-            color: var(--gw-text-dim);
-        }
-    </style>
   <link rel="icon" href="{% static 'images/favicon.svg' %}" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=5">
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
-  <script src="{% static 'js/common.js' %}?v=5"></script>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'authors/remote_nodes.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
+  <script src="{% static 'js/common.js' %}?v=6"></script>
 </head>
-<body>
+<body class="nodes-page">
     {% include "partials/header.html" %}
     <div class="container">
         <div class="page-head">
@@ -191,8 +29,8 @@
                         <div class="node-item">
                             <div class="node-url">{{ node.host_url }}</div>
                             <div class="node-status">
-                                Status: {% if node.is_active %}Active{% else %}Inactive{% endif %}
-                                {% if node.username %} | Authenticated{% endif %}
+                                Connection enabled: {% if node.is_active and not node.is_disabled %}Yes{% else %}No{% endif %}
+                                {% if node.username and node.password %} | Credentials configured{% endif %}
                             </div>
                         </div>
                     {% endfor %}

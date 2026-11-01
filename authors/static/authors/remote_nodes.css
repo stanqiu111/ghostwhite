@@ -1,0 +1,215 @@
+/* Page composition; shared colors come from css/main.css and css/theme.css. */
+:where(body.nodes-page *) {
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body.nodes-page {
+  margin:0;
+}
+
+body.nodes-page .container {
+  max-width:1200px;
+  margin:0 auto;
+}
+
+body.nodes-page .page-head {
+  margin:0 0 20px;
+}
+
+body.nodes-page .page-head h1 {
+  font-size:var(--gw-text-2xl);
+  margin:0;
+}
+
+body.nodes-page .nav-link {
+  color:var(--gw-accent);
+  text-decoration:none;
+  margin-right:15px;
+}
+
+body.nodes-page .nav-link:hover {
+  text-decoration:underline;
+}
+
+body.nodes-page .section {
+  background:var(--gw-surface);
+  color:var(--gw-text);
+  padding:20px;
+  border-radius:var(--gw-radius-md);
+  margin-bottom:20px;
+  box-shadow:var(--gw-shadow-sm);
+}
+
+body.nodes-page .section h2 {
+  font-size:var(--gw-text-xl);
+  color:var(--gw-text);
+  margin-bottom:15px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--gw-border);
+}
+
+body.nodes-page .node-list, body.nodes-page .user-list {
+  display:grid;
+  gap:15px;
+}
+
+body.nodes-page .node-item {
+  padding:15px;
+  border:1px solid var(--gw-border);
+  border-radius:8px;
+  background:var(--gw-surface-2);
+}
+
+body.nodes-page .node-url {
+  font-weight:600;
+  color:var(--gw-text);
+  margin-bottom:5px;
+}
+
+body.nodes-page .node-status {
+  font-size:14px;
+  color:var(--gw-text-dim);
+}
+
+body.nodes-page .user-item {
+  display:flex;
+  align-items:center;
+  gap:15px;
+  padding:15px;
+  border:1px solid var(--gw-border);
+  border-radius:8px;
+  background:var(--gw-surface-2);
+}
+
+body.nodes-page .user-avatar {
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  background:var(--gw-surface-2);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  color:var(--gw-text-dim);
+  flex-shrink:0;
+}
+
+body.nodes-page .user-info {
+  flex:1;
+}
+
+body.nodes-page .user-name {
+  font-weight:600;
+  margin-bottom:5px;
+}
+
+body.nodes-page .user-username {
+  font-size:14px;
+  color:var(--gw-text-dim);
+  margin-bottom:5px;
+}
+
+body.nodes-page .user-node {
+  font-size:12px;
+  color:var(--gw-text-dim);
+}
+
+body.nodes-page .follow-btn {
+  padding:8px 20px;
+  border:none;
+  border-radius:20px;
+  cursor:pointer;
+  font-weight:500;
+  font-size:14px;
+  transition:all 0.2s;
+}
+
+body.nodes-page .follow-btn.follow {
+  background:var(--gw-accent);
+  color:var(--gw-on-accent);
+}
+
+body.nodes-page .follow-btn.follow:hover {
+  background:var(--gw-accent-hover);
+}
+
+body.nodes-page .follow-btn.unfollow {
+  background:var(--gw-surface-2);
+  color:var(--gw-text);
+}
+
+body.nodes-page .follow-btn.unfollow:hover {
+  background:var(--gw-surface-2);
+}
+
+body.nodes-page .follow-btn.pending {
+  background:var(--gw-warn-bg);
+  color:var(--gw-on-accent);
+  cursor:not-allowed;
+}
+
+body.nodes-page .follow-btn:disabled {
+  opacity:0.6;
+  cursor:not-allowed;
+}
+
+body.nodes-page .empty-message {
+  text-align:center;
+  padding:40px;
+  color:var(--gw-text-dim);
+}
+
+body.nodes-page {
+  padding: 0;
+}
+
+body.nodes-page .container {
+  padding: 32px 24px 48px;
+}
+
+body.nodes-page .section {
+  border: 1px solid var(--gw-border);
+  box-shadow: none;
+  padding: 24px;
+}
+
+body.nodes-page .node-url, body.nodes-page .user-info {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+body.nodes-page .follow-btn.pending {
+  background: var(--gw-warn-bg);
+  color: var(--gw-warn-fg);
+  border-color: transparent;
+}
+
+body.nodes-page .follow-btn.unfollow {
+  background: var(--gw-surface);
+  color: var(--gw-text);
+  border: 1px solid var(--gw-border-str);
+}
+
+@media (max-width: 700px) {
+  body.nodes-page .container {
+    padding: 24px 16px 40px;
+  }
+
+  body.nodes-page .section {
+    padding: 16px;
+  }
+
+  body.nodes-page .user-item {
+    flex-wrap: wrap;
+  }
+
+}
+
+body.nodes-page .follow-btn.pending:hover { background: var(--gw-warn-bg); color: var(--gw-warn-fg); }
+@media (max-width: 700px) {
+  body.nodes-page .user-item { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; }
+  body.nodes-page .user-avatar { width: 40px; height: 40px; }
+  body.nodes-page .user-item .follow-btn { grid-column: 2; justify-self: start; }
+}

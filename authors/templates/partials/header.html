@@ -17,7 +17,7 @@ renders a search bar by setting header_search before the include.
 
     {% if header_search %}
     <div class="search-bar">
-      <input type="text" id="homeSearch" class="search-input" placeholder="Search posts or people..." autocomplete="off">
+      <input type="text" id="homeSearch" class="search-input" aria-label="Search authors" placeholder="Search posts or people..." autocomplete="off">
       <button type="button" id="searchClear" class="search-clear" hidden aria-label="Clear search">&times;</button>
     </div>
     {% endif %}
@@ -31,7 +31,7 @@ renders a search bar by setting header_search before the include.
     get one way back in instead.
     {% endcomment %}
     <div class="header-actions">
-      <button class="theme-toggle" id="themeToggle" title="Toggle dark mode" type="button">
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode" type="button">
         <svg id="themeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
@@ -44,7 +44,7 @@ renders a search bar by setting header_search before the include.
     </div>
     {% else %}
     <div class="header-actions">
-      <button class="header-btn" type="button" title="New entry" onclick="navigateToCreateEntry()">
+      <button class="header-btn" type="button" aria-label="New entry" title="New entry" onclick="navigateToCreateEntry()">
         <svg width="24" height="24" viewBox="0 0 27 27" fill="none" aria-hidden="true">
           <path d="M18 14.3438H9C8.53875 14.3438 8.15625 13.9613 8.15625 13.5C8.15625 13.0387 8.53875 12.6562 9 12.6562H18C18.4613 12.6562 18.8438 13.0387 18.8438 13.5C18.8438 13.9613 18.4613 14.3438 18 14.3438Z" fill="currentColor"/>
           <path d="M13.5 18.8438C13.0388 18.8438 12.6562 18.4612 12.6562 18V9C12.6562 8.53875 13.0388 8.15625 13.5 8.15625C13.9612 8.15625 14.3438 8.53875 14.3438 9V18C14.3438 18.4612 13.9612 18.8438 13.5 18.8438Z" fill="currentColor"/>
@@ -52,7 +52,7 @@ renders a search bar by setting header_search before the include.
         </svg>
       </button>
 
-      <button class="header-btn" type="button" title="Inbox" onclick="navigateWithFade('/inbox/')">
+      <button class="header-btn" type="button" aria-label="Inbox" title="Inbox" onclick="navigateWithFade('/inbox/')">
         <svg width="26" height="24" viewBox="0 0 30 27" fill="none" aria-hidden="true">
           <path d="M13.5 7.245V10.9912" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round"/>
           <path d="M23.1636 17.0663C23.9849 18.4388 23.3324 20.2163 21.8136 20.7225C16.4361 22.5113 10.6199 22.5113 5.24236 20.7225C3.62236 20.1825 3.00361 18.54 3.89236 17.0663L5.32111 14.6813C5.71486 14.0288 6.02986 12.87 6.02986 12.1163V9.75375C6.02986 5.6025 9.38236 2.25 13.5224 2.25C17.6399 2.25 21.0149 5.625 21.0149 9.7425V12.105C21.0149 12.3075 21.0374 12.5325 21.0711 12.7688" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round"/>
@@ -63,14 +63,14 @@ renders a search bar by setting header_search before the include.
         </svg>
       </button>
 
-      <button class="header-btn" type="button" title="Remote nodes"
+      <button class="header-btn" type="button" aria-label="Remote nodes" title="Remote nodes"
               onclick="navigateWithFade('{% url 'authors_pages:remote_nodes_page' %}')">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 2L2 7L12 12L22 7L12 2Z"/><path d="M2 17L12 22L22 17"/><path d="M2 12L12 17L22 12"/>
         </svg>
       </button>
 
-      <button class="header-btn" type="button" title="Settings"
+      <button class="header-btn" type="button" aria-label="Settings" title="Settings"
               onclick="navigateWithFade('{% url 'authors_pages:settings_page' %}')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3"/>
@@ -79,7 +79,7 @@ renders a search bar by setting header_search before the include.
       </button>
 
       {% if request.user.is_staff %}
-      <button class="header-btn" type="button" title="Staff portal"
+      <button class="header-btn" type="button" aria-label="Staff portal" title="Staff portal"
               onclick="navigateWithFade('{% url 'authors_pages:admin_portal' %}')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 2l8 4v6c0 4.4-3.4 8.5-8 10-4.6-1.5-8-5.6-8-10V6l8-4z"/>
@@ -89,13 +89,13 @@ renders a search bar by setting header_search before the include.
       {% endif %}
 
       <button class="header-btn live-nav-btn{% if not live_stream_count %} is-idle{% endif %}" type="button"
-              title="{% if live_stream_count %}{{ live_stream_count }} live now{% else %}No one is streaming{% endif %}"
+              aria-label="{% if live_stream_count %}{{ live_stream_count }} live now{% else %}No one is streaming{% endif %}" title="{% if live_stream_count %}{{ live_stream_count }} live now{% else %}No one is streaming{% endif %}"
               onclick="navigateWithFade('/streams/')">
         <span class="live-nav-dot"></span>
         {% if live_stream_count %}Live{% else %}Streams{% endif %}
       </button>
 
-      <button class="theme-toggle" id="themeToggle" title="Toggle dark mode" type="button">
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode" type="button">
         <svg id="themeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>

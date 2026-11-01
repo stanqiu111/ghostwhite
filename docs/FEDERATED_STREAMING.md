@@ -1,5 +1,8 @@
 # Watching streams across connected nodes
 
+[Documentation index](README.md)
+
+
 Ghostwhite now provides a streaming extension to its node protocol. Two updated
 Ghostwhite instances can discover each other's open rooms, watch from their
 own domain, and exchange chat. A different application must implement the

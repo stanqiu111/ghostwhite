@@ -1,5 +1,8 @@
 # Shipping changes
 
+[Documentation index](README.md)
+
+
 How a Ghostwhite change moves from an idea through verification, review, and
 an explicitly authorized release. This guide is for people and coding agents.
 Read [CLAUDE.md](../CLAUDE.md) for the active feature plan,

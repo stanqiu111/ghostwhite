@@ -5,81 +5,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Email Verification — ÉTHÉRÉ</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #f0f0f0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      gap: 20px;
-    }
-    .verify-logo {
-      font-size: 26px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      color: #111;
-    }
-    .card {
-      background: white;
-      border-radius: 16px;
-      padding: 48px 40px;
-      max-width: 440px;
-      width: 100%;
-      text-align: center;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-    }
-    .icon {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 24px;
-      font-size: 28px;
-    }
-    .icon.success { background: #f0fdf4; }
-    .icon.error   { background: #fef2f2; }
-    h1 { font-size: 22px; font-weight: 700; color: #111; margin-bottom: 12px; }
-    p  { font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 28px; }
-    .btn {
-      display: inline-block;
-      background: #0d9488;
-      color: white;
-      text-decoration: none;
-      padding: 13px 36px;
-      border-radius: 10px;
-      font-weight: 700;
-      font-size: 15px;
-      transition: background 0.15s;
-    }
-    .btn:hover { background: #0f766e; }
-    .btn-outline {
-      background: white;
-      color: #111;
-      border: 1.5px solid #ddd;
-    }
-    .btn-outline:hover { background: #f5f5f5; }
-    .countdown {
-      display: inline-block;
-      margin-top: 16px;
-      font-size: 13px;
-      color: #aaa;
-    }
-  </style>
   <link rel="icon" href="{% static 'images/favicon.svg' %}" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=5">
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
-  <script src="{% static 'js/common.js' %}?v=5"></script>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'authors/verify_email.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
+  <script src="{% static 'js/common.js' %}?v=6"></script>
 </head>
-<body>
+<body class="verify-page">
   <div class="verify-logo">ÉTHÉRÉ</div>
 
   <div class="card">

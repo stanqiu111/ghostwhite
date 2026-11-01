@@ -9,86 +9,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="{% static 'css/main.css' %}?v=5">
-<style>
-  :root{--bg:#f6f7f9;--card:#fff;--line:#e5e7eb;--ink:#0f172a;--muted:#6b7280;
-        --brand:#111827;--pad:16px;--maxw:1180px;}
-  *{box-sizing:border-box} html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial}
-  .wrap{max-width:var(--maxw);margin:0 auto;padding:var(--pad)}
-  .row{display:grid;grid-template-columns:1fr 360px;gap:var(--pad)}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
-  .section{padding:var(--pad)}
-  .head{display:flex;gap:12px;align-items:center}
-  .pfp{width:44px;height:44px;border-radius:999px;object-fit:cover;background:#ddd;border:1px solid var(--line)}
-  .name{font-weight:700}
-  .time{color:var(--muted);font-size:13px;display:flex;align-items:center;gap:6px;}
-  #entryVisibilityIcon{display:inline-flex;align-items:center;}
-  #entryVisibilityIcon svg{width:12px;height:12px;display:block;flex-shrink:0;}
-  .content{white-space:pre-wrap;margin-top:10px}
-  .hero{width:100%;max-height:520px;object-fit:cover;border-radius:12px;border:1px solid var(--line);display:none;margin-top:12px}
-  .actions{display:flex;gap:14px;align-items:center;margin-top:10px}
-  .chip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:8px 12px;transition:background 0.15s ease,transform 0.15s ease,box-shadow 0.15s ease;}
-  .chip:hover{background:#f3f4f6;transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,0.08);}
-  .chip:active{transform:scale(0.95);}
-  .muted{color:var(--muted)}
-  .right .tabs{display:flex;gap:8px;padding:var(--pad) var(--pad) 8px}
-  .pill{border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:#fff;cursor:pointer;transition:background 0.15s ease,color 0.15s ease,border-color 0.15s ease,transform 0.15s ease;}
-  .pill:hover:not(.active){background:#f3f4f6;transform:translateY(-1px);}
-  .pill:active{transform:scale(0.96);}
-  .pill.active{background:#111827;color:#fff;border-color:#111827}
-  .list{padding:0 var(--pad) var(--pad);max-height:70vh;overflow:auto}
-  .item{display:grid;grid-template-columns:44px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);transition:background 0.15s ease;border-radius:8px;}
-  .item:hover{background:#fafafa;}
-  .small{width:30px;height:30px;border-radius:999px;object-fit:cover;background:#ddd;border:1px solid var(--line)}
-  .cmeta{font-size:12px;color:var(--muted)}
-  .field{display:flex;gap:10px;border-top:1px solid var(--line);padding:var(--pad)}
-  .input{flex:1;border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:border-color 0.2s ease,box-shadow 0.2s ease;outline:none;}
-  .input:focus{border-color:#555;box-shadow:0 0 0 3px rgba(0,0,0,0.06);}
-  .btn{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer;transition:background 0.2s ease,transform 0.15s ease;}
-  .btn:hover{background:#2d2d2d;transform:translateY(-1px);}
-  .btn:active{transform:scale(0.96);}
-  .bar{display:flex;align-items:center;gap:8px;margin:0 0 var(--pad)}
-  .back{border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px 10px;cursor:pointer;transition:background 0.15s ease,transform 0.15s ease;}
-  .back:hover{background:#f3f4f6;transform:translateY(-1px);}
-  .button_panel{display:flex;gap:10px;margin-left:auto; }
-  .delete_button{border:0;border-radius:10px;background:#ef4444;color:#fff;padding:10px 14px;cursor:pointer;transition:background 0.2s ease,transform 0.15s ease;}
-  .delete_button:hover{background:#dc2626;transform:translateY(-1px);}
-  .delete_button:active{transform:scale(0.96);}
-  .edit_button{border:0;border-radius:10px;background:#111827;color:#fff;padding:10px 14px;cursor:pointer;transition:background 0.2s ease,transform 0.15s ease;}
-  .edit_button:hover{background:#2d2d2d;transform:translateY(-1px);}
-  .edit_button:active{transform:scale(0.96);}
-  .meta{margin-top:6px;font-size:13px;color:var(--muted)}
-  .badge{display:inline-block;background:#111827;color:#fff;padding:4px 8px;border-radius:8px;font-size:12px;margin-left:8px}
-  .meta a.source-link{margin-left:8px;color:var(--brand);text-decoration:none;font-weight:600}
-  .entry-title{
-  margin-top:12px;
-  margin-bottom:6px;
-  font-size:22px;
-  font-weight:700;
-  }
-  @media (max-width:980px){ .row{grid-template-columns:1fr} .right{order:2} }
-  .section .content img {
-  width: 320px !important;   
-  height: 180px !important;   
-  object-fit: cover;          
-  display: block;
-  border-radius: 10px;
-  margin: 12px 0;
-  border: 1px solid var(--line);
-}
-</style>
+<link rel="stylesheet" href="{% static 'css/main.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'entries/entry_detail.css' %}?v=1">
 <script src="{% static 'js/marked.min.js' %}"></script>
 <script src="{% static 'js/purify.min.js' %}"></script>
 <script src="{% static 'js/api.js' %}?v=5"></script>
-<script src="{% static 'js/common.js' %}?v=5"></script>
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
+<script src="{% static 'js/common.js' %}?v=6"></script>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
 </head>
 
-<body>
+<body class="entry-page">
   {% include "partials/header.html" %}
   <div class="wrap">
-  
+
 
   <div class="row">
     <!-- Center column -->
@@ -116,18 +49,18 @@
               {% endif %}
             </p>
           </div>
-          <div id="button_panel" class="button_panel" style="display:none">
+          <div id="button_panel" class="button_panel">
             <button class="delete_button" onclick="deleteEntry()">Delete</button>
             <button class="edit_button" onclick="editEntry()">Edit</button>
           </div>
         </div>
-        <h1 id="entryTitle" style="margin:16px 0 8px;font-size:1.6rem;"></h1> 
+        <h1 id="entryTitle"></h1>
         <div id="entryContent" class="content"></div>
         <img id="entryImage" class="hero" alt="Entry image">
 
         <div class="actions">
           {% if request.user.is_authenticated %}
-          <span class="chip" id="likeChip"> 
+          <span class="chip" id="likeChip">
             {% if user_has_liked %}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M16.44 3.1001C14.63 3.1001 13.01 3.9801 12 5.3301C10.99 3.9801 9.37 3.1001 7.56 3.1001C4.49 3.1001 2 5.6001 2 8.6901C2 9.8801 2.19 10.9801 2.52 12.0001C4.1 17.0001 8.97 19.9901 11.38 20.8101C11.72 20.9301 12.28 20.9301 12.62 20.8101C15.03 19.9901 19.9 17.0001 21.48 12.0001C21.81 10.9801 22 9.8801 22 8.6901C22 5.6001 19.51 3.1001 16.44 3.1001Z" fill="#292D32"/>
@@ -144,13 +77,13 @@
               </svg>
               <span id="commentCount">0</span></span>
           {% endif %}
-          <span class="chip" id="copyChip" style="display:none; cursor:pointer;">
+          <span class="chip" id="copyChip" hidden>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M8.99005 21.5C7.33005 21.5 5.66005 20.87 4.39005 19.6C1.86005 17.06 1.86005 12.94 4.39005 10.41C4.68005 10.12 5.16005 10.12 5.45005 10.41C5.74005 10.7 5.74005 11.18 5.45005 11.47C3.50005 13.42 3.50005 16.59 5.45005 18.54C7.40005 20.49 10.5701 20.49 12.5201 18.54C13.4601 17.6 13.9801 16.34 13.9801 15C13.9801 13.67 13.4601 12.41 12.5201 11.46C12.2301 11.17 12.2301 10.69 12.5201 10.4C12.8101 10.11 13.2901 10.11 13.5801 10.4C14.8101 11.63 15.4801 13.26 15.4801 15C15.4801 16.74 14.8001 18.37 13.5801 19.6C12.3201 20.87 10.6601 21.5 8.99005 21.5Z" fill="#292D32"/>
               <path d="M19.07 14.16C18.88 14.16 18.69 14.09 18.54 13.94C18.25 13.65 18.25 13.17 18.54 12.88C20.59 10.83 20.59 7.49999 18.54 5.45999C16.49 3.40999 13.16 3.40999 11.12 5.45999C10.13 6.44999 9.57996 7.76999 9.57996 9.16999C9.57996 10.57 10.13 11.89 11.12 12.88C11.41 13.17 11.41 13.65 11.12 13.94C10.83 14.23 10.35 14.23 10.06 13.94C8.78996 12.67 8.07996 10.97 8.07996 9.16999C8.07996 7.36999 8.77996 5.66999 10.06 4.39999C12.69 1.76999 16.97 1.76999 19.61 4.39999C22.24 7.02999 22.24 11.32 19.61 13.95C19.46 14.09 19.26 14.16 19.07 14.16Z" fill="#292D32"/>
               </svg>
           </span>
-          <span id="copyNote" class="muted" style="display:none; margin-left:8px;">Copied!</span>
+          <span id="copyNote" class="muted">Copied!</span>
         </div>
       </div>
     </main>
@@ -163,7 +96,7 @@
       </div>
 
       <div id="commentsList" class="list"></div>
-      <div id="likesList" class="list" style="display:none"></div>
+      <div id="likesList" hidden class="list"></div>
 
       {% if user.is_authenticated %}
       <div class="field" id="commentField">
@@ -172,7 +105,7 @@
         {% else %}
           <img class="small" src="{% static 'images/default_pfp.png' %}" alt="me">
         {% endif %}
-        <input id="commentInput" class="input" placeholder="Add a comment…">
+        <input id="commentInput" type="text" class="input" aria-label="Add a comment" placeholder="Add a comment…">
         <button id="postComment" class="btn">Post</button>
       </div>
       {% endif %}
@@ -207,7 +140,7 @@ const updateComment = (entryId, commentId, newContent) =>
 
   const deleteComment = (entryId, commentId) =>
     api(`entries/${entryId}/comments/${commentId}/`, { method: "DELETE" });
-    
+
   function shareUrlFor(id){
   return `${window.location.origin}/entries/${id}/`;
 }
@@ -231,12 +164,12 @@ const toggleCommentLike = (entrySerial, commentSerial) => api(`entries/${entrySe
 async function likeEntry(entrySerial, buttonElement) {
   try {
     const response = await toggleEntryLike(entrySerial);
-    
+
     if (response && response.detail) {
       // Get current like count
       const likeCountSpan = buttonElement.querySelector('#likeCount');
       const currentCount = parseInt(likeCountSpan.textContent) || 0;
-      
+
       if (response.detail === "Like added.") {
         buttonElement.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M16.44 3.1001C14.63 3.1001 13.01 3.9801 12 5.3301C10.99 3.9801 9.37 3.1001 7.56 3.1001C4.49 3.1001 2 5.6001 2 8.6901C2 9.8801 2.19 10.9801 2.52 12.0001C4.1 17.0001 8.97 19.9901 11.38 20.8101C11.72 20.9301 12.28 20.9301 12.62 20.8101C15.03 19.9901 19.9 17.0001 21.48 12.0001C21.81 10.9801 22 9.8801 22 8.6901C22 5.6001 19.51 3.1001 16.44 3.1001Z" fill="#292D32"/>
@@ -287,9 +220,10 @@ async function load(){
 
 /* ============ RENDER ============ */
 function renderEntry(e){
+  const visibility = String(e.visibility || '').toLowerCase();
   const userId = localStorage.getItem('user_id') || '';
   const authorSerial = e.author?.serial || '';
-  
+
   // Extract serial from FQID if user_id is stored as FQID
   function extractAuthorSerialFromFqid(fqid) {
     if (!fqid) return fqid;
@@ -299,7 +233,7 @@ function renderEntry(e){
     }
     return fqid;
   }
-  
+
   const userIdSerial = extractAuthorSerialFromFqid(userId);
   if (authorSerial === userIdSerial || e.author?.id === userId) {
     $('#button_panel').style.display = 'flex';
@@ -315,21 +249,21 @@ function renderEntry(e){
   if (titleNode) {
     titleNode.textContent = e.title || '';
   }
-  
+
   const visIcon = document.getElementById('entryVisibilityIcon');
   if (visIcon) {
     let svg = '';
-    if (e.visibility === 'public') {
+    if (visibility === 'public') {
       svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
   <path fill-rule="evenodd" clip-rule="evenodd" d="M4.32 2.3685C4.84666 2.1253 5.41991 1.99956 6 2C6.70285 1.99989 7.39332 2.18497 8.00188 2.5366C8.61044 2.88824 9.11561 3.39402 9.4665 4.003H9.0975C8.7725 4.003 8.509 4.128 8.509 4.453C8.509 4.618 8.509 5.473 7.496 5.457C6.51 5.457 6.51 4.591 6.51 4.453C6.51 3.7385 6.1165 3.628 5.634 3.4915C5.447 3.439 5.247 3.3825 5.051 3.286C4.549 3.0375 4.377 2.6945 4.32 2.3685ZM3 2C2.41909 2.43742 1.93949 2.99513 1.594 3.635C1.20308 4.36193 0.998959 5.17463 1 6C1 8.6445 3.053 10.8095 5.652 10.988L5.679 10.99C5.87128 11.0023 6.0641 11.0035 6.2565 10.9935H6.2575C6.50954 10.9808 6.76026 10.9491 7.0075 10.8985C7.39768 10.8183 7.77687 10.6917 8.137 10.5215C9.26694 9.98555 10.1561 9.04714 10.6305 7.89C10.8762 7.29027 11.0018 6.64812 11 6C11.0004 5.57836 10.9475 5.15836 10.8425 4.75C10.5653 3.67651 9.93922 2.72559 9.06263 2.04677C8.18605 1.36794 7.1087 0.999723 6 1C4.91792 0.998556 3.8648 1.34959 3 2ZM9.686 7.5565C9.56441 7.51961 9.43807 7.50074 9.311 7.5005H9.2025C8.75106 7.5005 8.3181 7.67981 7.99883 7.99898C7.67956 8.31815 7.50014 8.75106 7.5 9.20251V9.70951C8.48506 9.30942 9.27121 8.53546 9.686 7.5565ZM6.057 10H6C5.29537 10.0001 4.60321 9.81402 3.99359 9.46066C3.38396 9.10729 2.8785 8.59915 2.52835 7.98766C2.17821 7.37618 1.99581 6.68305 1.99961 5.97842C2.00341 5.27379 2.19328 4.58267 2.55 3.975C3.025 4.2455 3.2605 4.7435 3.4675 5.1825C3.572 5.403 3.669 5.609 3.786 5.7635C4.056 6.1195 4.3175 6.273 4.5815 6.4275C4.8415 6.58 5.105 6.734 5.3815 7.0855C6.1015 7.998 6.091 9.26851 6.0565 9.99951L6.057 10Z" fill="black"/>
 </svg>`;
-    } else if (e.visibility === 'friends_only') {
+    } else if (['friends', 'friends_only'].includes(visibility)) {
       svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="10" viewBox="0 0 11 10" fill="none">
   <path d="M1.22222 2.5C1.22222 2.21273 1.27755 1.92828 1.38504 1.66288C1.49252 1.39748 1.65007 1.15633 1.84869 0.953204C2.0473 0.750076 2.28309 0.588946 2.54259 0.479014C2.8021 0.369081 3.08023 0.3125 3.36111 0.3125C3.64199 0.3125 3.92013 0.369081 4.17963 0.479014C4.43913 0.588946 4.67492 0.750076 4.87353 0.953204C5.07215 1.15633 5.2297 1.39748 5.33719 1.66288C5.44468 1.92828 5.5 2.21273 5.5 2.5C5.5 2.78727 5.44468 3.07172 5.33719 3.33712C5.2297 3.60252 5.07215 3.84367 4.87353 4.0468C4.67492 4.24992 4.43913 4.41105 4.17963 4.52099C3.92013 4.63092 3.64199 4.6875 3.36111 4.6875C3.08023 4.6875 2.8021 4.63092 2.54259 4.52099C2.28309 4.41105 2.0473 4.24992 1.84869 4.0468C1.65007 3.84367 1.49252 3.60252 1.38504 3.33712C1.27755 3.07172 1.22222 2.78727 1.22222 2.5ZM0 9.0625C0 7.16406 1.50486 5.625 3.36111 5.625C5.21736 5.625 6.72222 7.16406 6.72222 9.0625V9.17969C6.72222 9.63281 6.36319 10 5.92014 10H0.802083C0.359028 10 0 9.63281 0 9.17969V9.0625ZM8.25 1.25C8.73623 1.25 9.20255 1.44754 9.54636 1.79917C9.89018 2.15081 10.0833 2.62772 10.0833 3.125C10.0833 3.62228 9.89018 4.09919 9.54636 4.45083C9.20255 4.80246 8.73623 5 8.25 5C7.76377 5 7.29745 4.80246 6.95364 4.45083C6.60982 4.09919 6.41667 3.62228 6.41667 3.125C6.41667 2.62772 6.60982 2.15081 6.95364 1.79917C7.29745 1.44754 7.76377 1.25 8.25 1.25ZM8.25 5.9375C9.76823 5.9375 11 7.19727 11 8.75V9.1875C11 9.63672 10.6448 10 10.2056 10H7.44028C7.56632 9.75586 7.63889 9.47656 7.63889 9.17969V9.0625C7.63889 8.05664 7.3066 7.13086 6.75087 6.39258C7.18247 6.10547 7.69809 5.9375 8.25 5.9375Z" fill="black"/>
 </svg>`;
-    } else if (e.visibility === 'unlisted') {
+    } else if (visibility === 'unlisted') {
       svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
   <path d="M12 1C9.24 1 7 3.24 7 6v2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6c0-2.76-2.24-5-5-5zm0 2c1.65 0 3 1.35 3 3v2H9V6c0-1.65 1.35-3 3-3zm0 9a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/>
@@ -380,7 +314,7 @@ function renderEntry(e){
 
   const contentNode = $('#entryContent');
   const contentType = (e.contentType||e.content_type||'text/plain').toLowerCase();
-  if (contentType.includes('markdown')) { marked.setOptions({gfm:true,breaks:true}); contentNode.innerHTML = marked.parse(e.content||''); }
+  if (contentType.includes('markdown')) { contentNode.innerHTML = renderSafeMarkdown(e.content || ''); }
   else { contentNode.textContent = e.content || ''; }
 
   const img = $('#entryImage');
@@ -408,7 +342,7 @@ function renderEntry(e){
       if (contentType.includes('markdown')) {
         if (window.marked) {
           marked.setOptions({ gfm: true, breaks: true });
-          contentNode.innerHTML = marked.parse(e.content || '');
+          contentNode.innerHTML = renderSafeMarkdown(e.content || '');
         } else {
           contentNode.textContent = e.content || '';
         }
@@ -422,7 +356,7 @@ function renderEntry(e){
     if (contentType.includes('markdown')) {
       if (window.marked) {
         marked.setOptions({ gfm: true, breaks: true });
-        contentNode.innerHTML = marked.parse(e.content || '');
+        contentNode.innerHTML = renderSafeMarkdown(e.content || '');
       } else {
         contentNode.textContent = e.content || '';
       }
@@ -457,10 +391,10 @@ function renderEntry(e){
   } else if (commentChipEl) {
     commentChipEl.onclick = null;
   }
-  const canShare = e.visibility === 'public' || e.visibility === 'unlisted';
+  const canShare = visibility === 'public' || visibility === 'unlisted';
   const copyChip = document.getElementById('copyChip');
   const copyNote = document.getElementById('copyNote');
-  if (copyChip) copyChip.style.display = canShare ? '' : 'none';
+  if (copyChip) copyChip.hidden = !canShare;
 
   const entryUrl = window.location.href;
 
@@ -485,7 +419,7 @@ function setTab(which){
   $('#tabComments').classList.toggle('active', isComments);
   $('#tabLikes').classList.toggle('active', !isComments);
   $('#commentsList').style.display = isComments ? '' : 'none';
-  $('#likesList').style.display = isComments ? 'none' : '';
+  $('#likesList').hidden = isComments;
   const commentField = $('#commentField');
   if (commentField) commentField.style.display = isComments ? '' : 'none';
 }
@@ -500,7 +434,7 @@ function renderRight(e){
   clist.innerHTML = '';
 
   const currentUserId = String(localStorage.getItem('user_id') || '');
-  
+
   function extractAuthorSerialFromFqid(fqid) {
     if (!fqid) return fqid;
     if (typeof fqid !== 'string') fqid = String(fqid);
@@ -509,7 +443,7 @@ function renderRight(e){
     }
     return fqid;
   }
-  
+
   const currentUserIdSerial = extractAuthorSerialFromFqid(currentUserId);
 
   (e.comments?.src || []).forEach(c => {
@@ -526,13 +460,13 @@ function renderRight(e){
             <strong>${esc(c.author?.displayName || c.author?.display_name || c.author?.username || '—')}</strong>
             <span class="cmeta">${fmtTime(c.published || c.created_at)}</span>
           </div>
-          <div class="comment-body" style="white-space:pre-wrap;"></div>
-          <textarea class="comment-edit" style="display:none;width:100%;min-height:64px;"></textarea>
-          <div class="cmeta" style="margin-top:6px">${c.like_count ?? 0} likes</div>
+          <div class="comment-body"></div>
+          <textarea class="comment-edit" hidden></textarea>
+          <div class="cmeta comment-likes">${c.like_count ?? 0} likes</div>
         </div>
-        <div class="c-actions" style="display:flex;gap:8px;align-items:center">
+        <div class="c-actions">
           ${IS_AUTHENTICATED ? `
-          <button class="btn btn-like" style="background:#fff;color:#111;border:1px solid var(--line)" title="Like">
+          <button class="btn btn-like" title="Like">
             ${c.user_has_liked_comment
               ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                    <path d="M16.44 3.1001C14.63 3.1001 13.01 3.9801 12 5.3301C10.99 3.9801 9.37 3.1001 7.56 3.1001C4.49 3.1001 2 5.6001 2 8.6901C2 9.8801 2.19 10.9801 2.52 12.0001C4.1 17.0001 8.97 19.9901 11.38 20.8101C11.72 20.9301 12.28 20.9301 12.62 20.8101C15.03 19.9901 19.9 17.0001 21.48 12.0001C21.81 10.9801 22 9.8801 22 8.6901C22 5.6001 19.51 3.1001 16.44 3.1001Z" fill="#292D32"/></svg>`
@@ -542,9 +476,9 @@ function renderRight(e){
           </button>
           ` : ``}
           ${isMine ? `
-            <button class="btn btn-edit"  style="background:#fff;color:#111;border:1px solid var(--line)" title="Edit">Edit</button>
-            <button class="btn btn-save"  style="display:none;background:#111827;color:#fff" title="Save">Save</button>
-            <button class="btn btn-delete" style="background:#ef4444;color:#fff" title="Delete">Delete</button>
+            <button class="btn btn-edit"  title="Edit">Edit</button>
+            <button class="btn btn-save" hidden  title="Save">Save</button>
+            <button class="btn btn-delete" title="Delete">Delete</button>
           ` : ``}
         </div>
       </div>
@@ -572,10 +506,10 @@ function renderRight(e){
 
       // Enter edit mode
       editBtn.onclick = () => {
-        bodyEl.style.display = 'none';
-        editEl.style.display = '';
-        saveBtn.style.display = '';
-        editBtn.style.display = 'none';
+        bodyEl.hidden = true;
+        editEl.hidden = false;
+        saveBtn.hidden = false;
+        editBtn.hidden = true;
         editEl.focus();
       };
 
@@ -610,10 +544,10 @@ function renderRight(e){
       // Optional: Esc cancels edit
       editEl.addEventListener('keydown', ev => {
         if (ev.key === 'Escape') {
-          editEl.style.display = 'none';
-          bodyEl.style.display = '';
-          saveBtn.style.display = 'none';
-          editBtn.style.display = '';
+          editEl.hidden = true;
+          bodyEl.hidden = false;
+          saveBtn.hidden = true;
+          editBtn.hidden = false;
         }
       });
     }

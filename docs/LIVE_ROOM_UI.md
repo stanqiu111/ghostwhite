@@ -1,5 +1,10 @@
 # Live-room UI review
 
+[Documentation index](README.md) · [Current frontend guide](FRONTEND.md)
+
+This is the historical review of the initial room redesign. Subsequent shared
+theme and spacing changes are documented in the frontend guide.
+
 This UI pass is based on `40321818c5eda0787b72660b325f852b803d07b8` on `work`.
 Desktop and mobile visual review passed. This version is ready for local QA;
 the review does not establish end-to-end media acceptance or authorize deployment.

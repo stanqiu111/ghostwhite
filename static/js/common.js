@@ -43,7 +43,11 @@ function updateThemeIcon(dark) {
   const icon = document.getElementById("themeIcon");
   if (icon) icon.innerHTML = dark ? THEME_SUN_SVG : THEME_MOON_SVG;
   const btn = document.getElementById("themeToggle");
-  if (btn) btn.setAttribute("title", dark ? "Switch to light mode" : "Switch to dark mode");
+  if (btn) {
+    const label = dark ? "Switch to light mode" : "Switch to dark mode";
+    btn.setAttribute("title", label);
+    btn.setAttribute("aria-label", label);
+  }
 }
 
 function applyTheme(dark) {
@@ -60,6 +64,12 @@ function toggleTheme() {
 // Runs as soon as common.js is parsed (it is loaded in <head>), so the
 // attribute is on <html> before the body paints and there is no light flash.
 applyTheme(prefersDarkTheme());
+window.matchMedia?.("(prefers-color-scheme: dark)")?.addEventListener?.("change", () => {
+  applyTheme(prefersDarkTheme());
+});
+window.addEventListener("storage", event => {
+  if (event.key === "theme" || event.key === null) applyTheme(prefersDarkTheme());
+});
 document.addEventListener("DOMContentLoaded", () => {
   updateThemeIcon(document.documentElement.getAttribute("data-theme") === "dark");
   const btn = document.getElementById("themeToggle");
@@ -111,8 +121,10 @@ navigateWithFade("/home/");
 function renderSafeMarkdown(mdText) {
   // Check if libraries are available
   if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
-    console.error('marked or DOMPurify not loaded');
-    return mdText || ''; // Return raw text if libraries aren't available
+    // Preserve readable text without treating it as HTML if a library fails.
+    const fallback = document.createElement('div');
+    fallback.textContent = mdText || '';
+    return fallback.innerHTML;
   }
   
   // convert markdown -> html and sanitize
@@ -121,9 +133,9 @@ function renderSafeMarkdown(mdText) {
 
   const cleanHtml = DOMPurify.sanitize(rawHtml, {
     ALLOWED_TAGS: [
-      'p','br','strong','em','s','code','pre','blockquote',
+      'p','br','strong','em','s','del','code','pre','blockquote',
       'ul','ol','li','h1','h2','h3','h4','h5','h6','hr',
-      'a','img'
+      'a','img','table','thead','tbody','tr','th','td'
     ],
     ALLOWED_ATTR: [
       'href','title','target','rel',                // for <a>
@@ -136,18 +148,13 @@ function renderSafeMarkdown(mdText) {
   const tmp = document.createElement('div');
   tmp.innerHTML = cleanHtml;
   tmp.querySelectorAll('a[target="_blank"]').forEach(a => {
-    if (!/noopener|noreferrer/.test(a.rel)) a.rel = 'noopener noreferrer';
+    a.rel = 'noopener noreferrer';
   });
   return tmp.innerHTML;
 }
 
 // Apply markdown rendering to all .entry-content elements on the page
 function renderMarkdownContent() {
-  if (typeof marked === 'undefined') {
-    setTimeout(renderMarkdownContent, 100);
-    return;
-  }
-  
   document.querySelectorAll('.entry-content').forEach(node => {
     const type = String(node.dataset.ctype || 'text/plain').toLowerCase();
 
@@ -162,8 +169,7 @@ function renderMarkdownContent() {
       const md = (node.textContent || node.innerText || '').trim();
       
       if (md) {
-        marked.setOptions({gfm:true,breaks:true});
-        node.innerHTML = marked.parse(md);
+        node.innerHTML = renderSafeMarkdown(md);
       }
       return;
     }

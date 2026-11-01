@@ -1,0 +1,188 @@
+/* Page composition; shared colors come from css/main.css and css/theme.css. */
+:where(body.settings-page *) {
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body.settings-page {
+  background:var(--gw-surface-2);
+  color:var(--gw-text);
+  min-height:100vh;
+}
+
+/* ── Header ── */
+/* Top bar comes from partials/header.html + main.css. */
+body.settings-page .theme-toggle {
+  background:none;
+  border:none;
+  cursor:pointer;
+  padding:6px 8px;
+  border-radius:8px;
+  color:var(--gw-text);
+  font-size:18px;
+  display:flex;
+  align-items:center;
+}
+
+body.settings-page .theme-toggle:hover {
+  background:rgba(0,0,0,0.07);
+}
+
+/* ── Page layout ── */
+body.settings-page .page-wrap {
+  max-width:680px;
+  margin:40px auto;
+  padding:0 20px 60px;
+  display:flex;
+  flex-direction:column;
+  gap:24px;
+}
+
+body.settings-page h1 {
+  font-size:22px;
+  font-weight:700;
+  color:var(--gw-text);
+}
+
+/* ── Toast messages ── */
+body.settings-page .messages {
+  list-style:none;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+body.settings-page .msg {
+  padding:12px 16px;
+  border-radius:10px;
+  font-size:14px;
+  font-weight:500;
+}
+
+body.settings-page .msg-success {
+  background:var(--gw-success-bg);
+  color:var(--gw-success);
+  border:1px solid var(--gw-success-border);
+}
+
+body.settings-page .msg-error {
+  background:var(--gw-danger-bg);
+  color:var(--gw-danger);
+  border:1px solid var(--gw-danger-border);
+}
+
+/* ── Settings card ── */
+body.settings-page .settings-card {
+  background:var(--gw-surface);
+  border-radius:14px;
+  padding:28px 32px;
+  box-shadow:0 2px 10px rgba(0,0,0,0.07);
+}
+
+body.settings-page .settings-card h2 {
+  font-size:15px;
+  font-weight:700;
+  color:var(--gw-text);
+  margin-bottom:20px;
+  padding-bottom:12px;
+  border-bottom:1px solid var(--gw-border);
+}
+
+/* ── Form elements ── */
+body.settings-page .field {
+  margin-bottom:18px;
+}
+
+body.settings-page .field label {
+  display:block;
+  font-size:13px;
+  font-weight:600;
+  color:var(--gw-text-dim);
+  margin-bottom:6px;
+}
+
+body.settings-page .settings-input {
+  width:100%;
+  border:1.5px solid var(--gw-border);
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:14px;
+  color:var(--gw-text);
+  background:var(--gw-surface-2);
+  transition:border-color 0.15s, background 0.15s;
+  outline:none;
+}
+
+body.settings-page .settings-input:focus {
+  border-color:var(--gw-accent);
+  background:var(--gw-surface);
+}
+
+body.settings-page textarea.settings-input {
+  resize:vertical;
+  min-height:80px;
+}
+
+/* image preview */
+body.settings-page .avatar-preview {
+  width:72px;
+  height:72px;
+  border-radius:50%;
+  object-fit:cover;
+  margin-bottom:10px;
+  border:2px solid var(--gw-border);
+}
+
+body.settings-page .field-file input[type="file"] {
+  font-size:13px;
+  color:var(--gw-text-dim);
+}
+
+/* error list under field */
+body.settings-page .field-help {
+  font-size:12px;
+  color:var(--gw-text-dim);
+  margin:6px 0 0;
+  line-height:1.4;
+}
+
+body.settings-page .field-errors {
+  list-style:none;
+  margin-top:4px;
+}
+
+body.settings-page .field-errors li {
+  font-size:12px;
+  color:var(--gw-danger);
+}
+
+/* ── Submit button ── */
+body.settings-page .save-btn {
+  background:var(--gw-accent);
+  color:var(--gw-on-accent);
+  border:none;
+  border-radius:9px;
+  padding:11px 28px;
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+  transition:background 0.15s;
+  margin-top:4px;
+}
+
+body.settings-page .save-btn:hover {
+  background:var(--gw-accent-hover);
+}
+
+@media (max-width: 700px) {
+  body.settings-page .page-wrap {
+    margin-block: 24px;
+    padding-inline: 16px;
+  }
+
+  body.settings-page .settings-card {
+    padding: 24px;
+  }
+
+}

@@ -1,7 +1,7 @@
 /* Bullet curtain (danmaku) for stream_detail.html.
  *
- * Fully isolated from screenshare.js — shares only the DOM and the
- * CSRF + optional-JWT header pattern (copied from signaling.js, not imported).
+ * Shares the same-origin endpoint helper and access error from signaling.js;
+ * media capture/playback remain isolated from chat.
  * Transport: REST cursor polling of /api/streams/<serial>/bullets/
  * (non-consuming; each watcher keeps its own id cursor).
  *
@@ -57,6 +57,7 @@ class BulletCurtain {
     } catch (err) {
       if (this.stopped) return;
       if (err instanceof BulletStreamEnded) { this.onEnded(); return; }
+      if (err.name === 'StreamAccessError') { this.onAccessDenied(); return; }
       this.chatStatus('Chat is reconnecting…');
     } finally {
       this.ui.chat?.setAttribute('aria-busy', 'false');
@@ -66,11 +67,12 @@ class BulletCurtain {
 
   async fetch(params) {
     const qs = new URLSearchParams(params);
-    const res = await window.fetch(`/api/streams/${this.serial}/bullets/?${qs}`, {
+    const res = await window.fetch(streamApiUrl(this.serial, `bullets/?${qs}`), {
       credentials: 'same-origin',
       headers: bulletHeaders(),
     });
     if (res.status === 410) throw new BulletStreamEnded();
+    if ([401, 403, 404].includes(res.status)) throw new StreamAccessError();
     if (!res.ok) throw new Error(`${res.status}`);
     return res.json();
   }
@@ -84,6 +86,7 @@ class BulletCurtain {
     } catch (err) {
       if (this.stopped) return;
       if (err instanceof BulletStreamEnded) this.onEnded();
+      else if (err.name === 'StreamAccessError') this.onAccessDenied();
       else this.chatStatus('Chat is reconnecting…');
       return; // transient errors: try again next tick
     }
@@ -181,7 +184,7 @@ class BulletCurtain {
     this.lastSentAt = now;
     let res;
     try {
-      res = await window.fetch(`/api/streams/${this.serial}/bullets/`, {
+      res = await window.fetch(streamApiUrl(this.serial, 'bullets/'), {
         method: 'POST',
         credentials: 'same-origin',
         headers: bulletHeaders(),
@@ -192,6 +195,7 @@ class BulletCurtain {
       return;
     }
     if (res.status === 410) { this.onEnded(); return; }
+    if ([401, 403, 404].includes(res.status)) { this.onAccessDenied(); return; }
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const detail = data && (data.detail || (data.content && data.content[0]));
@@ -216,6 +220,15 @@ class BulletCurtain {
       this.ui.empty.querySelector('p').textContent = 'This stream has ended. Chat is no longer available.';
     }
     this.hideError();
+  }
+
+  onAccessDenied() {
+    this.stopped = true;
+    clearInterval(this.pollTimer);
+    this.ui.input.disabled = true;
+    this.ui.sendBtn.disabled = true;
+    this.chatStatus('Access to this chat is no longer available. Reload after reconnecting the node.');
+    if (this.ui.title) this.ui.title.textContent = 'Chat unavailable';
   }
 
   showError(msg) {

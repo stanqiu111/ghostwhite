@@ -10,6 +10,24 @@
 
 const ICE_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
+function streamIceConfiguration() {
+  const config = document.getElementById?.('streamIceConfig');
+  return config ? JSON.parse(config.textContent) || ICE_CONFIG : ICE_CONFIG;
+}
+
+async function freshStreamIceConfiguration() {
+  const config = streamIceConfiguration();
+  if (!config.expiresAt || config.expiresAt > Date.now() / 1000 + 120) return config;
+  const response = await fetch('/api/streams/ice/', {
+    credentials: 'same-origin', headers: signalingHeaders(), cache: 'no-store',
+  });
+  if ([401, 403, 404].includes(response.status)) throw new StreamAccessError();
+  if (!response.ok) throw new Error('Could not refresh the media connection credentials.');
+  const fresh = await response.json();
+  document.getElementById('streamIceConfig').textContent = JSON.stringify(fresh);
+  return fresh;
+}
+
 /* ---------------- Broadcaster (owner) ---------------- */
 
 class Broadcaster {
@@ -18,6 +36,7 @@ class Broadcaster {
     this.ui = ui;           // {preview, shareBtn, stopBtn, onAirBadge, errorNote, placeholder}
     this.media = null;
     this.pcs = new Map();   // peerId -> RTCPeerConnection
+    this.iceRefreshTimers = new Map();
     // Candidates that raced ahead of the peer's answer (consume-on-read means
     // a dropped candidate is lost forever, so they must be buffered, not skipped)
     this.pendingCandidates = new Map();  // peerId -> [candidate payload]
@@ -76,7 +95,7 @@ class Broadcaster {
     try {
       items = await pollSignals(this.serial, 'streamer');
     } catch (err) {
-      if (generation === this.generation && err instanceof StreamEndedError) this.stop(false);
+      if (generation === this.generation && (err instanceof StreamEndedError || err.name === 'StreamAccessError')) this.stop(false);
       return; // transient errors: just try again next tick
     } finally {
       this.polling = false;
@@ -96,13 +115,22 @@ class Broadcaster {
 
   async handleJoin(peerId) {
     if (!this.active || this.pcs.has(peerId)) return;
-    const pc = new RTCPeerConnection(ICE_CONFIG);
+    const generation = this.generation;
+    const config = await freshStreamIceConfiguration();
+    if (!this.active || generation !== this.generation || this.pcs.has(peerId)) return;
+    const pc = new RTCPeerConnection(config);
     this.pcs.set(peerId, pc);
+    // The host's credential can expire before a remote viewer's credential.
+    // Close just this peer before expiry; bye makes the viewer rejoin, and the
+    // next handleJoin refreshes the host credentials without stopping capture.
+    if (config.expiresAt) this.iceRefreshTimers.set(peerId, setTimeout(() => {
+      if (this.pcs.get(peerId) === pc) this.closePeer(peerId);
+    }, Math.max(1000, (config.expiresAt - Date.now() / 1000 - 60) * 1000)));
     this.media.getVideoTracks().forEach((t) => pc.addTrack(t, this.media));
     await this.microphone.addPeer(pc, this.media);
     if (this.pcs.get(peerId) !== pc) return;
     pc.onicecandidate = (e) => {
-      if (e.candidate) {
+      if (e.candidate && this.pcs.get(peerId) === pc) {
         postSignal(this.serial, {
           kind: 'candidate', direction: 'to_viewer', peerId, payload: e.candidate.toJSON(),
         }).catch(() => {});
@@ -148,6 +176,8 @@ class Broadcaster {
   }
 
   closePeer(peerId, sendBye = true) {
+    clearTimeout(this.iceRefreshTimers.get(peerId));
+    this.iceRefreshTimers.delete(peerId);
     this.pendingCandidates.delete(peerId);
     const pc = this.pcs.get(peerId);
     if (!pc) return;
@@ -225,25 +255,35 @@ class Player {
   }
 
   sendJoin() {
+    const peerId = this.peerId;
     postSignal(this.serial, { kind: 'join', direction: 'to_streamer', peerId: this.peerId })
-      .catch((err) => { if (err instanceof StreamEndedError) this.onEnded(); });
+      .catch((err) => {
+        if (this.stopped || this.peerId !== peerId) return;
+        if (err instanceof StreamEndedError) this.onEnded();
+        else if (err.name === 'StreamAccessError') this.onAccessDenied();
+      });
   }
 
   async poll() {
     if (this.stopped) return;
+    const peerId = this.peerId;
     let items;
     try {
       items = await pollSignals(this.serial, 'viewer', this.peerId);
     } catch (err) {
+      if (this.stopped || this.peerId !== peerId) return;
       if (err instanceof StreamEndedError) this.onEnded();
+      else if (err.name === 'StreamAccessError') this.onAccessDenied();
       return;
     }
     for (const s of items) {
+      if (this.stopped || this.peerId !== peerId) return;
       try {
         if (s.kind === 'offer') await this.handleOffer(s.payload);
         else if (s.kind === 'candidate') await this.handleCandidate(s.payload);
         else if (s.kind === 'bye') this.resetToWaiting();
       } catch (err) {
+        if (err.name === 'StreamAccessError') { this.onAccessDenied(); return; }
         console.warn('player: signal handling failed', s.kind, err);
         this.setState('error');
       }
@@ -251,10 +291,19 @@ class Player {
   }
 
   async handleOffer(payload) {
+    if (this.stopped) return;
     this.setState('connecting');
     this.closePC();
-    const pc = new RTCPeerConnection(ICE_CONFIG);
+    const peerId = this.peerId;
+    const config = await freshStreamIceConfiguration();
+    if (this.stopped || this.peerId !== peerId) return;
+    const pc = new RTCPeerConnection(config);
     this.pc = pc;
+    // Rejoin with fresh TURN credentials before their authentication expires.
+    // This also renews allocations for long-running rooms.
+    if (config.expiresAt) this.iceRefreshTimer = setTimeout(() => {
+      if (this.pc === pc && !this.stopped) this.resetToWaiting();
+    }, Math.max(1000, (config.expiresAt - Date.now() / 1000 - 60) * 1000));
     pc.ontrack = (e) => {
       if (this.pc !== pc || this.stopped) return;
       this.ui.video.srcObject = e.streams[0];
@@ -279,7 +328,7 @@ class Player {
       }
     };
     pc.onicecandidate = (e) => {
-      if (e.candidate) {
+      if (e.candidate && this.pc === pc && !this.stopped && this.peerId === peerId) {
         postSignal(this.serial, {
           kind: 'candidate', direction: 'to_streamer', peerId: this.peerId,
           payload: e.candidate.toJSON(),
@@ -287,13 +336,16 @@ class Player {
       }
     };
     await pc.setRemoteDescription(new RTCSessionDescription(payload));
+    if (this.pc !== pc || this.stopped) return;
     // Flush candidates that raced ahead of the offer
     const queued = this.pendingCandidates.splice(0);
     for (const c of queued) {
       await pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
     }
     const answer = await pc.createAnswer();
+    if (this.pc !== pc || this.stopped) return;
     await pc.setLocalDescription(answer);
+    if (this.pc !== pc || this.stopped) return;
     await postSignal(this.serial, {
       kind: 'answer', direction: 'to_streamer', peerId: this.peerId,
       payload: { type: pc.localDescription.type, sdp: pc.localDescription.sdp },
@@ -310,6 +362,7 @@ class Player {
   }
 
   closePC() {
+    clearTimeout(this.iceRefreshTimer);
     if (this.pc) {
       const pc = this.pc;
       this.pc = null;
@@ -337,13 +390,25 @@ class Player {
   }
 
   retry() {
-    this.resetToWaiting();
+    if (this.stopped) {
+      this.stopped = false;
+      this.start();
+    } else this.resetToWaiting();
+  }
+
+  onAccessDenied() {
+    this.stopped = true;
+    clearInterval(this.joinTimer);
+    clearTimeout(this.pollTimer);
+    this.closePC();
+    this.setState('error');
+    this.ui.stateText.textContent = 'Access to this stream is no longer available.';
   }
 
   async onEnded() {
     // Confirm via the stream API, then shut everything down
     try {
-      const res = await fetch(`/api/streams/${this.serial}/`, {
+      const res = await fetch(streamApiUrl(this.serial), {
         credentials: 'same-origin', headers: signalingHeaders(),
       });
       const data = await res.json().catch(() => null);

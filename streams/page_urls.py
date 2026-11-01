@@ -1,9 +1,11 @@
 from django.urls import path
 from .views import stream_list_page, stream_create_page, stream_detail_page
+from .remote_views import remote_stream_detail_page
 
 app_name = "streams_pages"
 
 urlpatterns = [
+    path("streams/remote/<uuid:node_id>/<uuid:pk>/", remote_stream_detail_page, name="remote-stream-detail"),
     path(
         "streams/",
         stream_list_page,

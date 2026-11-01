@@ -421,6 +421,12 @@ See `specs/005-stream-microphone/validation.md` for exact outcomes. The managed 
 
 `python streams/browser_tests/media.py --ui-check` verifies the live-room UI and writes neutral screenshots. Viewer live/error presentation is explicitly simulated; chat and server actions use the real isolated app. See `docs/LIVE_ROOM_UI.md` for first-version review results and remaining local QA.
 
+Connected Ghostwhite nodes can discover/watch remote streams through same-origin
+home-node proxies and the node-authenticated `/api/federation/streams/` extension.
+`StreamPeer` binds signaling mailboxes to viewers; only local owners broadcast.
+See `docs/FEDERATED_STREAMING.md` for reciprocal credentials, third-party contract,
+TURN configuration/renewal, revocation and two-process verification commands.
+
 ---
 
 ## Visibility Rules

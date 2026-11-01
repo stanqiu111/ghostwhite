@@ -13,6 +13,18 @@ class StreamEndedError extends Error {
   }
 }
 
+class StreamAccessError extends Error {
+  constructor() {
+    super('Access to this stream is no longer available.');
+    this.name = 'StreamAccessError';
+  }
+}
+
+function streamApiUrl(serial, suffix = '') {
+  const base = document.getElementById('streamPlayer')?.dataset.apiBase;
+  return `${base || `/api/streams/${serial}/`}${suffix}`;
+}
+
 function signalingHeaders() {
   const headers = { 'Content-Type': 'application/json' };
   const m = document.cookie.match('(^|;)\\s*csrftoken\\s*=\\s*([^;]+)');
@@ -25,7 +37,7 @@ function signalingHeaders() {
 /* Send one signal. kind: join|offer|answer|candidate|bye.
    direction: to_streamer|to_viewer. Throws StreamEndedError on 410. */
 async function postSignal(serial, { kind, direction, peerId, payload = {} }, { keepalive = false } = {}) {
-  const res = await fetch(`/api/streams/${serial}/signals/`, {
+  const res = await fetch(streamApiUrl(serial, 'signals/'), {
     method: 'POST',
     credentials: 'same-origin',
     keepalive,
@@ -33,6 +45,7 @@ async function postSignal(serial, { kind, direction, peerId, payload = {} }, { k
     body: JSON.stringify({ kind, direction, peer_id: peerId, payload }),
   });
   if (res.status === 410) throw new StreamEndedError();
+  if ([401, 403, 404].includes(res.status)) throw new StreamAccessError();
   if (!res.ok) {
     const data = await res.json().catch(() => null);
     throw new Error(data?.detail || `${res.status} ${res.statusText}`);
@@ -45,11 +58,12 @@ async function postSignal(serial, { kind, direction, peerId, payload = {} }, { k
 async function pollSignals(serial, role, peerId = null) {
   const params = new URLSearchParams({ role });
   if (peerId) params.set('peer_id', peerId);
-  const res = await fetch(`/api/streams/${serial}/signals/?${params}`, {
+  const res = await fetch(streamApiUrl(serial, `signals/?${params}`), {
     credentials: 'same-origin',
     headers: signalingHeaders(),
   });
   if (res.status === 410) throw new StreamEndedError();
+  if ([401, 403, 404].includes(res.status)) throw new StreamAccessError();
   if (!res.ok) {
     const data = await res.json().catch(() => null);
     throw new Error(data?.detail || `${res.status} ${res.statusText}`);

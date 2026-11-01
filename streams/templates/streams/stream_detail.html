@@ -24,6 +24,7 @@
 
 <body class="streams-page stream-room-page">
   {% include "partials/header.html" %}
+  {{ ice_config|json_script:"streamIceConfig" }}
 
   <main class="streams-container stream-room" aria-labelledby="streamTitle">
     <div class="stream-room-nav">
@@ -40,6 +41,7 @@
     <div class="stream-room-layout">
     <section class="stream-main" aria-label="Broadcast">
       <div class="stream-player" id="streamPlayer"
+           data-api-base="{{ stream_api_base }}"
            data-stream-serial="{{ stream.serial }}"
            data-is-owner="{{ is_owner|yesno:'1,0' }}"
            data-stream-status="{{ stream.status }}">
@@ -123,6 +125,7 @@
         <div>
           <h1 id="streamTitle">{{ stream.title }}</h1>
           <p class="stream-creator-name">{{ stream.owner.display_name|default:stream.owner.username }} <span class="stream-host-tag">Host</span></p>
+          {% if remote_origin %}<p class="stream-session-time">Streaming from {{ remote_origin }}</p>{% endif %}
           <p class="stream-session-time">
             {% if stream.ended_at %}Ended {{ stream.ended_at|date:"M j, Y · g:i A" }}
             {% else %}Session started {{ stream.started_at|date:"M j · g:i A" }}{% endif %}

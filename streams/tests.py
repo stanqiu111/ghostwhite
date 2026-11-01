@@ -253,6 +253,32 @@ class StreamListDetailTests(StreamTestBase):
 
 # ---------------- US3: End a stream (owner only) ----------------
 
+class StreamMicrophonePageTests(StreamTestBase):
+    def test_owner_receives_disabled_opt_in_controls_and_muted_preview(self):
+        stream = self.make_stream()
+        self.client.force_login(self.streamer)
+        response = self.client.get(stream.get_absolute_url())
+        self.assertContains(response, 'id="microphoneBtn" disabled')
+        self.assertContains(response, 'Microphone off')
+        self.assertContains(response, 'id="localPreview" autoplay muted')
+
+    def test_viewer_has_sound_recovery_but_no_capture_controls(self):
+        stream = self.make_stream()
+        self.client.force_login(self.viewer)
+        response = self.client.get(stream.get_absolute_url())
+        self.assertNotContains(response, 'id="microphoneBtn"')
+        self.assertContains(response, 'id="enableSoundBtn"')
+
+    def test_ended_stream_has_no_microphone_or_sound_recovery_controls(self):
+        stream = self.make_stream()
+        stream.end()
+        for user in (self.streamer, self.viewer):
+            self.client.force_login(user)
+            response = self.client.get(stream.get_absolute_url())
+            self.assertNotContains(response, 'id="microphoneBtn"')
+            self.assertNotContains(response, 'id="enableSoundBtn"')
+
+
 class StreamEndTests(StreamTestBase):
     def end_url(self, stream):
         return f"/api/streams/{stream.serial}/end/"

@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+import json
 import dj_database_url
 
 
@@ -46,6 +47,13 @@ ALLOWED_HOSTS = [
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = "/static/"
 CORS_ALLOW_ALL_ORIGINS = False
+
+# Use an operator-owned STUN/TURN service for cross-network streaming.
+STREAM_ICE_SERVERS = json.loads(os.environ.get(
+    "STREAM_ICE_SERVERS_JSON", '[{"urls":"stun:stun.l.google.com:19302"}]'
+))
+STREAM_TURN_URLS = [url.strip() for url in os.environ.get("STREAM_TURN_URLS", "").split(",") if url.strip()]
+STREAM_TURN_SHARED_SECRET = os.environ.get("STREAM_TURN_SHARED_SECRET", "")
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"

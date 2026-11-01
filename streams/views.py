@@ -17,6 +17,7 @@ from .serializers import (
     StreamBulletMessageSerializer,
     StreamSerializer,
     StreamSignalSerializer,
+    StreamPeerSerializer,
 )
 
 SIGNAL_TTL = timedelta(minutes=5)
@@ -74,6 +75,7 @@ class StreamEndView(APIView):
         stream.end()
         # Ended streams accept no more signaling; drop anything still queued
         stream.signals.all().delete()
+        stream.peers.all().delete()
         serializer = StreamSerializer(stream, context={"request": request})
         return Response(serializer.data)
 
@@ -119,6 +121,7 @@ class StreamSignalView(APIView):
 
         role = request.query_params.get("role")
         peer_id = request.query_params.get("peer_id")
+        revoked = []
         if role == "streamer":
             if stream.owner != request.user:
                 return Response(
@@ -126,13 +129,19 @@ class StreamSignalView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
             qs = stream.signals.filter(direction="to_streamer")
+            revoked = StreamPeerSerializer.revoke_disabled_nodes(stream)
         elif role == "viewer":
             if not peer_id:
                 return Response(
                     {"detail": "peer_id is required for role=viewer."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            qs = stream.signals.filter(direction="to_viewer", peer_id=peer_id)
+            peer = StreamPeerSerializer(
+                data={"peer_id": peer_id}, context={"request": request, "stream": stream},
+            )
+            peer.is_valid(raise_exception=True)
+            binding = peer.save()
+            qs = stream.signals.filter(direction="to_viewer", peer_id=binding.peer_id)
         else:
             return Response(
                 {"detail": "role must be 'streamer' or 'viewer'."},
@@ -156,7 +165,7 @@ class StreamSignalView(APIView):
             ]
             qs.filter(id__in=[s.id for s in signals]).delete()
 
-        return Response({"type": "signals", "items": items})
+        return Response({"type": "signals", "items": revoked + items})
 
 
 class StreamBulletView(APIView):
@@ -203,9 +212,9 @@ class StreamBulletView(APIView):
                 after_id = int(after)
             except ValueError:
                 after_id = -1
-            if after_id < 0:
+            if not 0 <= after_id <= 2**53 - 1:
                 return Response(
-                    {"detail": "after must be a non-negative integer."},
+                    {"detail": "after must be a non-negative JavaScript-safe integer."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             bullets = list(
@@ -220,8 +229,7 @@ class StreamBulletView(APIView):
                 .order_by("-id")[:BULLET_BOOTSTRAP_LIMIT]
             )
             bullets.reverse()
-            latest_id = stream.bullets.order_by("-id").values_list("id", flat=True).first()
-            cursor = latest_id or 0
+            cursor = bullets[-1].id if bullets else 0
         else:
             return Response(
                 {"detail": "Provide either ?after=<id> or ?latest=1."},
@@ -238,10 +246,12 @@ def stream_list_page(request):
     if not request.user.is_authenticated:
         return redirect("authors_pages:auth_page")
     streams = Stream.objects.filter(status="live").select_related("owner")
+    from nodes.models import Node
     return render(
         request,
         "streams/stream_list.html",
-        {"streams": streams, "user": request.user},
+        {"streams": streams, "user": request.user,
+         "remote_nodes": Node.objects.filter(is_local=False, is_active=True, is_disabled=False)},
     )
 
 
@@ -272,6 +282,7 @@ def stream_detail_page(request, pk):
         stream = find_stream_by_uuid(pk)
     except Stream.DoesNotExist:
         raise Http404()
+    from .ice import ice_configuration
     return render(
         request,
         "streams/stream_detail.html",
@@ -279,5 +290,6 @@ def stream_detail_page(request, pk):
             "stream": stream,
             "is_owner": stream.owner == request.user,
             "user": request.user,
+            "ice_config": ice_configuration(),
         },
     )

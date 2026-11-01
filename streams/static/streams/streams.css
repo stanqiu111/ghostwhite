@@ -318,6 +318,24 @@
   align-items: center;
   gap: 6px;
 }
+
+.stream-microphone-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+.stream-microphone-controls .stream-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.stream-audio-status {
+  font-size: 13px;
+}
 .stream-volume-group input[type="range"] {
   width: 110px;
   accent-color: #4f46e5;
@@ -480,3 +498,7 @@
 .stream-form-cancel:hover {
   text-decoration: underline;
 }
+.remote-stream-section { margin-top: 36px; overflow-wrap: anywhere; }
+.remote-stream-section h2 { font-size: 18px; }
+.remote-stream-status { font-size: 13px; color: var(--gw-text-dim); margin-bottom: 16px; }
+.remote-stream-retry { margin-top: 12px; }

@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from authors.serializers import AuthorSerializer
 from utils.fqid import extract_serial_from_fqid, extract_stream_id_from_fqid
-from .models import Stream, StreamBulletMessage, StreamSignal
+from .models import Stream, StreamBulletMessage, StreamPeer, StreamSignal
 
 MAX_SIGNAL_PAYLOAD_BYTES = 32 * 1024
 MAX_BULLET_CONTENT_CHARS = 120
@@ -72,6 +72,32 @@ class StreamSerializer(serializers.ModelSerializer):
         )
 
 
+class StreamPeerSerializer(serializers.Serializer):
+    peer_id = serializers.CharField(max_length=64)
+
+    def create(self, validated_data):
+        peer, _ = StreamPeer.objects.get_or_create(
+            stream=self.context["stream"], peer_id=validated_data["peer_id"],
+            defaults={"viewer": self.context["request"].user},
+        )
+        if peer.viewer_id != self.context["request"].user.pk:
+            raise PermissionDenied("This peer belongs to another viewer.")
+        return peer
+
+    @staticmethod
+    def revoke_disabled_nodes(stream):
+        from django.db.models import Q
+        peers = stream.peers.filter(viewer__node__is_local=False).filter(
+            Q(viewer__node__is_disabled=True) | Q(viewer__node__is_active=False)
+        )
+        revoked = list(peers.values_list("peer_id", flat=True))
+        stream.signals.filter(peer_id__in=revoked).delete()
+        # Retain the binding until end: if a poll response is lost, the next
+        # owner poll must repeat the teardown instruction. Closing is idempotent.
+        return [{"kind": "bye", "peer_id": peer_id, "payload": {}, "sender_serial": ""}
+                for peer_id in revoked]
+
+
 class StreamSignalSerializer(serializers.ModelSerializer):
     """WebRTC signaling message. All rules live here (constitution IV).
 
@@ -109,6 +135,12 @@ class StreamSignalSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        if validated_data["direction"] == "to_streamer":
+            peer = StreamPeerSerializer(
+                data={"peer_id": validated_data["peer_id"]}, context=self.context,
+            )
+            peer.is_valid(raise_exception=True)
+            peer.save()
         return StreamSignal.objects.create(
             stream=self.context["stream"],
             sender=self.context["request"].user,

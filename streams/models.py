@@ -79,6 +79,19 @@ SIGNAL_DIRECTION_CHOICES = [
     ("to_viewer", "To viewer"),
 ]
 
+
+class StreamPeer(models.Model):
+    """Bind a signaling mailbox to its viewer until the stream ends."""
+
+    stream = models.ForeignKey(Stream, on_delete=models.CASCADE, related_name="peers")
+    viewer = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="+")
+    peer_id = models.CharField(max_length=64)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["stream", "peer_id"], name="stream_peer_unique"),
+        ]
+
 SIGNAL_KIND_CHOICES = [
     ("join", "Join"),
     ("offer", "Offer"),

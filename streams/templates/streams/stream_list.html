@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{% static 'css/main.css' %}?v=5">
   <link rel="stylesheet" href="{% static 'streams/streams.css' %}">
   <script src="{% static 'js/common.js' %}?v=5"></script>
+  <script src="{% static 'streams/remote_streams.js' %}" defer></script>
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
 </head>
 
@@ -40,6 +41,15 @@
     {% else %}
     <div class="streams-empty">No one is live right now. Be the first — go live!</div>
     {% endif %}
+    {% for node in remote_nodes %}
+    <section class="remote-stream-section" aria-labelledby="remoteNode{{ node.id }}"
+             data-streams-url="{% url 'streams_api:remote-stream-list' node.id %}">
+      <h2 id="remoteNode{{ node.id }}">Streams from {{ node.host_url }}</h2>
+      <p class="remote-stream-status" role="status">Loading remote streams…</p>
+      <div class="streams-grid"></div>
+      <button class="stream-btn remote-stream-retry" type="button" hidden>Retry connection</button>
+    </section>
+    {% endfor %}
   </div>
 </body>
 </html>
